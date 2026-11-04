@@ -5,7 +5,11 @@ use std::os::raw::c_void;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-static GLOBAL_DPI_SCALE: AtomicU32 = AtomicU32::new(0x3f800000); // 1.0f32.to_bits()
+const DEFAULT_UI_SCALE_BITS: u32 = 0x3f800000; // 1.0f32.to_bits()
+const MIN_UI_DPI_SCALE: f32 = 0.1;
+
+static GLOBAL_DPI_SCALE: AtomicU32 = AtomicU32::new(DEFAULT_UI_SCALE_BITS);
+static GLOBAL_FONT_SCALE: AtomicU32 = AtomicU32::new(DEFAULT_UI_SCALE_BITS);
 
 pub fn get_global_dpi_scale() -> f32 {
     f32::from_bits(GLOBAL_DPI_SCALE.load(Ordering::Relaxed))
@@ -14,6 +18,15 @@ pub fn get_global_dpi_scale() -> f32 {
 pub fn set_global_dpi_scale(scale: f32) {
     let scale = if 0.0 < scale { scale } else { 1.0 };
     GLOBAL_DPI_SCALE.store(scale.to_bits(), Ordering::Relaxed);
+}
+
+pub fn get_global_font_scale() -> f32 {
+    f32::from_bits(GLOBAL_FONT_SCALE.load(Ordering::Relaxed))
+}
+
+pub fn set_global_font_scale(scale: f32) {
+    let scale = if 0.0 < scale { scale } else { 1.0 };
+    GLOBAL_FONT_SCALE.store(scale.to_bits(), Ordering::Relaxed);
 }
 
 use crate::constants;
@@ -285,6 +298,7 @@ pub struct UIManager<'a> {
     pub _window_size: Vector2<i32>,
     pub _reference_window_size: Vector2<f32>,
     pub _dpi_scale: f32,
+    pub _font_scale: f32,
     pub _quad_mesh: GeometryData,
     pub _font_data: RcRefCell<FontData>,
     pub _ui_render_data_list: Vec<UIRenderData>,
@@ -1429,7 +1443,12 @@ impl<'a> UIComponentInstance<'a> {
                 self._original_text.clone()
             };
 
-            let font_size_ratio = (self.get_font_size() * dpi_scale) / font_data._font_size.y;
+            let font_scale = if self._enable_dpi_scale {
+                get_global_font_scale()
+            } else {
+                1.0
+            };
+            let font_size_ratio = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
             let font_size = &font_data._font_size * font_size_ratio;
             let char_width = font_size.x * UI_RENDER_FONT_PADDING_RATIO;
 
@@ -1604,7 +1623,12 @@ impl<'a> UIComponentInstance<'a> {
 
         let count_of_side: u32 = font_data._count_of_side;
         let inv_count_of_side: f32 = 1.0 / font_data._count_of_side as f32;
-        let font_size_ratio: f32 = (self.get_font_size() * dpi_scale) / font_data._font_size.y;
+        let font_scale = if self._enable_dpi_scale {
+            get_global_font_scale()
+        } else {
+            1.0
+        };
+        let font_size_ratio: f32 = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
         let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
         let mut column: i32 = 0;
         let mut row: i32 = 0;
@@ -1811,6 +1835,7 @@ impl<'a> UIComponentInstance<'a> {
                 if self._text.is_empty() {
                     self._render_text_count = 0;
                 } else {
+                    let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
                     self.collect_ui_font_render_data(
                         font_data,
                         *render_ui_count,
@@ -1818,7 +1843,7 @@ impl<'a> UIComponentInstance<'a> {
                         prev_render_group_data,
                         render_ui_instance_data_list,
                         opacity,
-                        dpi_scale,
+                        component_dpi_scale,
                         widget_restrict_renderable_area,
                     );
                 }
@@ -1924,6 +1949,17 @@ impl<'a> UIComponentInstance<'a> {
                     }
                 }
             }
+        }
+    }
+
+    pub fn recursive_mark_text_changed(&mut self) {
+        if !self._text.is_empty() || !self._original_text.is_empty() {
+            self._changed_text = true;
+            self._changed_render_data = true;
+            self.set_changed_layout(true);
+        }
+        for child_ui_component in self._children.iter() {
+            ptr_as_mut(*child_ui_component).recursive_mark_text_changed();
         }
     }
 
@@ -2851,6 +2887,7 @@ impl<'a> UIManager<'a> {
             _window_size: Vector2::zeros(),
             _reference_window_size: Vector2::new(1920.0, 1080.0),
             _dpi_scale: 1.0,
+            _font_scale: get_global_font_scale(),
             _quad_mesh: GeometryData::default(),
             _font_data: system::newRcRefCell(FontData::default()),
             _ui_render_data_list: Vec::new(),
@@ -2891,11 +2928,30 @@ impl<'a> UIManager<'a> {
     }
 
     pub fn get_dpi_scale(&self) -> f32 {
-        get_global_dpi_scale()
+        self._dpi_scale
     }
 
     pub fn get_dpi_scale_static() -> f32 {
         get_global_dpi_scale()
+    }
+
+    pub fn update_window_size(&mut self, window_size: &Vector2<i32>) {
+        if window_size.x <= 0 || window_size.y <= 0 {
+            return;
+        }
+        if *window_size != self._window_size {
+            log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
+            self._window_size = *window_size;
+            if 0.0 < self._reference_window_size.x && 0.0 < self._reference_window_size.y {
+                let scale_x = self._window_size.x as f32 / self._reference_window_size.x;
+                let scale_y = self._window_size.y as f32 / self._reference_window_size.y;
+                self._dpi_scale = scale_x.min(scale_y).max(MIN_UI_DPI_SCALE);
+                set_global_dpi_scale(self._dpi_scale);
+            }
+            let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
+            root_ui_component.recursive_mark_text_changed();
+            root_ui_component.set_changed_layout(true);
+        }
     }
 
     pub fn set_reference_window_size(&mut self, width: f32, height: f32) {
@@ -2904,9 +2960,10 @@ impl<'a> UIManager<'a> {
         if 0.0 < self._window_size.x as f32 && 0.0 < self._window_size.y as f32 && 0.0 < width && 0.0 < height {
             let scale_x = self._window_size.x as f32 / width;
             let scale_y = self._window_size.y as f32 / height;
-            self._dpi_scale = scale_x.min(scale_y).max(0.1);
+            self._dpi_scale = scale_x.min(scale_y).max(MIN_UI_DPI_SCALE);
             set_global_dpi_scale(self._dpi_scale);
             let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
+            root_ui_component.recursive_mark_text_changed();
             root_ui_component.set_changed_layout(true);
         }
     }
@@ -3114,16 +3171,12 @@ impl<'a> UIManager<'a> {
         self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera);
 
         // update ui components
+        self.update_window_size(window_size);
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
-        if *window_size != self._window_size {
-            log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
-            self._window_size = window_size.clone() as Vector2<i32>;
-            if 0.0 < self._reference_window_size.x && 0.0 < self._reference_window_size.y {
-                let scale_x = self._window_size.x as f32 / self._reference_window_size.x;
-                let scale_y = self._window_size.y as f32 / self._reference_window_size.y;
-                self._dpi_scale = scale_x.min(scale_y).max(0.1);
-                set_global_dpi_scale(self._dpi_scale);
-            }
+        let current_font_scale = get_global_font_scale();
+        if (current_font_scale - self._font_scale).abs() > f32::EPSILON {
+            self._font_scale = current_font_scale;
+            root_ui_component.recursive_mark_text_changed();
             root_ui_component.set_changed_layout(true);
         }
 
@@ -3348,5 +3401,29 @@ impl<'a> UIWorldAxis<'a> {
             &Vector2::new(start_pos_x + axis_z.x, start_pos_y + axis_z.y),
             get_color32(0, 0, 255, 255),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dpi_scale_and_font_scale_isolation() {
+        let mut ui_manager = UIManager::create_ui_manager();
+        ui_manager.update_window_size(&Vector2::new(1280, 720));
+
+        let expected_dpi = 720.0_f32 / 1080.0_f32;
+        assert!((ui_manager.get_dpi_scale() - expected_dpi).abs() < 1e-5);
+        assert!((get_global_dpi_scale() - expected_dpi).abs() < 1e-5);
+
+        // Changing font scale must never overwrite GLOBAL_DPI_SCALE
+        set_global_font_scale(1.4);
+        assert!((get_global_font_scale() - 1.4).abs() < 1e-5);
+        assert!((get_global_dpi_scale() - expected_dpi).abs() < 1e-5);
+
+        // Reset globals for cleanliness
+        set_global_font_scale(1.0);
+        set_global_dpi_scale(1.0);
     }
 }

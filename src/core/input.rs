@@ -34,6 +34,7 @@ pub struct KeyboardInputData {
 pub struct MouseMoveData {
     pub _mouse_pos: Vector2<i32>,
     pub _mouse_pos_delta: Vector2<i32>,
+    pub _mouse_move_remainder: Vector2<f64>,
     pub _scroll_delta: Vector2<i32>,
     pub _touch_pos: Vector2<i32>,
     pub _primary_touch_id: Option<u64>,
@@ -117,6 +118,7 @@ pub fn create_mouse_move_data(width: i32, height: i32) -> Box<MouseMoveData> {
     Box::new(MouseMoveData {
         _mouse_pos: mouse_pos.clone(),
         _mouse_pos_delta: Vector2::new(0, 0),
+        _mouse_move_remainder: Vector2::zeros(),
         _scroll_delta: Vector2::new(0, 0),
         _touch_pos: mouse_pos.clone(),
         _primary_touch_id: None,
@@ -137,7 +139,7 @@ impl MouseMoveData {
     }
 
     pub fn clamp_mouse_pos(pos: i32, limit_pos: i32) -> i32 {
-        if pos < 0 {
+        if limit_pos <= 0 || pos < 0 {
             0
         } else if limit_pos <= pos {
             limit_pos - 1
@@ -149,6 +151,7 @@ impl MouseMoveData {
     pub fn update_mouse_pos(&mut self, position: &(i32, i32), window_size: &Vector2<i32>, update_mouse_pos: bool) {
         self._mouse_pos_delta.x += position.0 - self._mouse_pos.x;
         self._mouse_pos_delta.y += position.1 - self._mouse_pos.y;
+        self._mouse_move_remainder = Vector2::zeros();
         if update_mouse_pos {
             self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(position.0, window_size.x);
             self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(position.1, window_size.y);
@@ -164,9 +167,41 @@ impl MouseMoveData {
         }
     }
 
+    pub fn update_mouse_move_f64(&mut self, delta: &(f64, f64), window_size: &Vector2<i32>, update_mouse_pos: bool) {
+        let total_x = self._mouse_move_remainder.x + delta.0;
+        let total_y = self._mouse_move_remainder.y + delta.1;
+        let step_x = total_x.trunc() as i32;
+        let step_y = total_y.trunc() as i32;
+        self._mouse_move_remainder.x = total_x - step_x as f64;
+        self._mouse_move_remainder.y = total_y - step_y as f64;
+        if step_x != 0 || step_y != 0 {
+            self.update_mouse_move(&(step_x, step_y), window_size, update_mouse_pos);
+        }
+    }
+
     pub fn set_mouse_pos(&mut self, pos: &Vector2<i32>, window_size: &Vector2<i32>) {
         self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(pos.x, window_size.x);
         self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(pos.y, window_size.y);
+        self._mouse_move_remainder = Vector2::zeros();
+    }
+
+    pub fn rescale_mouse_pos(&mut self, old_window_size: &Vector2<i32>, new_window_size: &Vector2<i32>) {
+        if new_window_size.x <= 0 || new_window_size.y <= 0 {
+            return;
+        }
+        let scaled_x = if old_window_size.x > 0 {
+            (((self._mouse_pos.x as f64 + 0.5) * new_window_size.x as f64) / old_window_size.x as f64).floor() as i32
+        } else {
+            new_window_size.x / 2
+        };
+        let scaled_y = if old_window_size.y > 0 {
+            (((self._mouse_pos.y as f64 + 0.5) * new_window_size.y as f64) / old_window_size.y as f64).floor() as i32
+        } else {
+            new_window_size.y / 2
+        };
+        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(scaled_x, new_window_size.x);
+        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(scaled_y, new_window_size.y);
+        self._mouse_move_remainder = Vector2::zeros();
     }
 
     pub fn update_scroll_move(&mut self, delta: &(i32, i32)) {
@@ -180,6 +215,7 @@ impl MouseMoveData {
         self._touch_pos = Vector2::new(position.0, position.1);
         self._mouse_pos_delta.x = 0;
         self._mouse_pos_delta.y = 0;
+        self._mouse_move_remainder = Vector2::zeros();
         self.set_mouse_pos(&self._touch_pos.clone(), window_size);
     }
 
@@ -195,6 +231,7 @@ impl MouseMoveData {
         self._is_touch_active = false;
         self._mouse_pos_delta.x = 0;
         self._mouse_pos_delta.y = 0;
+        self._mouse_move_remainder = Vector2::zeros();
     }
 }
 
@@ -513,5 +550,38 @@ impl JoystickInputData {
             Button::DPadRight => self._btn_right = button_state,
             _ => log::debug!("unknown button: {:?}", button),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mouse_move_rescale_and_clamp() {
+        let mut mouse = create_mouse_move_data(960, 540);
+        mouse.rescale_mouse_pos(&Vector2::new(1920, 1080), &Vector2::new(1280, 720));
+        assert_eq!(mouse._mouse_pos, Vector2::new(640, 360));
+
+        // Near bottom-right edge must clamp safely inside new bounds
+        mouse.set_mouse_pos(&Vector2::new(1919, 1079), &Vector2::new(1920, 1080));
+        mouse.rescale_mouse_pos(&Vector2::new(1920, 1080), &Vector2::new(1280, 720));
+        assert_eq!(mouse._mouse_pos, Vector2::new(1279, 719));
+    }
+
+    #[test]
+    fn test_subpixel_mouse_motion_accumulation() {
+        let mut mouse = create_mouse_move_data(100, 100);
+        let window_size = Vector2::new(800, 600);
+        mouse.update_mouse_move_f64(&(0.4, -0.4), &window_size, true);
+        assert_eq!(mouse._mouse_pos, Vector2::new(100, 100));
+        assert_eq!(mouse._mouse_pos_delta, Vector2::new(0, 0));
+
+        mouse.update_mouse_move_f64(&(0.4, -0.4), &window_size, true);
+        assert_eq!(mouse._mouse_pos, Vector2::new(100, 100));
+
+        mouse.update_mouse_move_f64(&(0.4, -0.4), &window_size, true);
+        assert_eq!(mouse._mouse_pos, Vector2::new(101, 99));
+        assert_eq!(mouse._mouse_pos_delta, Vector2::new(1, -1));
     }
 }

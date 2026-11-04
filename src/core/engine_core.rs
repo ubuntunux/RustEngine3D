@@ -11,8 +11,9 @@ use winit::event::{
 };
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
-use winit::monitor::MonitorHandle;
+use winit::monitor::{MonitorHandle, VideoModeHandle};
 use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
+use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes, WindowId};
 
 use crate::audio::audio_manager::AudioManager;
@@ -34,6 +35,78 @@ use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumCount, EnumIter, FromRepr};
+
+const DEFAULT_FALLBACK_WIDTH: u32 = 1920;
+const DEFAULT_FALLBACK_HEIGHT: u32 = 1080;
+
+fn is_wayland_window(window: &Window) -> bool {
+    window.display_handle().map(|handle| matches!(handle.as_raw(), RawDisplayHandle::Wayland(_))).unwrap_or(false)
+}
+
+fn find_best_video_mode(
+    monitor: &MonitorHandle,
+    desired_size: Option<dpi::PhysicalSize<u32>>,
+) -> Option<VideoModeHandle> {
+    let monitor_refresh = monitor.refresh_rate_millihertz();
+    if let Some(target_size) = desired_size {
+        if let Some(refresh_hz) = monitor_refresh {
+            if let Some(exact) =
+                monitor.video_modes().find(|vm| vm.size() == target_size && vm.refresh_rate_millihertz() == refresh_hz)
+            {
+                return Some(exact);
+            }
+        }
+        if let Some(best_for_size) = monitor
+            .video_modes()
+            .filter(|vm| vm.size() == target_size)
+            .max_by_key(|vm| (vm.refresh_rate_millihertz(), vm.bit_depth()))
+        {
+            return Some(best_for_size);
+        }
+    }
+
+    let native_size = monitor.size();
+    if let Some(refresh_hz) = monitor_refresh {
+        if let Some(native_exact) =
+            monitor.video_modes().find(|vm| vm.size() == native_size && vm.refresh_rate_millihertz() == refresh_hz)
+        {
+            return Some(native_exact);
+        }
+    }
+
+    monitor
+        .video_modes()
+        .filter(|vm| vm.size() == native_size)
+        .max_by_key(|vm| (vm.refresh_rate_millihertz(), vm.bit_depth()))
+        .or_else(|| monitor.video_modes().next())
+}
+
+fn compute_centered_window_pos(monitor: &MonitorHandle, resolution: Vector2<u32>) -> dpi::PhysicalPosition<i32> {
+    let mon_pos = monitor.position();
+    let mon_size = monitor.size();
+    if mon_size.width == 0 || mon_size.height == 0 {
+        return mon_pos;
+    }
+    let win_w = resolution.x.min(mon_size.width) as i32;
+    let win_h = resolution.y.min(mon_size.height) as i32;
+    let offset_x = (mon_size.width as i32 - win_w).max(0) / 2;
+    let offset_y = (mon_size.height as i32 - win_h).max(0) / 2;
+    dpi::PhysicalPosition::new(mon_pos.x + offset_x, mon_pos.y + offset_y)
+}
+
+fn apply_window_cursor_grab(window: &Window, is_grab_mode: bool) {
+    if is_grab_mode {
+        // Reset cached grab state first so X11/Wayland re-grabs reliably after fullscreen/monitor transitions.
+        let _ = window.set_cursor_grab(CursorGrabMode::None);
+        if window.set_cursor_grab(CursorGrabMode::Locked).is_err() {
+            let _ = window.set_cursor_grab(CursorGrabMode::Confined);
+        }
+        window.set_cursor_visible(false);
+    } else {
+        let _ = window.set_cursor_grab(CursorGrabMode::None);
+        window.set_cursor_visible(true);
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumCount, EnumIter, FromRepr)]
 pub enum WindowMode {
@@ -204,6 +277,7 @@ pub struct EngineCore<'a> {
     pub _window_mode: WindowMode,
     pub _monitor_index: Option<usize>,
     pub _resolution: Vector2<u32>,
+    pub _pending_window_size: Option<dpi::PhysicalSize<u32>>,
 }
 
 impl<'a> EngineCore<'a> {
@@ -226,35 +300,110 @@ impl<'a> EngineCore<'a> {
         self._resolution
     }
     pub fn set_window_mode(&mut self, window_mode: WindowMode) {
-        if self._window_mode != window_mode {
-            self._window_mode = window_mode;
-            let window = self.get_window();
-            match window_mode {
-                WindowMode::WindowMode => {
+        self.set_display_options(window_mode, self._monitor_index, self._resolution);
+    }
+    pub fn set_monitor_index(&mut self, monitor_index: Option<usize>) {
+        self.set_display_options(self._window_mode, monitor_index, self._resolution);
+    }
+    pub fn set_resolution(&mut self, resolution: Vector2<u32>) {
+        self.set_display_options(self._window_mode, self._monitor_index, resolution);
+    }
+    pub fn set_display_options(
+        &mut self,
+        window_mode: WindowMode,
+        monitor_index: Option<usize>,
+        resolution: Vector2<u32>,
+    ) {
+        let mode_changed = self._window_mode != window_mode;
+        let monitor_changed = self._monitor_index != monitor_index;
+        let resolution_changed = self._resolution != resolution;
+        if !mode_changed && !monitor_changed && !resolution_changed {
+            return;
+        }
+
+        self._window_mode = window_mode;
+        self._monitor_index = monitor_index;
+        self._resolution = resolution;
+
+        let target_size = dpi::PhysicalSize::new(resolution.x.max(1), resolution.y.max(1));
+
+        match window_mode {
+            WindowMode::WindowMode => {
+                let was_fullscreen = mode_changed || self.get_window().fullscreen().is_some();
+                if was_fullscreen {
+                    let window = self.get_window();
                     window.set_fullscreen(None);
+                    window.set_decorations(true);
                 }
-                WindowMode::FullScreenExclusiveMode => {
-                    let monitor = window.current_monitor().or_else(|| window.primary_monitor());
-                    if let Some(mon) = monitor {
-                        if let Some(video_mode) = mon.video_modes().next() {
-                            window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+
+                if monitor_changed || mode_changed {
+                    if let Some(monitor) = self.get_target_monitor(monitor_index) {
+                        let centered_pos = compute_centered_window_pos(&monitor, resolution);
+                        self.get_window().set_outer_position(dpi::Position::Physical(centered_pos));
+                    }
+                }
+
+                if mode_changed || resolution_changed {
+                    let returned_size = self.get_window().request_inner_size(dpi::Size::Physical(target_size));
+                    if self.get_window().fullscreen().is_some() {
+                        // Wayland defers exiting fullscreen until the compositor configure arrives.
+                        self._pending_window_size = Some(target_size);
+                    } else if let Some(actual_size) = returned_size {
+                        self._pending_window_size = None;
+                        if actual_size.width > 0 && actual_size.height > 0 {
+                            self.resized_window(actual_size);
+                        }
+                    } else if was_fullscreen {
+                        self._pending_window_size = Some(target_size);
+                    } else {
+                        self._pending_window_size = None;
+                    }
+                }
+            }
+            WindowMode::FullScreenExclusiveMode => {
+                self._pending_window_size = None;
+                let target_monitor = self
+                    .get_target_monitor(monitor_index)
+                    .or_else(|| self.get_window().current_monitor())
+                    .or_else(|| self.get_window().primary_monitor());
+                if let Some(mon) = target_monitor {
+                    let window = self.get_window();
+                    if !is_wayland_window(window) {
+                        if let Some(vm) = find_best_video_mode(&mon, Some(target_size)) {
+                            window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
                         } else {
                             window.set_fullscreen(Some(Fullscreen::Borderless(Some(mon))));
                         }
+                    } else if mode_changed || monitor_changed || window.fullscreen().is_none() {
+                        // Wayland ignores Fullscreen::Exclusive; fallback to Borderless on the selected monitor.
+                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(mon))));
                     }
                 }
-                WindowMode::FullScreenBorderlessMode => {
-                    let monitor = window.current_monitor().or_else(|| window.primary_monitor());
-                    window.set_fullscreen(Some(Fullscreen::Borderless(monitor)));
+            }
+            WindowMode::FullScreenBorderlessMode => {
+                self._pending_window_size = None;
+                if mode_changed || monitor_changed || self.get_window().fullscreen().is_none() {
+                    let target_monitor = self
+                        .get_target_monitor(monitor_index)
+                        .or_else(|| self.get_window().current_monitor())
+                        .or_else(|| self.get_window().primary_monitor());
+                    self.get_window().set_fullscreen(Some(Fullscreen::Borderless(target_monitor)));
                 }
             }
+        }
+
+        if self._is_grab_mode {
+            apply_window_cursor_grab(self.get_window(), true);
         }
     }
     pub fn center_mouse_pos(&mut self) {
         let center_x = self._window_size.x / 2;
         let center_y = self._window_size.y / 2;
-        let position = dpi::PhysicalPosition::new(center_x, center_y);
-        let _ = self.get_window().set_cursor_position(dpi::Position::Physical(position));
+        let window = self.get_window();
+        if !self._is_grab_mode || is_wayland_window(window) {
+            let position = dpi::PhysicalPosition::new(center_x, center_y);
+            let _ = window.set_cursor_position(dpi::Position::Physical(position));
+        }
         let window_size = self._window_size.clone();
         self._mouse_move_data.set_mouse_pos(&Vector2::new(center_x, center_y), &window_size);
         self._mouse_move_data._mouse_pos_delta = Vector2::zeros();
@@ -345,66 +494,20 @@ impl<'a> EngineCore<'a> {
         resolutions.dedup();
         resolutions
     }
-    pub fn set_monitor_index(&mut self, monitor_index: Option<usize>) {
-        self._monitor_index = monitor_index;
-        if let Some(monitor) = self.get_target_monitor(monitor_index) {
-            let window = self.get_window();
-            match self._window_mode {
-                WindowMode::WindowMode => {
-                    let pos = monitor.position();
-                    window.set_outer_position(dpi::Position::Physical(pos));
-                }
-                WindowMode::FullScreenExclusiveMode => {
-                    if let Some(vm) = monitor.video_modes().next() {
-                        window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
-                    } else {
-                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
-                    }
-                }
-                WindowMode::FullScreenBorderlessMode => {
-                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
-                }
-            }
-        }
-    }
-    pub fn set_resolution(&mut self, resolution: Vector2<u32>) {
-        if self._resolution != resolution {
-            self._resolution = resolution;
-            let window = self.get_window();
-            let size = dpi::PhysicalSize::new(resolution.x, resolution.y);
-
-            match self._window_mode {
-                WindowMode::WindowMode => {
-                    let _ = window.request_inner_size(dpi::Size::Physical(size));
-                    self.resized_window(size);
-                }
-                WindowMode::FullScreenExclusiveMode => {
-                    let target_monitor = self.get_target_monitor(self._monitor_index);
-                    if let Some(mon) = target_monitor {
-                        if let Some(vm) = mon.video_modes().find(|v| v.size() == size) {
-                            window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
-                        } else if let Some(vm) = mon.video_modes().next() {
-                            window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
-                        }
-                    }
-                    self.resized_window(size);
-                }
-                WindowMode::FullScreenBorderlessMode => {
-                    self.resized_window(size);
-                }
-            }
-        }
-    }
     pub fn create_application(
         app_name: &str,
         app_version: u32,
         window: &Window,
         window_mode: WindowMode,
+        initial_monitor_index: Option<usize>,
+        initial_window_size: Option<Vector2<u32>>,
         sdl: &Sdl,
         application: *const dyn ApplicationBase<'a>,
     ) -> Box<EngineCore<'a>> {
         let window_size: Vector2<i32> =
             Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
+        let initial_resolution =
+            initial_window_size.unwrap_or_else(|| Vector2::new(window_size.x as u32, window_size.y as u32));
 
         // create managers
         let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo =
@@ -443,8 +546,9 @@ impl<'a> EngineCore<'a> {
             _engine_resources: engine_resources,
             _application: application,
             _window_mode: window_mode,
-            _monitor_index: None,
-            _resolution: Vector2::new(window_size.x as u32, window_size.y as u32),
+            _monitor_index: initial_monitor_index,
+            _resolution: initial_resolution,
+            _pending_window_size: None,
         });
 
         // register engine service locator
@@ -455,6 +559,7 @@ impl<'a> EngineCore<'a> {
         engine_core._debug_line_manager.initialize_debug_line_manager();
         engine_core._font_manager.initialize_font_manager();
         engine_core._ui_manager.initialize_ui_manager();
+        engine_core._ui_manager.update_window_size(&window_size);
         engine_core._audio_manager.initialize_audio_manager();
         engine_core._effect_manager.initialize_effect_manager();
 
@@ -481,17 +586,51 @@ impl<'a> EngineCore<'a> {
         self._engine_resources.destroy_engine_resources(renderer_context);
     }
 
+    pub fn handle_window_resized(&mut self, size: dpi::PhysicalSize<u32>) {
+        if self._window_mode == WindowMode::WindowMode && self.get_window().fullscreen().is_none() {
+            if let Some(pending_size) = self._pending_window_size.take() {
+                if size != pending_size {
+                    if let Some(actual_size) = self.get_window().request_inner_size(dpi::Size::Physical(pending_size)) {
+                        if actual_size.width > 0 && actual_size.height > 0 {
+                            self.resized_window(actual_size);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        self.resized_window(size);
+    }
+
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
-        self._window_size.x = size.width as i32;
-        self._window_size.y = size.height as i32;
-        get_scene_manager_mut().update_window_size(size.width as i32, size.height as i32);
+        if size.width == 0 || size.height == 0 {
+            self._window_size.x = size.width as i32;
+            self._window_size.y = size.height as i32;
+            return;
+        }
+
+        let old_window_size = self._window_size;
+        let new_window_size = Vector2::new(size.width as i32, size.height as i32);
+        self._window_size = new_window_size;
+
+        if old_window_size != new_window_size {
+            self._mouse_move_data.rescale_mouse_pos(&old_window_size, &new_window_size);
+        }
+
+        get_scene_manager_mut().update_window_size(new_window_size.x, new_window_size.y);
+        self._ui_manager.update_window_size(&new_window_size);
+
+        if self._is_grab_mode {
+            apply_window_cursor_grab(self.get_window(), true);
+        }
 
         let swapchain_extent = self._renderer_context.get_swap_chain_data()._swapchain_extent;
         let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
         log::info!(
-            "need_recreate_swapchain: {}, swapchain_extent: {:?}",
+            "need_recreate_swapchain: {}, swapchain_extent: {:?}, window_size: {:?}",
             need_recreate_swapchain,
-            swapchain_extent
+            swapchain_extent,
+            new_window_size
         );
         if need_recreate_swapchain {
             self._renderer_context.set_need_recreate_swapchain(true);
@@ -525,7 +664,7 @@ impl<'a> EngineCore<'a> {
             }
             let update_mouse_pos = self.get_application().is_visible_cursor();
             let window_size = self._window_size.clone();
-            self._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size, update_mouse_pos);
+            self._mouse_move_data.update_mouse_move_f64(delta, &window_size, update_mouse_pos);
         }
     }
 
@@ -556,13 +695,21 @@ impl<'a> EngineCore<'a> {
     }
 
     pub fn set_grab_mode(&mut self, is_grab_mode: bool) {
+        let was_grabbed = self._is_grab_mode;
         self._is_grab_mode = is_grab_mode;
-        let _result = self.get_window().set_cursor_grab(if is_grab_mode {
-            CursorGrabMode::Confined
-        } else {
-            CursorGrabMode::None
-        });
-        self.get_window().set_cursor_visible(!is_grab_mode);
+        let target_pos =
+            dpi::PhysicalPosition::new(self._mouse_move_data._mouse_pos.x, self._mouse_move_data._mouse_pos.y);
+        let window = self.get_window();
+
+        if was_grabbed && !is_grab_mode && is_wayland_window(window) {
+            let _ = window.set_cursor_position(dpi::Position::Physical(target_pos));
+        }
+
+        apply_window_cursor_grab(window, is_grab_mode);
+
+        if was_grabbed && !is_grab_mode && !is_wayland_window(window) {
+            let _ = window.set_cursor_position(dpi::Position::Physical(target_pos));
+        }
     }
 
     pub fn update_keyboard_input(&mut self, input_physical_key: PhysicalKey, input_key_state: ElementState) {
@@ -793,6 +940,7 @@ struct EngineAppHandler<'a> {
     _app_name: String,
     _app_version: u32,
     _initial_window_size: Option<Vector2<u32>>,
+    _initial_monitor_index: Option<usize>,
     _window_mode: WindowMode,
     _application: *const dyn ApplicationBase<'a>,
     _sdl: Sdl,
@@ -817,6 +965,16 @@ impl<'a> EngineAppHandler<'a> {
             .expect("No available monitor found")
     }
 
+    fn select_target_monitor(event_loop: &ActiveEventLoop, monitor_index: Option<usize>) -> MonitorHandle {
+        if let Some(index) = monitor_index {
+            let available_monitors: Vec<MonitorHandle> = event_loop.available_monitors().collect();
+            if let Some(monitor) = available_monitors.get(index) {
+                return monitor.clone();
+            }
+        }
+        Self::select_primary_monitor(event_loop)
+    }
+
     fn init_engine_core(&mut self) {
         if self._maybe_engine_core.is_some() {
             let engine_core = self._maybe_engine_core.as_mut().unwrap().as_mut();
@@ -829,6 +987,8 @@ impl<'a> EngineAppHandler<'a> {
             self._app_version,
             window,
             self._window_mode,
+            self._initial_monitor_index,
+            self._initial_window_size,
             &self._sdl,
             self._application,
         );
@@ -859,59 +1019,63 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                 }
             }
 
-            // choose video mode
-            let primary_monitor = Self::select_primary_monitor(event_loop);
+            let target_monitor = Self::select_target_monitor(event_loop, self._initial_monitor_index);
             log::info!(
-                "Primary Monitor: {:?}, pos: {:?}, size: {:?}, {:?}hz",
-                primary_monitor.name(),
-                primary_monitor.position(),
-                primary_monitor.size(),
-                primary_monitor.refresh_rate_millihertz()
+                "Target Monitor: {:?}, pos: {:?}, size: {:?}, {:?}hz",
+                target_monitor.name(),
+                target_monitor.position(),
+                target_monitor.size(),
+                target_monitor.refresh_rate_millihertz()
             );
-            let mut current_video_mode = primary_monitor.video_modes().nth(0).unwrap();
-            for (_video_index, video_mode) in primary_monitor.video_modes().enumerate() {
-                if video_mode.size() == primary_monitor.size()
-                    && video_mode.refresh_rate_millihertz() == primary_monitor.refresh_rate_millihertz().unwrap()
-                {
-                    current_video_mode = video_mode.clone();
-                    log::info!(
-                        "Matched Video Mode: {:?}, {:?} bit, {:?} hz",
-                        video_mode.size(),
-                        video_mode.bit_depth(),
-                        video_mode.refresh_rate_millihertz()
-                    );
-                    break;
-                }
-            }
 
-            let window_size: dpi::PhysicalSize<u32> = if let Some(window_size) = self._initial_window_size {
-                dpi::PhysicalSize {
-                    width: window_size.x,
-                    height: window_size.y,
-                }
+            let monitor_size = target_monitor.size();
+            let fallback_size = if monitor_size.width > 0 && monitor_size.height > 0 {
+                monitor_size
             } else {
-                current_video_mode.size()
+                find_best_video_mode(&target_monitor, None)
+                    .map(|vm| vm.size())
+                    .unwrap_or(dpi::PhysicalSize::new(DEFAULT_FALLBACK_WIDTH, DEFAULT_FALLBACK_HEIGHT))
+            };
+
+            let window_size: dpi::PhysicalSize<u32> = if self._window_mode == WindowMode::FullScreenBorderlessMode {
+                fallback_size
+            } else if let Some(req_size) = self._initial_window_size {
+                dpi::PhysicalSize::new(req_size.x.max(1), req_size.y.max(1))
+            } else {
+                fallback_size
+            };
+
+            let initial_position = if self._window_mode == WindowMode::WindowMode {
+                compute_centered_window_pos(&target_monitor, Vector2::new(window_size.width, window_size.height))
+            } else {
+                target_monitor.position()
             };
 
             // create window
             log::info!("Window Mode: {:?}", self._window_mode);
             let window_attributes = WindowAttributes::default()
                 .with_title(self._app_name.clone())
-                .with_position(primary_monitor.position())
+                .with_position(initial_position)
                 .with_inner_size(dpi::Size::Physical(window_size));
 
-            let window: Window = event_loop.create_window(window_attributes).unwrap();
+            let window: Window = event_loop.create_window(window_attributes).expect("failed to create window");
             window.set_ime_allowed(false);
 
-            if WindowMode::FullScreenExclusiveMode == self._window_mode
-                || WindowMode::FullScreenBorderlessMode == self._window_mode
-            {
-                if WindowMode::FullScreenExclusiveMode == self._window_mode {
-                    window.set_fullscreen(Some(Fullscreen::Exclusive(current_video_mode)));
-                } else if WindowMode::FullScreenBorderlessMode == self._window_mode {
-                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
-                } else {
-                    log::error!("unexpected window mode: {:?}", self._window_mode);
+            match self._window_mode {
+                WindowMode::WindowMode => {}
+                WindowMode::FullScreenExclusiveMode => {
+                    if !is_wayland_window(&window) {
+                        if let Some(video_mode) = find_best_video_mode(&target_monitor, Some(window_size)) {
+                            window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+                        } else {
+                            window.set_fullscreen(Some(Fullscreen::Borderless(Some(target_monitor))));
+                        }
+                    } else {
+                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(target_monitor))));
+                    }
+                }
+                WindowMode::FullScreenBorderlessMode => {
+                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(target_monitor))));
                 }
             }
 
@@ -1001,7 +1165,7 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                     self._initialize_done
                 );
                 if self._initialize_done {
-                    engine_core.resized_window(size);
+                    engine_core.handle_window_resized(size);
                 }
             }
             WindowEvent::MouseInput { button, state, .. } => {
@@ -1108,6 +1272,7 @@ pub fn run_application<'a>(
     app_name: String,
     app_version: u32,
     initial_window_size: Option<Vector2<u32>>,
+    initial_monitor_index: Option<usize>,
     window_mode: WindowMode,
     application: *const dyn ApplicationBase<'a>,
 ) {
@@ -1123,6 +1288,7 @@ pub fn run_application<'a>(
         _app_name: app_name,
         _app_version: app_version,
         _initial_window_size: initial_window_size,
+        _initial_monitor_index: initial_monitor_index,
         _window_mode: window_mode,
         _application: application,
         _sdl: sdl,
