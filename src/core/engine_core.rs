@@ -43,6 +43,27 @@ fn is_wayland_window(window: &Window) -> bool {
     window.display_handle().map(|handle| matches!(handle.as_raw(), RawDisplayHandle::Wayland(_))).unwrap_or(false)
 }
 
+fn is_wayland_event_loop(event_loop: &ActiveEventLoop) -> bool {
+    event_loop.display_handle().map(|handle| matches!(handle.as_raw(), RawDisplayHandle::Wayland(_))).unwrap_or(false)
+}
+
+fn dedup_monitors<I: IntoIterator<Item = MonitorHandle>>(iter: I) -> Vec<MonitorHandle> {
+    let mut monitors: Vec<MonitorHandle> = Vec::new();
+    for monitor in iter {
+        let is_duplicate = monitors.iter().any(|existing| {
+            existing == &monitor
+                || (existing.name().is_some()
+                    && existing.name() == monitor.name()
+                    && existing.position() == monitor.position()
+                    && existing.size() == monitor.size())
+        });
+        if !is_duplicate {
+            monitors.push(monitor);
+        }
+    }
+    monitors
+}
+
 fn find_best_video_mode(
     monitor: &MonitorHandle,
     desired_size: Option<dpi::PhysicalSize<u32>>,
@@ -362,21 +383,23 @@ impl<'a> EngineCore<'a> {
             }
             WindowMode::FullScreenExclusiveMode => {
                 self._pending_window_size = None;
-                let target_monitor = self
-                    .get_target_monitor(monitor_index)
-                    .or_else(|| self.get_window().current_monitor())
-                    .or_else(|| self.get_window().primary_monitor());
-                if let Some(mon) = target_monitor {
-                    let window = self.get_window();
-                    if !is_wayland_window(window) {
-                        if let Some(vm) = find_best_video_mode(&mon, Some(target_size)) {
-                            window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
+                if mode_changed || monitor_changed || self.get_window().fullscreen().is_none() {
+                    let target_monitor = self
+                        .get_target_monitor(monitor_index)
+                        .or_else(|| self.get_window().current_monitor())
+                        .or_else(|| self.get_window().primary_monitor());
+                    if let Some(mon) = target_monitor {
+                        let window = self.get_window();
+                        if !is_wayland_window(window) {
+                            if let Some(vm) = find_best_video_mode(&mon, None) {
+                                window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
+                            } else {
+                                window.set_fullscreen(Some(Fullscreen::Borderless(Some(mon))));
+                            }
                         } else {
+                            // Wayland ignores Fullscreen::Exclusive; fallback to Borderless on the selected monitor.
                             window.set_fullscreen(Some(Fullscreen::Borderless(Some(mon))));
                         }
-                    } else if mode_changed || monitor_changed || window.fullscreen().is_none() {
-                        // Wayland ignores Fullscreen::Exclusive; fallback to Borderless on the selected monitor.
-                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(mon))));
                     }
                 }
             }
@@ -409,11 +432,11 @@ impl<'a> EngineCore<'a> {
         self._mouse_move_data._mouse_pos_delta = Vector2::zeros();
     }
     pub fn get_available_monitors(&self) -> Vec<MonitorHandle> {
-        self.get_window().available_monitors().collect()
+        dedup_monitors(self.get_window().available_monitors())
     }
     pub fn get_primary_monitor(&self) -> Option<MonitorHandle> {
         let window = self.get_window();
-        let available_monitors: Vec<MonitorHandle> = window.available_monitors().collect();
+        let available_monitors: Vec<MonitorHandle> = dedup_monitors(window.available_monitors());
         window
             .primary_monitor()
             .or_else(|| {
@@ -465,11 +488,20 @@ impl<'a> EngineCore<'a> {
     }
     pub fn get_available_resolutions(&self, monitor_index: Option<usize>) -> Vec<Vector2<u32>> {
         let mut resolutions = Vec::new();
+        let mut monitor_size = None;
 
         if let Some(monitor) = self.get_target_monitor(monitor_index) {
+            let s = monitor.size();
+            if s.width > 0 && s.height > 0 {
+                monitor_size = Some(s);
+                let native = Vector2::new(s.width, s.height);
+                if !resolutions.contains(&native) {
+                    resolutions.push(native);
+                }
+            }
             for vm in monitor.video_modes() {
-                let s = vm.size();
-                let res = Vector2::new(s.width, s.height);
+                let vm_size = vm.size();
+                let res = Vector2::new(vm_size.width, vm_size.height);
                 if !resolutions.contains(&res) {
                     resolutions.push(res);
                 }
@@ -485,6 +517,13 @@ impl<'a> EngineCore<'a> {
             Vector2::new(1280, 720),
             Vector2::new(1024, 768),
         ];
+
+        for &res in &common_resolutions {
+            let fits_monitor = monitor_size.map(|s| res.x <= s.width && res.y <= s.height).unwrap_or(true);
+            if fits_monitor && !resolutions.contains(&res) {
+                resolutions.push(res);
+            }
+        }
 
         if resolutions.is_empty() {
             resolutions.extend_from_slice(&common_resolutions);
@@ -504,8 +543,14 @@ impl<'a> EngineCore<'a> {
         sdl: &Sdl,
         application: *const dyn ApplicationBase<'a>,
     ) -> Box<EngineCore<'a>> {
-        let window_size: Vector2<i32> =
-            Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
+        let inner_size = window.inner_size();
+        let fallback_resolution =
+            initial_window_size.unwrap_or_else(|| Vector2::new(DEFAULT_FALLBACK_WIDTH, DEFAULT_FALLBACK_HEIGHT));
+        let window_size: Vector2<i32> = if inner_size.width > 0 && inner_size.height > 0 {
+            Vector2::new(inner_size.width as i32, inner_size.height as i32)
+        } else {
+            Vector2::new(fallback_resolution.x.max(1) as i32, fallback_resolution.y.max(1) as i32)
+        };
         let initial_resolution =
             initial_window_size.unwrap_or_else(|| Vector2::new(window_size.x as u32, window_size.y as u32));
 
@@ -952,7 +997,7 @@ struct EngineAppHandler<'a> {
 
 impl<'a> EngineAppHandler<'a> {
     fn select_primary_monitor(event_loop: &ActiveEventLoop) -> MonitorHandle {
-        let available_monitors: Vec<MonitorHandle> = event_loop.available_monitors().collect();
+        let available_monitors: Vec<MonitorHandle> = dedup_monitors(event_loop.available_monitors());
         event_loop
             .primary_monitor()
             .or_else(|| {
@@ -967,7 +1012,7 @@ impl<'a> EngineAppHandler<'a> {
 
     fn select_target_monitor(event_loop: &ActiveEventLoop, monitor_index: Option<usize>) -> MonitorHandle {
         if let Some(index) = monitor_index {
-            let available_monitors: Vec<MonitorHandle> = event_loop.available_monitors().collect();
+            let available_monitors: Vec<MonitorHandle> = dedup_monitors(event_loop.available_monitors());
             if let Some(monitor) = available_monitors.get(index) {
                 return monitor.clone();
             }
@@ -992,8 +1037,9 @@ impl<'a> EngineAppHandler<'a> {
             &self._sdl,
             self._application,
         );
+        let window_size = engine_core._window_size;
         let application_mut = ptr_as_mut(engine_core._application);
-        application_mut.initialize_application(&engine_core._window_size);
+        application_mut.initialize_application(&window_size);
 
         self._maybe_engine_core = Some(engine_core);
         self._run_application = true;
@@ -1006,7 +1052,7 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
         log::info!("Application was resumed");
         if self._window.is_none() {
             // show display infos
-            for (monitor_index, monitor) in event_loop.available_monitors().enumerate() {
+            for (monitor_index, monitor) in dedup_monitors(event_loop.available_monitors()).into_iter().enumerate() {
                 log::debug!("Monitor[{}]: {:?}", monitor_index, monitor.name());
                 for (video_index, video_mode) in monitor.video_modes().enumerate() {
                     log::debug!(
@@ -1037,12 +1083,34 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                     .unwrap_or(dpi::PhysicalSize::new(DEFAULT_FALLBACK_WIDTH, DEFAULT_FALLBACK_HEIGHT))
             };
 
-            let window_size: dpi::PhysicalSize<u32> = if self._window_mode == WindowMode::FullScreenBorderlessMode {
-                fallback_size
-            } else if let Some(req_size) = self._initial_window_size {
-                dpi::PhysicalSize::new(req_size.x.max(1), req_size.y.max(1))
-            } else {
-                fallback_size
+            let requested_size = self
+                ._initial_window_size
+                .map(|req_size| dpi::PhysicalSize::new(req_size.x.max(1), req_size.y.max(1)))
+                .unwrap_or(fallback_size);
+
+            let (window_size, initial_fullscreen) = match self._window_mode {
+                WindowMode::WindowMode => (requested_size, None),
+                WindowMode::FullScreenExclusiveMode => {
+                    if !is_wayland_event_loop(event_loop) {
+                        if let Some(video_mode) = find_best_video_mode(&target_monitor, None) {
+                            (video_mode.size(), Some(Fullscreen::Exclusive(video_mode)))
+                        } else {
+                            (
+                                fallback_size,
+                                Some(Fullscreen::Borderless(Some(target_monitor.clone()))),
+                            )
+                        }
+                    } else {
+                        (
+                            fallback_size,
+                            Some(Fullscreen::Borderless(Some(target_monitor.clone()))),
+                        )
+                    }
+                }
+                WindowMode::FullScreenBorderlessMode => (
+                    fallback_size,
+                    Some(Fullscreen::Borderless(Some(target_monitor.clone()))),
+                ),
             };
 
             let initial_position = if self._window_mode == WindowMode::WindowMode {
@@ -1052,30 +1120,28 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
             };
 
             // create window
-            log::info!("Window Mode: {:?}", self._window_mode);
+            log::info!("Window Mode: {:?}, Initial Size: {:?}", self._window_mode, window_size);
             let window_attributes = WindowAttributes::default()
                 .with_title(self._app_name.clone())
                 .with_position(initial_position)
-                .with_inner_size(dpi::Size::Physical(window_size));
+                .with_inner_size(dpi::Size::Physical(window_size))
+                .with_fullscreen(initial_fullscreen.clone());
 
             let window: Window = event_loop.create_window(window_attributes).expect("failed to create window");
             window.set_ime_allowed(false);
 
             match self._window_mode {
-                WindowMode::WindowMode => {}
-                WindowMode::FullScreenExclusiveMode => {
+                WindowMode::WindowMode => {
+                    window.set_decorations(true);
                     if !is_wayland_window(&window) {
-                        if let Some(video_mode) = find_best_video_mode(&target_monitor, Some(window_size)) {
-                            window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
-                        } else {
-                            window.set_fullscreen(Some(Fullscreen::Borderless(Some(target_monitor))));
-                        }
-                    } else {
-                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(target_monitor))));
+                        window.set_outer_position(dpi::Position::Physical(initial_position));
                     }
+                    let _ = window.request_inner_size(dpi::Size::Physical(window_size));
                 }
-                WindowMode::FullScreenBorderlessMode => {
-                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(target_monitor))));
+                WindowMode::FullScreenExclusiveMode | WindowMode::FullScreenBorderlessMode => {
+                    if !is_wayland_window(&window) {
+                        window.set_fullscreen(initial_fullscreen);
+                    }
                 }
             }
 
