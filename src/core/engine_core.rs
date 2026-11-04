@@ -216,7 +216,12 @@ impl TimeData {
             let target_frame_time = 1.0 / dynamic_target_fps;
             if delta_time < target_frame_time {
                 let sleep_secs = target_frame_time - delta_time;
-                std::thread::sleep(std::time::Duration::from_secs_f64(sleep_secs));
+                if sleep_secs > 0.002 {
+                    std::thread::sleep(std::time::Duration::from_secs_f64(sleep_secs - 0.0015));
+                }
+                while self._time_instance.elapsed().as_secs_f64() - previous_time < target_frame_time {
+                    std::hint::spin_loop();
+                }
                 current_time = self._time_instance.elapsed().as_secs_f64();
                 delta_time = current_time - previous_time;
             }
@@ -1226,13 +1231,23 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
         }
     }
 
-    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         let Some(engine_core) = self._maybe_engine_core.as_mut() else {
             return;
         };
         match event {
             WindowEvent::CloseRequested => {
                 self._run_application = false;
+                event_loop.exit();
+            }
+            WindowEvent::RedrawRequested => {
+                if self._run_application {
+                    engine_core.update_event_and_render_scene();
+                    if engine_core.get_application().will_terminate_application() {
+                        self._run_application = false;
+                        event_loop.exit();
+                    }
+                }
             }
             WindowEvent::Resized(size) => {
                 log::info!(
@@ -1326,15 +1341,13 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
         }
     }
 
-    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
-        if let Some(engine_core) = self._maybe_engine_core.as_mut() {
-            if self._run_application {
-                // update application
-                engine_core.update_event_and_render_scene();
-                if engine_core.get_application().will_terminate_application() {
-                    self._run_application = false;
-                }
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self._run_application {
+            if let Some(window) = self._window.as_ref() {
+                window.request_redraw();
             }
+        } else {
+            event_loop.exit();
         }
     }
 
