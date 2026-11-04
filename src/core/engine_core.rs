@@ -198,10 +198,16 @@ impl TimeData {
         let mut delta_time = current_time - previous_time;
 
         let explicit_target = unsafe { constants::TARGET_FRAME_RATE };
-        let dynamic_target_fps: f64 = if explicit_target > 0 {
-            self._target_fps.min(explicit_target as f64)
+        let dynamic_target_fps: f64 = if unsafe { constants::ENABLE_DYNAMIC_TARGET_FPS } {
+            if explicit_target > 0 {
+                self._target_fps.min(explicit_target as f64)
+            } else {
+                self._target_fps
+            }
+        } else if explicit_target > 0 {
+            explicit_target as f64
         } else {
-            self._target_fps
+            0.0
         };
 
         let real_acc_frame_time = self._real_acc_frame_time + delta_time;
@@ -872,6 +878,11 @@ impl<'a> EngineCore<'a> {
                             self._time_data._average_render_time - self._time_data._average_present_time
                         ));
                         font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
+                        if constants::ENABLE_DYNAMIC_TARGET_FPS {
+                            font_manager.log(format!("Target FPS: {:.2}", self._time_data._target_fps));
+                        } else {
+                            font_manager.log("Dynamic Target FPS: OFF".to_string());
+                        }
                         let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
                         let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
                         font_manager.log(format!(
