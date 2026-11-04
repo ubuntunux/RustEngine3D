@@ -1207,7 +1207,6 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
         match event {
             DeviceEvent::MouseMotion { delta } => {
                 engine_core.update_mouse_motion(&delta);
-                engine_core.set_keyboard_input_mode(true);
             }
             DeviceEvent::Key(_raw_key) => {
                 // Handled in WindowEvent::KeyboardInput for Wayland & X11 compatibility
@@ -1236,7 +1235,6 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
             }
             WindowEvent::MouseInput { button, state, .. } => {
                 engine_core.update_mouse_input(button, state);
-                engine_core.set_keyboard_input_mode(true);
             }
             WindowEvent::CursorMoved { position, .. } => {
                 engine_core.update_cursor_moved(position);
