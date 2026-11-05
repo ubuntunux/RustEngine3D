@@ -146,9 +146,23 @@ impl WindowMode {
     }
 }
 
+const STANDARD_REFRESH_RATES: [f64; 8] = [30.0, 60.0, 75.0, 90.0, 120.0, 144.0, 165.0, 240.0];
+const SNAP_THRESHOLD_FPS: f64 = 2.0;
+const DEADBAND_THRESHOLD_FPS: f64 = 0.5;
+
+fn snap_to_standard_refresh_rate(fps: f64) -> f64 {
+    for &rate in &STANDARD_REFRESH_RATES {
+        if (fps - rate).abs() <= SNAP_THRESHOLD_FPS {
+            return rate;
+        }
+    }
+    fps
+}
+
 #[derive(Debug, Clone)]
 pub struct TimeData {
     pub _time_instance: time::Instant,
+    pub _last_time_instance: time::Instant,
     pub _current_time: f64,
     pub _acc_frame_time: f64,
     pub _real_acc_frame_time: f64,
@@ -172,6 +186,7 @@ pub fn create_time_data() -> TimeData {
     let current_time = time_instance.elapsed().as_secs_f64();
     TimeData {
         _time_instance: time_instance,
+        _last_time_instance: time_instance,
         _current_time: current_time,
         _acc_frame_time: 0.0,
         _real_acc_frame_time: 0.0,
@@ -193,9 +208,9 @@ pub fn create_time_data() -> TimeData {
 
 impl TimeData {
     pub fn update_time_data(&mut self, delta_time_scale: f64) {
-        let mut current_time = self._time_instance.elapsed().as_secs_f64();
-        let previous_time = self._current_time;
-        let mut delta_time = current_time - previous_time;
+        let now = time::Instant::now();
+        let mut delta_duration = now.saturating_duration_since(self._last_time_instance);
+        let mut delta_time = delta_duration.as_secs_f64();
 
         let explicit_target = unsafe { constants::TARGET_FRAME_RATE };
         let dynamic_target_fps: f64 = if unsafe { constants::ENABLE_DYNAMIC_TARGET_FPS } {
@@ -212,18 +227,19 @@ impl TimeData {
 
         let real_acc_frame_time = self._real_acc_frame_time + delta_time;
 
-        if dynamic_target_fps > 0f64 {
-            let target_frame_time = 1.0 / dynamic_target_fps;
-            if delta_time < target_frame_time {
-                let sleep_secs = target_frame_time - delta_time;
-                if sleep_secs > 0.002 {
-                    std::thread::sleep(std::time::Duration::from_secs_f64(sleep_secs - 0.0015));
+        if dynamic_target_fps > 0.0 {
+            let target_frame_duration = std::time::Duration::from_secs_f64(1.0 / dynamic_target_fps);
+            if delta_duration < target_frame_duration {
+                let sleep_duration = target_frame_duration - delta_duration;
+                if sleep_duration.as_micros() > 2000 {
+                    std::thread::sleep(sleep_duration.saturating_sub(std::time::Duration::from_micros(1500)));
                 }
-                while self._time_instance.elapsed().as_secs_f64() - previous_time < target_frame_time {
+                while self._last_time_instance.elapsed() < target_frame_duration {
                     std::hint::spin_loop();
                 }
-                current_time = self._time_instance.elapsed().as_secs_f64();
-                delta_time = current_time - previous_time;
+                let after_sleep = time::Instant::now();
+                delta_duration = after_sleep.saturating_duration_since(self._last_time_instance);
+                delta_time = delta_duration.as_secs_f64();
             }
         }
         self._elapsed_time_prev = self._elapsed_time;
@@ -233,26 +249,32 @@ impl TimeData {
         self._elapsed_frame += 1;
 
         if 1.0 < acc_frame_time {
-            let real_average_frame_time = real_acc_frame_time / (acc_frame_count as f64) * 1000.0;
-            let real_average_fps = 1000.0 / real_average_frame_time;
-
-            let average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
-            let average_render_fps = 1000.0 / average_render_time;
-
-            let target_fps = average_render_fps.min(real_average_fps);
-
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;
             let average_fps = 1000.0 / average_frame_time;
+
+            let average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
+            let average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
+
+            let raw_candidate_fps = average_fps.clamp(10.0, 240.0);
+            let snapped_fps = snap_to_standard_refresh_rate(raw_candidate_fps);
+
+            if self._elapsed_frame == acc_frame_count as u64 {
+                self._target_fps = snapped_fps;
+            } else if (snapped_fps - self._target_fps).abs() > DEADBAND_THRESHOLD_FPS {
+                let is_standard = (snapped_fps - raw_candidate_fps).abs() > 0.0;
+                let alpha = if is_standard { 0.5 } else { 0.3 };
+                let smoothed_fps = self._target_fps * (1.0 - alpha) + snapped_fps * alpha;
+                self._target_fps = snap_to_standard_refresh_rate(smoothed_fps).clamp(10.0, 240.0);
+            }
 
             self._real_acc_frame_time = 0.0;
             self._acc_frame_time = 0.0;
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
             self._average_fps = average_fps;
-            self._target_fps = target_fps.clamp(10.0, 240.0);
-            self._average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
+            self._average_render_time = average_render_time;
             self._acc_render_time = 0.0;
-            self._average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
+            self._average_present_time = average_present_time;
             self._acc_present_time = 0.0;
 
             // debug text
@@ -262,7 +284,10 @@ impl TimeData {
             self._acc_frame_time = acc_frame_time;
             self._acc_frame_count = acc_frame_count;
         }
-        self._current_time = current_time;
+
+        let now_end = time::Instant::now();
+        self._last_time_instance = now_end;
+        self._current_time = now_end.saturating_duration_since(self._time_instance).as_secs_f64();
         self._elapsed_time = elapsed_time;
         self._delta_time = delta_time;
         // prevent lower fps.
