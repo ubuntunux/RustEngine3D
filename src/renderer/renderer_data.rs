@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::num::Wrapping;
 use std::str::FromStr;
 use std::vec::Vec;
+use strum_macros::{Display, EnumCount, EnumIter, FromRepr};
 
 use crate::constants;
 use crate::constants::{CURRENT_RENDER_OPTION, MAX_FRAME_COUNT};
@@ -82,11 +83,27 @@ pub enum RenderObjectType {
     Skeletal = 1,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumCount, EnumIter, FromRepr)]
 pub enum RenderQualityLevel {
     Low,
     Medium,
     High,
+}
+
+impl RenderQualityLevel {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            RenderQualityLevel::Low => "Low",
+            RenderQualityLevel::Medium => "Medium",
+            RenderQualityLevel::High => "High",
+        }
+    }
+}
+
+impl Default for RenderQualityLevel {
+    fn default() -> Self {
+        RenderQualityLevel::Medium
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
