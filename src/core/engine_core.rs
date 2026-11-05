@@ -207,18 +207,32 @@ pub fn create_time_data() -> TimeData {
 }
 
 impl TimeData {
-    pub fn update_time_data(&mut self, delta_time_scale: f64) {
+    pub fn reset_time_data(&mut self) {
+        let now = time::Instant::now();
+        self._last_time_instance = now;
+        self._real_acc_frame_time = 0.0;
+        self._acc_frame_time = 0.0;
+        self._acc_frame_count = 0;
+        self._acc_render_time = 0.0;
+        self._acc_present_time = 0.0;
+    }
+
+    pub fn update_time_data(&mut self, delta_time_scale: f64, monitor_refresh_rate: Option<f64>) {
         let now = time::Instant::now();
         let mut delta_duration = now.saturating_duration_since(self._last_time_instance);
         let mut delta_time = delta_duration.as_secs_f64();
 
         let explicit_target = unsafe { constants::TARGET_FRAME_RATE };
+        let max_target_fps: f64 = if explicit_target > 0 {
+            explicit_target as f64
+        } else if unsafe { !constants::IGNORE_MONITOR_REFRESH_RATE } && monitor_refresh_rate.is_some() {
+            monitor_refresh_rate.unwrap().clamp(30.0, 240.0)
+        } else {
+            240.0
+        };
+
         let dynamic_target_fps: f64 = if unsafe { constants::ENABLE_DYNAMIC_TARGET_FPS } {
-            if explicit_target > 0 {
-                self._target_fps.min(explicit_target as f64)
-            } else {
-                self._target_fps
-            }
+            self._target_fps.min(max_target_fps)
         } else if explicit_target > 0 {
             explicit_target as f64
         } else {
@@ -252,19 +266,50 @@ impl TimeData {
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;
             let average_fps = 1000.0 / average_frame_time;
 
+            let real_average_frame_time = if acc_frame_count > 0 {
+                (real_acc_frame_time / (acc_frame_count as f64)) * 1000.0
+            } else {
+                0.0
+            };
+            let real_average_fps = if real_average_frame_time > 0.0 {
+                1000.0 / real_average_frame_time
+            } else {
+                max_target_fps
+            };
+
             let average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
             let average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
 
-            let raw_candidate_fps = average_fps.clamp(10.0, 240.0);
-            let snapped_fps = snap_to_standard_refresh_rate(raw_candidate_fps);
+            let raw_candidate_fps = if dynamic_target_fps > 0.0 {
+                let target_frame_time_ms = 1000.0 / self._target_fps;
+                if real_average_frame_time < target_frame_time_ms * 0.85 {
+                    real_average_fps.min(max_target_fps)
+                } else if real_average_frame_time > target_frame_time_ms * 0.98
+                    || average_fps < self._target_fps - SNAP_THRESHOLD_FPS
+                {
+                    real_average_fps.min(average_fps).clamp(10.0, max_target_fps)
+                } else {
+                    self._target_fps
+                }
+            } else {
+                average_fps.clamp(10.0, max_target_fps)
+            };
+
+            let snapped_fps = snap_to_standard_refresh_rate(raw_candidate_fps).min(max_target_fps);
 
             if self._elapsed_frame == acc_frame_count as u64 {
                 self._target_fps = snapped_fps;
             } else if (snapped_fps - self._target_fps).abs() > DEADBAND_THRESHOLD_FPS {
                 let is_standard = (snapped_fps - raw_candidate_fps).abs() > 0.0;
-                let alpha = if is_standard { 0.5 } else { 0.3 };
+                let alpha = if snapped_fps > self._target_fps {
+                    0.6
+                } else if is_standard {
+                    0.5
+                } else {
+                    0.3
+                };
                 let smoothed_fps = self._target_fps * (1.0 - alpha) + snapped_fps * alpha;
-                self._target_fps = snap_to_standard_refresh_rate(smoothed_fps).clamp(10.0, 240.0);
+                self._target_fps = snap_to_standard_refresh_rate(smoothed_fps).clamp(10.0, max_target_fps);
             }
 
             self._real_acc_frame_time = 0.0;
@@ -356,6 +401,11 @@ impl<'a> EngineCore<'a> {
     pub fn get_resolution(&self) -> Vector2<u32> {
         self._resolution
     }
+    pub fn get_current_monitor_refresh_rate(&self) -> Option<f64> {
+        let window = self.get_window();
+        let monitor = window.current_monitor().or_else(|| window.primary_monitor())?;
+        monitor.refresh_rate_millihertz().map(|mhz| (mhz as f64) / 1000.0)
+    }
     pub fn set_window_mode(&mut self, window_mode: WindowMode) {
         self.set_display_options(window_mode, self._monitor_index, self._resolution);
     }
@@ -381,6 +431,7 @@ impl<'a> EngineCore<'a> {
         self._window_mode = window_mode;
         self._monitor_index = monitor_index;
         self._resolution = resolution;
+        self._time_data.reset_time_data();
 
         let target_size = dpi::PhysicalSize::new(resolution.x.max(1), resolution.y.max(1));
 
@@ -850,7 +901,8 @@ impl<'a> EngineCore<'a> {
                 1.0
             }
         };
-        self._time_data.update_time_data(delta_time_scale);
+        let monitor_refresh_rate = self.get_current_monitor_refresh_rate();
+        self._time_data.update_time_data(delta_time_scale, monitor_refresh_rate);
 
         // update application event
         self.get_application_mut().update_event();
@@ -870,6 +922,8 @@ impl<'a> EngineCore<'a> {
                 font_manager.create_font_descriptor_sets(renderer_context);
                 ui_manager.create_ui_graphics_data();
                 renderer_context.set_need_recreate_swapchain(false);
+
+                self._time_data.reset_time_data();
 
                 log::info!("<<end recreate_swapchain>>");
             }

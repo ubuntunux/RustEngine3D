@@ -43,6 +43,7 @@ pub static mut MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 1024;
 pub static mut ENABLE_IMMEDIATE_MODE: bool = true;
 pub static mut TARGET_FRAME_RATE: u32 = 0;
 pub static mut ENABLE_DYNAMIC_TARGET_FPS: bool = false;
+pub static mut IGNORE_MONITOR_REFRESH_RATE: bool = true;
 pub static mut IS_CONCURRENT_MODE: bool = true;
 pub static mut SHADER_CLIP_DISTANCE: bool = true;
 pub static mut METER_PER_UNIT: f32 = 1.0;
