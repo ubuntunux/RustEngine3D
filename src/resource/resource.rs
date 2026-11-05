@@ -135,29 +135,22 @@ impl Default for MetaData {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum ResourceState<T> {
+pub const DEFAULT_RESOURCE_GC_TIMEOUT_SEC: f32 = 30.0;
+pub const RESOURCE_GC_CHECK_INTERVAL_SEC: f32 = 1.0;
+pub const LOG_RESOURCE_LIFECYCLE: bool = false;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResourceState {
     Unloaded,
     Loading,
-    Loaded(RcRefCell<T>),
-    Failed(String),
-}
-
-impl<T> Clone for ResourceState<T> {
-    fn clone(&self) -> Self {
-        match self {
-            ResourceState::Unloaded => ResourceState::Unloaded,
-            ResourceState::Loading => ResourceState::Loading,
-            ResourceState::Loaded(data) => ResourceState::Loaded(data.clone()),
-            ResourceState::Failed(msg) => ResourceState::Failed(msg.clone()),
-        }
-    }
+    Loaded,
+    Failed,
 }
 
 pub struct ResourceEntry<T> {
     pub _resource_name: String,
     pub _meta_data: MetaData,
-    pub _state: RcRefCell<ResourceState<T>>,
+    pub _state: RcRefCell<ResourceState>,
     pub _is_pinned: bool,
     pub _unused_start_time: Option<std::time::Instant>,
     pub _cached_data: std::cell::UnsafeCell<Option<RcRefCell<T>>>,
@@ -213,25 +206,27 @@ impl<T> ResourceEntry<T> {
     }
 
     pub fn is_loaded(&self) -> bool {
-        matches!(&*self._state.borrow(), ResourceState::Loaded(_))
+        *self._state.borrow() == ResourceState::Loaded
     }
 
     pub fn get_loaded_data(&self) -> Option<RcRefCell<T>> {
-        if let ResourceState::Loaded(ref data) = *self._state.borrow() {
-            Some(data.clone())
-        } else {
-            None
-        }
+        unsafe { (*self._cached_data.get()).clone() }
     }
 
     pub fn set_loaded_data(&self, data: RcRefCell<T>) {
-        *self._state.borrow_mut() = ResourceState::Loaded(data.clone());
+        if LOG_RESOURCE_LIFECYCLE {
+            log::info!("[RESOURCE LOAD (Explicit)] {}", self._resource_name);
+        }
+        *self._state.borrow_mut() = ResourceState::Loaded;
         unsafe {
             *self._cached_data.get() = Some(data);
         }
     }
 
     pub fn unload(&self) {
+        if LOG_RESOURCE_LIFECYCLE && self.is_loaded() {
+            log::info!("[RESOURCE UNLOAD] {}", self._resource_name);
+        }
         *self._state.borrow_mut() = ResourceState::Unloaded;
         unsafe {
             *self._cached_data.get() = None;
@@ -242,25 +237,24 @@ impl<T> ResourceEntry<T> {
     where
         F: FnOnce(&MetaData) -> Option<T>,
     {
-        {
-            let state = self._state.borrow();
-            if let ResourceState::Loaded(ref data) = *state {
+        unsafe {
+            if let Some(ref data) = *self._cached_data.get() {
                 return Some(data.clone());
             }
-        }
 
-        let maybe_loaded = loader(&self._meta_data);
-        let mut state = self._state.borrow_mut();
-        if let Some(data) = maybe_loaded {
-            let rc_data = newRcRefCell(data);
-            *state = ResourceState::Loaded(rc_data.clone());
-            unsafe {
+            let maybe_loaded = loader(&self._meta_data);
+            if let Some(data) = maybe_loaded {
+                let rc_data = newRcRefCell(data);
+                if LOG_RESOURCE_LIFECYCLE {
+                    log::info!("[RESOURCE LOAD (On-Demand)] {}", self._resource_name);
+                }
+                *self._state.borrow_mut() = ResourceState::Loaded;
                 *self._cached_data.get() = Some(rc_data.clone());
+                Some(rc_data)
+            } else {
+                *self._state.borrow_mut() = ResourceState::Failed;
+                None
             }
-            Some(rc_data)
-        } else {
-            *state = ResourceState::Failed(format!("Failed to load {}", self._resource_name));
-            None
         }
     }
 
@@ -277,15 +271,85 @@ impl<T> ResourceEntry<T> {
             let maybe_loaded = loader(&self._meta_data);
             if let Some(data) = maybe_loaded {
                 let rc_data = newRcRefCell(data);
-                *self._state.borrow_mut() = ResourceState::Loaded(rc_data.clone());
+                if LOG_RESOURCE_LIFECYCLE {
+                    log::info!("[RESOURCE LOAD (On-Demand)] {}", self._resource_name);
+                }
+                *self._state.borrow_mut() = ResourceState::Loaded;
                 *cached = Some(rc_data);
                 return cached.as_ref();
             } else {
-                *self._state.borrow_mut() = ResourceState::Failed(format!("Failed to load {}", self._resource_name));
+                *self._state.borrow_mut() = ResourceState::Failed;
                 None
             }
         }
     }
+
+    pub fn check_and_update_gc(&mut self, now: std::time::Instant, timeout: std::time::Duration) -> bool {
+        if self._is_pinned {
+            self._unused_start_time = None;
+            return false;
+        }
+
+        let strong_count = unsafe {
+            if let Some(ref data) = *self._cached_data.get() {
+                std::rc::Rc::strong_count(data)
+            } else {
+                0
+            }
+        };
+
+        if strong_count == 0 {
+            self._unused_start_time = None;
+            return false;
+        }
+
+        // strong_count <= 1: 캐시 엔트리 자신만 보유 중인 상태 (외부 미사용)
+        if strong_count <= 1 {
+            match self._unused_start_time {
+                None => {
+                    self._unused_start_time = Some(now);
+                    false
+                }
+                Some(start_time) => {
+                    let elapsed = now.duration_since(start_time);
+                    if elapsed >= timeout {
+                        if LOG_RESOURCE_LIFECYCLE {
+                            log::info!(
+                                "[RESOURCE GC EVICT] {} (unused for {:.1}s)",
+                                self._resource_name,
+                                elapsed.as_secs_f32()
+                            );
+                        }
+                        self.unload();
+                        self._unused_start_time = None;
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+        } else {
+            self._unused_start_time = None;
+            false
+        }
+    }
+}
+
+pub fn update_resource_entry_map_gc<T>(
+    entry_map: &mut ResourceEntryMap<T>,
+    now: std::time::Instant,
+    timeout: std::time::Duration,
+) -> u32 {
+    let mut evicted_count = 0;
+    for entry in entry_map.values_mut() {
+        if entry.check_and_update_gc(now, timeout) {
+            evicted_count += 1;
+        }
+    }
+    if LOG_RESOURCE_LIFECYCLE && 0 < evicted_count {
+        log::info!("[RESOURCE GC SUMMARY] Evicted {} unused resources", evicted_count);
+    }
+    evicted_count
 }
 
 pub type ResourceEntryMap<T> = HashMap<String, ResourceEntry<T>>;
@@ -341,6 +405,8 @@ pub struct EngineResources<'a> {
     pub _material_data_map: MaterialDataMap<'a>,
     pub _material_instance_data_map: MaterialInstanceDataMap<'a>,
     pub _descriptor_data_map: DescriptorDataMap<'a>,
+    pub _gc_check_timer: f32,
+    pub _gc_timeout_sec: f32,
     pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
 }
 
@@ -561,6 +627,8 @@ impl<'a> EngineResources<'a> {
             _material_data_map: MaterialDataMap::default(),
             _material_instance_data_map: MaterialInstanceDataMap::default(),
             _descriptor_data_map: DescriptorDataMap::default(),
+            _gc_check_timer: 0.0,
+            _gc_timeout_sec: DEFAULT_RESOURCE_GC_TIMEOUT_SEC,
             _callback_load_render_pass_create_infos: callback_load_render_pass_create_info,
         });
 
@@ -746,6 +814,34 @@ impl<'a> EngineResources<'a> {
         self.unload_font_data_list();
         self.unload_texture_data_list(renderer_context);
         self.unload_descriptor_data_list(renderer_context);
+    }
+
+    pub fn update_garbage_collection(&mut self, delta_time: f64) -> u32 {
+        self._gc_check_timer += delta_time as f32;
+        if self._gc_check_timer < RESOURCE_GC_CHECK_INTERVAL_SEC {
+            return 0;
+        }
+        self._gc_check_timer = 0.0;
+
+        let now = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs_f32(self._gc_timeout_sec);
+
+        let mut evicted = 0;
+        evicted += update_resource_entry_map_gc(&mut self._audio_data_map, now, timeout);
+        evicted += update_resource_entry_map_gc(&mut self._audio_bank_data_map, now, timeout);
+
+        if LOG_RESOURCE_LIFECYCLE && 0 < evicted {
+            log::info!("[EngineResources GC] Evicted total {} unused resources", evicted);
+        }
+        evicted
+    }
+
+    pub fn get_gc_timeout_sec(&self) -> f32 {
+        self._gc_timeout_sec
+    }
+
+    pub fn set_gc_timeout_sec(&mut self, timeout_sec: f32) {
+        self._gc_timeout_sec = timeout_sec;
     }
 
     // GraphicsDataList

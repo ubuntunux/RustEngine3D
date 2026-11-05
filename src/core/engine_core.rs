@@ -936,6 +936,7 @@ impl<'a> EngineCore<'a> {
                 effect_manager.update_effects(delta_time);
                 debug_line_manager.update_debug_line();
                 font_manager.update_font_manager();
+                engine_service_locator::get_engine_resources_mut().update_garbage_collection(delta_time);
                 ui_manager.update_ui_manager(
                     delta_time,
                     self,
