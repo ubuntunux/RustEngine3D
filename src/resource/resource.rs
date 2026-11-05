@@ -30,7 +30,7 @@ use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataC
 use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
 use crate::scene::model::{ModelData, ModelDataInfo};
 use crate::scene::scene_manager::SceneDataCreateInfo;
-use crate::utilities::system::{self, RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
+use crate::utilities::system::{self, RcRefCell, newRcRefCell, ptr_as_ref};
 use crate::vulkan_context::descriptor::{self, DescriptorData, DescriptorResourceInfo, DescriptorResourceType};
 use crate::vulkan_context::framebuffer::{self, FramebufferData};
 use crate::vulkan_context::geometry_buffer::{self, GeometryData};
@@ -135,6 +135,161 @@ impl Default for MetaData {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ResourceState<T> {
+    Unloaded,
+    Loading,
+    Loaded(RcRefCell<T>),
+    Failed(String),
+}
+
+impl<T> Clone for ResourceState<T> {
+    fn clone(&self) -> Self {
+        match self {
+            ResourceState::Unloaded => ResourceState::Unloaded,
+            ResourceState::Loading => ResourceState::Loading,
+            ResourceState::Loaded(data) => ResourceState::Loaded(data.clone()),
+            ResourceState::Failed(msg) => ResourceState::Failed(msg.clone()),
+        }
+    }
+}
+
+pub struct ResourceEntry<T> {
+    pub _resource_name: String,
+    pub _meta_data: MetaData,
+    pub _state: RcRefCell<ResourceState<T>>,
+    pub _is_pinned: bool,
+    pub _unused_start_time: Option<std::time::Instant>,
+    pub _cached_data: std::cell::UnsafeCell<Option<RcRefCell<T>>>,
+}
+
+impl<T> Clone for ResourceEntry<T> {
+    fn clone(&self) -> Self {
+        let cached = unsafe { (*self._cached_data.get()).clone() };
+        ResourceEntry {
+            _resource_name: self._resource_name.clone(),
+            _meta_data: self._meta_data.clone(),
+            _state: self._state.clone(),
+            _is_pinned: self._is_pinned,
+            _unused_start_time: self._unused_start_time,
+            _cached_data: std::cell::UnsafeCell::new(cached),
+        }
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for ResourceEntry<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResourceEntry")
+            .field("_resource_name", &self._resource_name)
+            .field("_meta_data", &self._meta_data)
+            .field("_state", &self._state)
+            .field("_is_pinned", &self._is_pinned)
+            .field("_unused_start_time", &self._unused_start_time)
+            .finish()
+    }
+}
+
+impl<T> ResourceEntry<T> {
+    pub fn new(resource_name: String, meta_data: MetaData) -> Self {
+        ResourceEntry {
+            _resource_name: resource_name,
+            _meta_data: meta_data,
+            _state: newRcRefCell(ResourceState::Unloaded),
+            _is_pinned: false,
+            _unused_start_time: None,
+            _cached_data: std::cell::UnsafeCell::new(None),
+        }
+    }
+
+    pub fn new_pinned(resource_name: String, meta_data: MetaData) -> Self {
+        ResourceEntry {
+            _resource_name: resource_name,
+            _meta_data: meta_data,
+            _state: newRcRefCell(ResourceState::Unloaded),
+            _is_pinned: true,
+            _unused_start_time: None,
+            _cached_data: std::cell::UnsafeCell::new(None),
+        }
+    }
+
+    pub fn is_loaded(&self) -> bool {
+        matches!(&*self._state.borrow(), ResourceState::Loaded(_))
+    }
+
+    pub fn get_loaded_data(&self) -> Option<RcRefCell<T>> {
+        if let ResourceState::Loaded(ref data) = *self._state.borrow() {
+            Some(data.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn set_loaded_data(&self, data: RcRefCell<T>) {
+        *self._state.borrow_mut() = ResourceState::Loaded(data.clone());
+        unsafe {
+            *self._cached_data.get() = Some(data);
+        }
+    }
+
+    pub fn unload(&self) {
+        *self._state.borrow_mut() = ResourceState::Unloaded;
+        unsafe {
+            *self._cached_data.get() = None;
+        }
+    }
+
+    pub fn get_or_load<F>(&self, loader: F) -> Option<RcRefCell<T>>
+    where
+        F: FnOnce(&MetaData) -> Option<T>,
+    {
+        {
+            let state = self._state.borrow();
+            if let ResourceState::Loaded(ref data) = *state {
+                return Some(data.clone());
+            }
+        }
+
+        let maybe_loaded = loader(&self._meta_data);
+        let mut state = self._state.borrow_mut();
+        if let Some(data) = maybe_loaded {
+            let rc_data = newRcRefCell(data);
+            *state = ResourceState::Loaded(rc_data.clone());
+            unsafe {
+                *self._cached_data.get() = Some(rc_data.clone());
+            }
+            Some(rc_data)
+        } else {
+            *state = ResourceState::Failed(format!("Failed to load {}", self._resource_name));
+            None
+        }
+    }
+
+    pub fn get_or_load_ref<F>(&self, loader: F) -> Option<&RcRefCell<T>>
+    where
+        F: FnOnce(&MetaData) -> Option<T>,
+    {
+        unsafe {
+            let cached = &mut *self._cached_data.get();
+            if let Some(data) = cached {
+                return Some(data);
+            }
+
+            let maybe_loaded = loader(&self._meta_data);
+            if let Some(data) = maybe_loaded {
+                let rc_data = newRcRefCell(data);
+                *self._state.borrow_mut() = ResourceState::Loaded(rc_data.clone());
+                *cached = Some(rc_data);
+                return cached.as_ref();
+            } else {
+                *self._state.borrow_mut() = ResourceState::Failed(format!("Failed to load {}", self._resource_name));
+                None
+            }
+        }
+    }
+}
+
+pub type ResourceEntryMap<T> = HashMap<String, ResourceEntry<T>>;
+
 #[derive(Clone)]
 pub enum ResourceData {
     None,
@@ -144,9 +299,9 @@ pub enum ResourceData {
 
 #[derive(Clone)]
 pub struct ResourceInfo {
-    _resource_name: String,
-    _resource_data: ResourceData,
-    _meta_data: MetaData,
+    pub _resource_name: String,
+    pub _resource_data: ResourceData,
+    pub _meta_data: MetaData,
 }
 
 pub type ResourceDataContainer<T> = HashMap<String, RcRefCell<T>>;
@@ -172,8 +327,8 @@ type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 pub struct EngineResources<'a> {
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _animation_layer_data_map: AnimationLayerDataMap,
-    pub _audio_data_map: ResourceInfoMap,
-    pub _audio_bank_data_map: ResourceInfoMap,
+    pub _audio_data_map: ResourceEntryMap<AudioData>,
+    pub _audio_bank_data_map: ResourceEntryMap<AudioBankData>,
     pub _effect_data_map: EffectDataMap<'a>,
     pub _font_data_map: FontDataMap,
     pub _mesh_data_map: MeshDataMap,
@@ -251,6 +406,61 @@ pub fn get_resource_data<'a, T>(
         }
         _ => maybe_data.unwrap(),
     }
+}
+
+pub fn get_resource_entry_data_must<'a, T, F>(
+    resource_type: &str,
+    entry_map: &'a ResourceEntryMap<T>,
+    resource_name: &str,
+    loader: F,
+) -> &'a RcRefCell<T>
+where
+    F: FnOnce(&MetaData) -> Option<T>,
+{
+    if let Some(entry) = entry_map.get(resource_name) {
+        if let Some(data) = entry.get_or_load_ref(loader) {
+            return data;
+        }
+        panic!("Failed to load {}: {:?}", resource_type, resource_name);
+    }
+    panic!("not found {}: {:?}", resource_type, resource_name);
+}
+
+pub fn get_resource_entry_data<'a, T, F>(
+    resource_type: &str,
+    entry_map: &'a ResourceEntryMap<T>,
+    resource_name: &str,
+    default_resource_name: &str,
+    loader: F,
+) -> &'a RcRefCell<T>
+where
+    F: Fn(&MetaData) -> Option<T>,
+{
+    if let Some(entry) = entry_map.get(resource_name) {
+        if let Some(data) = entry.get_or_load_ref(&loader) {
+            return data;
+        }
+        log::error!(
+            "Failed to load {}: {}, fallback to {}",
+            resource_type,
+            resource_name,
+            default_resource_name
+        );
+    } else {
+        log::error!(
+            "not found {}: {}, fallback to {}",
+            resource_type,
+            resource_name,
+            default_resource_name
+        );
+    }
+
+    if let Some(default_entry) = entry_map.get(default_resource_name) {
+        if let Some(data) = default_entry.get_or_load_ref(&loader) {
+            return data;
+        }
+    }
+    panic!("not found default {}: {:?}", resource_type, default_resource_name);
 }
 
 pub fn get_resource_name_from_file_path(resource_directory: &PathBuf, resource_file_path: &PathBuf) -> String {
@@ -337,8 +547,8 @@ impl<'a> EngineResources<'a> {
         let mut engine_resource = Box::new(EngineResources {
             _relative_resource_file_path_map: HashMap::new(),
             _animation_layer_data_map: AnimationLayerDataMap::default(),
-            _audio_data_map: ResourceInfoMap::new(),
-            _audio_bank_data_map: ResourceInfoMap::new(),
+            _audio_data_map: ResourceEntryMap::new(),
+            _audio_bank_data_map: ResourceEntryMap::new(),
             _effect_data_map: EffectDataMap::default(),
             _font_data_map: FontDataMap::default(),
             _mesh_data_map: MeshDataMap::default(),
@@ -634,12 +844,8 @@ impl<'a> EngineResources<'a> {
         for audio_data_file in audio_data_files.iter() {
             let audio_data_name = get_unique_resource_name(&self._audio_data_map, &audio_directory, &audio_data_file);
             let meta_data = MetaData::new(&audio_data_file, &audio_data_file);
-            let audio_resource_info = ResourceInfo {
-                _resource_name: audio_data_name.clone(),
-                _resource_data: ResourceData::None,
-                _meta_data: meta_data,
-            };
-            self._audio_data_map.insert(audio_data_name, audio_resource_info);
+            let audio_resource_entry = ResourceEntry::new(audio_data_name.clone(), meta_data);
+            self._audio_data_map.insert(audio_data_name, audio_resource_entry);
         }
 
         // create default audio bank data
@@ -668,12 +874,8 @@ impl<'a> EngineResources<'a> {
             let audio_bank_data_name =
                 get_unique_resource_name(&self._audio_bank_data_map, &audio_bank_directory, &audio_bank_data_file);
             let meta_data = MetaData::new(&audio_bank_data_file, &audio_bank_data_file);
-            let audio_resource_info = ResourceInfo {
-                _resource_name: audio_bank_data_name.clone(),
-                _resource_data: ResourceData::None,
-                _meta_data: meta_data,
-            };
-            self._audio_bank_data_map.insert(audio_bank_data_name.clone(), audio_resource_info);
+            let audio_bank_resource_entry = ResourceEntry::new(audio_bank_data_name.clone(), meta_data);
+            self._audio_bank_data_map.insert(audio_bank_data_name.clone(), audio_bank_resource_entry);
         }
     }
 
@@ -683,62 +885,73 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn has_audio_data(&self, resource_name: &str) -> bool {
-        self._audio_data_map.get(resource_name).is_some()
+        self._audio_data_map.contains_key(resource_name)
     }
 
-    pub fn get_audio_data(&mut self, resource_name: &str) -> &ResourceData {
-        if let Some(resource_info) = self._audio_data_map.get_mut(resource_name) {
-            match resource_info._resource_data {
-                ResourceData::None => {
-                    if resource_info._meta_data._resource_file_path.is_file() {
-                        // load audio data
-                        let audio_data = AudioData {
-                            _audio_name: resource_info._resource_name.clone(),
-                            _sound_chunk: sdl2::mixer::Chunk::from_file(&resource_info._meta_data._resource_file_path)
-                                .unwrap(),
-                        };
-                        resource_info._resource_data = ResourceData::Audio(newRcRefCell(audio_data));
+    pub fn get_audio_data(&self, resource_name: &str) -> ResourceData {
+        if let Some(entry) = self._audio_data_map.get(resource_name) {
+            let audio_name = resource_name.to_string();
+            if let Some(audio_data) = entry.get_or_load(|meta| {
+                if meta._resource_file_path.is_file() {
+                    match sdl2::mixer::Chunk::from_file(&meta._resource_file_path) {
+                        Ok(chunk) => Some(AudioData {
+                            _audio_name: audio_name,
+                            _sound_chunk: chunk,
+                        }),
+                        Err(err) => {
+                            log::error!("Failed to load audio {:?}: {:?}", meta._resource_file_path, err);
+                            None
+                        }
                     }
+                } else {
+                    log::error!("Audio file does not exist: {:?}", meta._resource_file_path);
+                    None
                 }
-                _ => (),
+            }) {
+                return ResourceData::Audio(audio_data);
             }
-            return &resource_info._resource_data;
         }
-        &ResourceData::None
+        ResourceData::None
     }
 
     pub fn has_audio_bank_data(&self, resource_name: &str) -> bool {
-        self._audio_bank_data_map.get(resource_name).is_some()
+        self._audio_bank_data_map.contains_key(resource_name)
     }
 
-    pub fn get_audio_bank_data(&mut self, resource_name: &str) -> &ResourceData {
-        if let Some(resource_info) = self._audio_bank_data_map.get(resource_name) {
-            let resource_info = ptr_as_mut(resource_info);
-            match resource_info._resource_data {
-                ResourceData::None => {
-                    if resource_info._meta_data._resource_file_path.is_file() {
-                        // load audio bank data
-                        let loaded_contents = system::load(&resource_info._meta_data._resource_file_path);
-                        let audio_bank_create_info: AudioBankCreateInfo =
-                            serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-                        let mut audio_data_list: Vec<RcRefCell<AudioData>> = Vec::new();
-                        for audio_name in audio_bank_create_info._audio_names.iter() {
-                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
-                                audio_data_list.push(audio_data.clone());
+    pub fn get_audio_bank_data(&self, resource_name: &str) -> ResourceData {
+        if let Some(entry) = self._audio_bank_data_map.get(resource_name) {
+            let audio_bank_name = resource_name.to_string();
+            if let Some(audio_bank_data) = entry.get_or_load(|meta| {
+                if meta._resource_file_path.is_file() {
+                    let loaded_contents = system::load(&meta._resource_file_path);
+                    match serde_json::from_reader(loaded_contents) {
+                        Ok(audio_bank_create_info) => {
+                            let audio_bank_create_info: AudioBankCreateInfo = audio_bank_create_info;
+                            let mut audio_data_list: Vec<RcRefCell<AudioData>> = Vec::new();
+                            for audio_name in audio_bank_create_info._audio_names.iter() {
+                                if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
+                                    audio_data_list.push(audio_data);
+                                }
                             }
+                            Some(AudioBankData {
+                                _audio_bank_name: audio_bank_name,
+                                _audio_data_list: audio_data_list,
+                            })
                         }
-                        let audio_bank_data = AudioBankData {
-                            _audio_bank_name: resource_info._resource_name.clone(),
-                            _audio_data_list: audio_data_list,
-                        };
-                        resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
+                        Err(err) => {
+                            log::error!("Failed to deserialize audio bank {:?}: {:?}", meta._resource_file_path, err);
+                            None
+                        }
                     }
+                } else {
+                    log::error!("Audio bank file does not exist: {:?}", meta._resource_file_path);
+                    None
                 }
-                _ => (),
+            }) {
+                return ResourceData::AudioBank(audio_bank_data);
             }
-            return &resource_info._resource_data;
         }
-        &ResourceData::None
+        ResourceData::None
     }
 
     // EffectData

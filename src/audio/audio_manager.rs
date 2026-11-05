@@ -208,7 +208,7 @@ impl AudioManager {
     ) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = get_engine_resources_mut();
         if let ResourceData::AudioBank(audio_bank_data) = engine_resources.get_audio_bank_data(audio_name_bank) {
-            return self.play_audio_bank_data(audio_bank_data, audio_loop, audio_volume);
+            return self.play_audio_bank_data(&audio_bank_data, audio_loop, audio_volume);
         }
         None
     }
