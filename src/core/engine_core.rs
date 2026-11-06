@@ -2,8 +2,8 @@ use std::time;
 
 use log;
 use nalgebra::Vector2;
-use sdl2::event;
 use sdl2::Sdl;
+use sdl2::event;
 use winit::application::ApplicationHandler;
 use winit::dpi;
 use winit::event::{

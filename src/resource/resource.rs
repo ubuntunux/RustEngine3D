@@ -15,7 +15,7 @@ use serde_json::{self, Value};
 use crate::audio::audio_manager::{AudioBankCreateInfo, AudioBankData, AudioData};
 use crate::constants;
 use crate::constants::DEVELOPMENT;
-use crate::core::engine_service_locator::get_renderer_context;
+use crate::core::engine_service_locator::{get_engine_resources, get_renderer_context};
 use crate::effect::effect_data::{EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::async_loader::{AsyncLoadRequest, AsyncLoadResult, AsyncResourceLoader};
@@ -31,7 +31,7 @@ use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataC
 use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
 use crate::scene::model::{ModelData, ModelDataInfo};
 use crate::scene::scene_manager::SceneDataCreateInfo;
-use crate::utilities::system::{self, newRcRefCell, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{self, RcRefCell, newRcRefCell, ptr_as_ref};
 use crate::vulkan_context::descriptor::{self, DescriptorData, DescriptorResourceInfo, DescriptorResourceType};
 use crate::vulkan_context::framebuffer::{self, FramebufferData};
 use crate::vulkan_context::geometry_buffer::{self, GeometryData};
@@ -434,7 +434,7 @@ pub type MaterialDataMap<'a> = ResourceDataContainer<MaterialData<'a>>;
 pub type MaterialInstanceDataMap<'a> = ResourceDataContainer<MaterialInstanceData<'a>>;
 pub type FontDataMap = ResourceDataContainer<FontData>;
 pub type MeshDataMap = ResourceEntryMap<MeshData>;
-pub type ModelDataMap<'a> = ResourceDataContainer<ModelData<'a>>;
+pub type ModelDataMap<'a> = ResourceEntryMap<ModelData<'a>>;
 pub type TextureDataMap = ResourceEntryMap<TextureData>;
 pub type RenderPassDataMap<'a> = ResourceDataContainer<RenderPassData<'a>>;
 pub type RenderPassDataCreateInfoMap = HashMap<String, RenderPassDataCreateInfo>;
@@ -858,6 +858,18 @@ impl<'a> EngineResources<'a> {
         }
     }
 
+    pub fn pin_model_data(&mut self, model_name: &str) {
+        if let Some(entry) = self._model_data_map.get_mut(model_name) {
+            entry.pin();
+        }
+    }
+
+    pub fn register_model_data(&mut self, model_name: String, model_data: RcRefCell<ModelData<'a>>) {
+        let entry = ResourceEntry::new_pinned(model_name.clone(), MetaData::default());
+        entry.set_loaded_data(model_data);
+        self._model_data_map.insert(model_name, entry);
+    }
+
     pub fn preinitialize_engine_resources(&mut self) {
         let resource_list_file_path: PathBuf = PathBuf::from(APPLICATION_RESOURCE_PATH).join("resources.txt");
 
@@ -1051,6 +1063,7 @@ impl<'a> EngineResources<'a> {
         let mut evicted = 0;
         evicted += update_resource_entry_map_gc(&mut self._audio_data_map, now, timeout);
         evicted += update_resource_entry_map_gc(&mut self._audio_bank_data_map, now, timeout);
+        evicted += update_resource_entry_map_gc(&mut self._model_data_map, now, timeout);
 
         let renderer_context = get_renderer_context();
 
@@ -1461,7 +1474,7 @@ impl<'a> EngineResources<'a> {
         log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
-                                                                          //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
+        //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
 
         // gather font files
         let font_directory = PathBuf::from(FONT_DIRECTORY);
@@ -1577,39 +1590,83 @@ impl<'a> EngineResources<'a> {
     }
 
     // ModelData
+    pub fn load_model_data(model_name: &str, meta_data: &MetaData) -> Option<ModelData<'a>> {
+        let file_path = if meta_data._resource_file_path.is_file() {
+            &meta_data._resource_file_path
+        } else if meta_data._source_file_path.is_file() {
+            &meta_data._source_file_path
+        } else {
+            log::error!("Model file not found: {:?}", meta_data);
+            return None;
+        };
+
+        let loaded_contents = system::load(file_path);
+        let model_data_info: ModelDataInfo = match serde_json::from_reader(loaded_contents) {
+            Ok(info) => info,
+            Err(e) => {
+                log::error!("Failed to deserialize model {}: {:?}", model_name, e);
+                return None;
+            }
+        };
+
+        let engine_resources = get_engine_resources();
+        let mesh_data = engine_resources.get_mesh_data(model_data_info._mesh.as_str());
+        let material_instance_count = model_data_info._material_instances.len();
+        let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
+        let num_materials = if geometry_data_count > 0 {
+            geometry_data_count
+        } else if material_instance_count > 0 {
+            material_instance_count
+        } else {
+            1
+        };
+
+        let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>> = (0..num_materials)
+            .map(|index| {
+                if 0 < material_instance_count {
+                    let material_index = 0.max(index.min(material_instance_count - 1));
+                    engine_resources
+                        .get_material_instance_data(&model_data_info._material_instances[material_index])
+                        .clone()
+                } else {
+                    engine_resources.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
+                }
+            })
+            .collect();
+
+        Some(ModelData::create_model_data(
+            &model_name.to_string(),
+            mesh_data,
+            material_instance_data_list,
+            &model_data_info,
+        ))
+    }
+
     pub fn load_model_data_list(&mut self) {
         log::info!("    load_model_data_list");
         let model_directory = PathBuf::from(MODEL_DIRECTORY);
         let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
             let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
-            let loaded_contents = system::load(&model_file);
-            let model_data_info: ModelDataInfo =
-                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let material_instance_count = model_data_info._material_instances.len();
-            let mesh_data = self.get_mesh_data(model_data_info._mesh.as_str());
-            let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
-            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> = (0..geometry_data_count)
-                .map(|index| {
-                    if 0 < material_instance_count {
-                        let material_index = 0.max(index.min(material_instance_count - 1));
-                        self.get_material_instance_data(&model_data_info._material_instances[material_index]).clone()
-                    } else {
-                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
-                    }
-                })
-                .collect();
-
-            let model_data =
-                ModelData::create_model_data(&model_name, &mesh_data, material_instance_data_list, &model_data_info);
-
-            self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
+            let meta_data = MetaData::new(&model_file, &model_file);
+            let entry = if model_name == DEFAULT_MODEL_NAME {
+                ResourceEntry::new_pinned(model_name.clone(), meta_data)
+            } else {
+                ResourceEntry::new(model_name.clone(), meta_data)
+            };
+            self._model_data_map.insert(model_name, entry);
         }
+
+        // Preload & Pin default model
+        let _ = self.get_model_data(DEFAULT_MODEL_NAME);
+        self.pin_model_data(DEFAULT_MODEL_NAME);
     }
 
     pub fn unload_model_data_list(&mut self) {
-        for model_data in self._model_data_map.values() {
-            model_data.borrow().destroy_model_data();
+        for entry in self._model_data_map.values() {
+            entry.unload_with(|model_data| {
+                model_data.borrow().destroy_model_data();
+            });
         }
         self._model_data_map.clear();
     }
@@ -1619,7 +1676,13 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData<'a>> {
-        get_resource_data("model_data", &self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
+        get_resource_entry_data(
+            "model_data",
+            &self._model_data_map,
+            resource_name,
+            DEFAULT_MODEL_NAME,
+            |model_name, meta_data| Self::load_model_data(model_name, meta_data),
+        )
     }
 
     // Mesh Loader

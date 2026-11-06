@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -14,8 +14,8 @@ use crate::resource::collada_loader::Collada;
 use crate::resource::gltf_loader::GLTF;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::resource::{
-    EngineResources, MetaData, EXT_COLLADA, EXT_GLTF, EXT_GLTF_BINARY, EXT_OBJ, EXT_TEXTURE, EXT_TEXTURE_2D_ARRAY,
-    EXT_TEXTURE_3D, EXT_TEXTURE_CUBE, LOAD_FROM_EXTERNAL_FOR_MESH, USE_JSON_FOR_MESH,
+    EXT_COLLADA, EXT_GLTF, EXT_GLTF_BINARY, EXT_OBJ, EXT_TEXTURE, EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D,
+    EXT_TEXTURE_CUBE, EngineResources, LOAD_FROM_EXTERNAL_FOR_MESH, MetaData, USE_JSON_FOR_MESH,
 };
 use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::system;
