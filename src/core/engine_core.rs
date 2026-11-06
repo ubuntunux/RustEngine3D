@@ -20,7 +20,7 @@ use crate::audio::audio_manager::AudioManager;
 use crate::constants;
 use crate::constants::{DEVELOPMENT, SHOW_DEBUG_TEXT};
 use crate::core::engine_service_locator;
-use crate::core::engine_service_locator::{get_renderer_context, get_scene_manager_mut};
+use crate::core::engine_service_locator::get_scene_manager_mut;
 use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
@@ -380,6 +380,7 @@ pub struct EngineCore<'a> {
     pub _monitor_index: Option<usize>,
     pub _resolution: Vector2<u32>,
     pub _pending_window_size: Option<dpi::PhysicalSize<u32>>,
+    pub _is_terminated: bool,
 }
 
 impl<'a> EngineCore<'a> {
@@ -681,6 +682,7 @@ impl<'a> EngineCore<'a> {
             _monitor_index: initial_monitor_index,
             _resolution: initial_resolution,
             _pending_window_size: None,
+            _is_terminated: false,
         });
 
         // register engine service locator
@@ -705,7 +707,12 @@ impl<'a> EngineCore<'a> {
     }
 
     pub fn terminate_application(&mut self) {
-        let renderer_context = get_renderer_context();
+        if self._is_terminated {
+            return;
+        }
+        self._is_terminated = true;
+
+        let renderer_context = self._renderer_context.as_ref();
         renderer_context.device_wait_idle();
 
         // destroy managers
@@ -1115,7 +1122,9 @@ impl<'a> EngineCore<'a> {
 
 impl<'a> Drop for EngineCore<'a> {
     fn drop(&mut self) {
+        self.terminate_application();
         self._renderer_context.destroy_renderer_context();
+        engine_service_locator::clear_engine_core(self as *const EngineCore);
     }
 }
 
@@ -1127,8 +1136,8 @@ struct EngineAppHandler<'a> {
     _window_mode: WindowMode,
     _application: *const dyn ApplicationBase<'a>,
     _sdl: Sdl,
-    _window: Option<Window>,
     _maybe_engine_core: Option<Box<EngineCore<'a>>>,
+    _window: Option<Window>,
     _initialize_done: bool,
     _run_application: bool,
 }
@@ -1475,6 +1484,10 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
         log::info!("Application destroyed");
+        if let Some(mut engine_core) = self._maybe_engine_core.take() {
+            engine_core.terminate_application();
+        }
+        self._window = None;
     }
 }
 
@@ -1502,8 +1515,8 @@ pub fn run_application<'a>(
         _window_mode: window_mode,
         _application: application,
         _sdl: sdl,
-        _window: None,
         _maybe_engine_core: None,
+        _window: None,
         _initialize_done: false,
         _run_application: false,
     };

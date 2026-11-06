@@ -19,6 +19,14 @@ pub fn set_engine_core(engine_core: *const EngineCore) {
     }
 }
 
+pub fn clear_engine_core(engine_core: *const EngineCore) {
+    unsafe {
+        if ENGINE_CORE_PTR == engine_core as *const EngineCore<'static> {
+            ENGINE_CORE_PTR = ptr::null();
+        }
+    }
+}
+
 pub fn is_engine_core_valid() -> bool {
     unsafe { !ENGINE_CORE_PTR.is_null() }
 }
