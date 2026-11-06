@@ -5,7 +5,7 @@ use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::scene::socket::{SocketData, SocketDataCreateInfo};
 use crate::utilities::math;
-use crate::utilities::system::{RcRefCell, newRcRefCell};
+use crate::utilities::system::{newRcRefCell, RcRefCell};
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -105,6 +105,18 @@ impl<'a> ModelData<'a> {
             _collision: CollisionData::create_collision(&model_data_info._collision),
             _socket_data_map: socket_data_map,
         }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        if !self._mesh_data.borrow().is_ready() {
+            return false;
+        }
+        for mat_inst in self._material_instance_data_list.iter() {
+            if !mat_inst.borrow().is_ready() {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn destroy_model_data(&self) {}

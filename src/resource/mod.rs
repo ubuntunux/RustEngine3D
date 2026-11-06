@@ -1,3 +1,4 @@
+pub mod async_loader;
 pub mod collada_loader;
 pub mod font_loader;
 pub mod gltf_loader;

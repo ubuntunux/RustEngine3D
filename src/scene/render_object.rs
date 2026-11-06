@@ -13,7 +13,7 @@ use crate::scene::scene_manager::{RenderObjectMap, SceneObjectID};
 use crate::scene::socket::Socket;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
-use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
+use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
@@ -77,6 +77,7 @@ pub struct RenderObjectSaveData {
 pub struct RenderObjectData<'a> {
     pub _scene_object_type: SceneObjectType,
     pub _object_id: SceneObjectID,
+    pub _is_ready: bool,
     pub _is_visible: bool,
     pub _is_render_camera: bool,
     pub _is_render_shadow: bool,
@@ -148,6 +149,7 @@ impl<'a> RenderObjectData<'a> {
             _entity_id: INVALID_ENTITY_ID,
             _scene_object_type: render_object_create_data._scene_object_type,
             _object_id: object_id,
+            _is_ready: model_data_ref.is_ready(),
             _is_visible: render_object_create_data._scene_object_type != SceneObjectType::Collision,
             _is_render_camera: model_data_ref.is_render_camera(),
             _is_render_shadow: model_data_ref.is_render_shadow(),
@@ -219,6 +221,7 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn copy_render_object_date(&mut self, src_render_object: &RenderObjectData<'a>) {
+        self._is_ready = src_render_object._is_ready;
         self._is_visible = src_render_object._is_visible;
         self._is_render_camera = src_render_object._is_render_camera;
         self._is_render_shadow = src_render_object._is_render_shadow;
@@ -242,8 +245,35 @@ impl<'a> RenderObjectData<'a> {
         self._object_id = object_id;
     }
 
+    pub fn is_ready(&self) -> bool {
+        self._is_ready
+    }
+
+    pub fn set_ready(&mut self, is_ready: bool) {
+        self._is_ready = is_ready;
+    }
+
+    pub fn check_and_update_ready_state(&mut self) -> bool {
+        if self._is_ready {
+            return true;
+        }
+        if self._model_data.borrow().is_ready() {
+            self._is_ready = true;
+            self.update_render_object_data_resources();
+            if crate::resource::resource::LOG_RESOURCE_LIFECYCLE {
+                log::info!(
+                    "[Visibility Gating] RenderObject '{}' is now READY and VISIBLE",
+                    self._render_object_name
+                );
+            }
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_visible(&self) -> bool {
-        self._is_visible
+        self._is_ready && self._is_visible
     }
 
     pub fn set_visible(&mut self, visible: bool) {
@@ -500,6 +530,9 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn update_render_object_data(&mut self, delta_time: f32) {
+        if !self._is_ready {
+            self.check_and_update_ready_state();
+        }
         let mut need_to_update_socket = false;
 
         self._prev_transform = self._final_transform.clone();

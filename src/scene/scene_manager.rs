@@ -25,7 +25,7 @@ use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData, SceneObjectType};
 use crate::scene::transform_object::{TransformStorage, TransformSystem};
 use crate::utilities::math;
-use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
+use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::{begin_block, constants};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
@@ -717,12 +717,12 @@ impl<'a> SceneManager<'a> {
             let is_distance_culled = render_object_data._is_render_height_map == false
                 && render_object_data._bounding_box._radius * DISTANCE_CULL_FACTOR <= to_geometry.dot(&to_geometry);
 
-            let is_render_camera = render_object_data._is_visible
+            let is_render_camera = render_object_data.is_visible()
                 && render_object_data._is_render_camera
                 && SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box, &to_geometry)
                     == false;
 
-            let is_render_shadow = render_object_data._is_visible
+            let is_render_shadow = render_object_data.is_visible()
                 && render_object_data._is_render_shadow
                 && SceneManager::shadow_culling(light, &render_object_data._bounding_box) == false;
 

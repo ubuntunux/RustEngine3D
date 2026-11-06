@@ -1,15 +1,15 @@
 use std::collections::HashMap;
 
 use ash::ext;
-use ash::{Device, vk};
+use ash::{vk, Device};
 
 use crate::scene::material::MaterialData;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::descriptor::{
-    DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update,
+    create_descriptor_sets, create_write_descriptor_sets_with_update, DescriptorResourceInfo,
 };
 use crate::vulkan_context::render_pass::{
-    PipelineData, PipelinePushConstantData, RenderPassData, RenderPassPipelineData, get_render_pass_pipeline_data_name,
+    get_render_pass_pipeline_data_name, PipelineData, PipelinePushConstantData, RenderPassData, RenderPassPipelineData,
 };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
@@ -138,6 +138,23 @@ impl<'a> MaterialInstanceData<'a> {
             _pipeline_binding_data_map: pipeline_binding_data_map,
             _default_pipeline_binding_name: default_pipeline_binding_name,
         }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        if !crate::core::engine_service_locator::is_engine_core_valid() {
+            return true;
+        }
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        for (_key, value) in self._material_parameters.iter() {
+            if let serde_json::Value::String(texture_name) = value {
+                if let Some(entry) = engine_resources._texture_data_map.get(texture_name) {
+                    if !entry.is_loaded() {
+                        return false;
+                    }
+                }
+            }
+        }
+        true
     }
 
     pub fn destroy_material_instance(&self) {

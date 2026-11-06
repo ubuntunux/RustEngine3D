@@ -2,8 +2,8 @@ use std::time;
 
 use log;
 use nalgebra::Vector2;
-use sdl2::Sdl;
 use sdl2::event;
+use sdl2::Sdl;
 use winit::application::ApplicationHandler;
 use winit::dpi;
 use winit::event::{
@@ -930,6 +930,7 @@ impl<'a> EngineCore<'a> {
         } else {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
+                engine_service_locator::get_engine_resources_mut().update_async_loading();
                 self.update_application(delta_time);
                 scene_manager.update_scene_manager(delta_time);
                 audio_manager.update_audio_manager();

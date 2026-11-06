@@ -86,6 +86,10 @@ impl MeshData {
         mesh_data
     }
 
+    pub fn is_ready(&self) -> bool {
+        !self._geometry_data_list.is_empty()
+    }
+
     pub fn has_animation_data(&self) -> bool {
         false == self._animation_data_list.is_empty()
     }
