@@ -470,10 +470,12 @@ impl<'a> SceneManager<'a> {
         is_dynamic_update_object: bool,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
+        let model_data = get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
+        get_engine_resources().request_model_resources(&model_data.borrow());
         let (mut render_object_data_obj, transform_object_data) = RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
-            get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
+            model_data,
             &render_object_create_info,
             custom_collision_type,
         );
@@ -552,6 +554,7 @@ impl<'a> SceneManager<'a> {
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
         let model_data = get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
+        get_engine_resources().request_model_resources(&model_data.borrow());
         let (mut render_object_data_obj, transform_object_data) = RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),

@@ -138,7 +138,7 @@ impl Default for MetaData {
 
 pub const DEFAULT_RESOURCE_GC_TIMEOUT_SEC: f32 = 30.0;
 pub const RESOURCE_GC_CHECK_INTERVAL_SEC: f32 = 1.0;
-pub const LOG_RESOURCE_LIFECYCLE: bool = true;
+pub const LOG_RESOURCE_LIFECYCLE: bool = false;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ResourceState {
@@ -328,7 +328,7 @@ impl<T> ResourceEntry<T> {
     where
         F: FnOnce(&RcRefCell<T>),
     {
-        if self._is_pinned {
+        if self._is_pinned || self.is_loading() {
             self._unused_start_time = None;
             return false;
         }

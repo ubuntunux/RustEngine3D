@@ -259,7 +259,26 @@ impl<'a> RenderObjectData<'a> {
         }
         if self._model_data.borrow().is_ready() {
             self._is_ready = true;
+            let model_data_ref = self._model_data.borrow();
+            self._mesh_data = model_data_ref._mesh_data.clone();
+            let mesh_data_borrow = self._mesh_data.borrow();
+            self._bounding_box = mesh_data_borrow._bound_box.clone();
+            self._geometry_bound_boxes = mesh_data_borrow
+                ._geometry_data_list
+                .iter()
+                .map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone())
+                .collect();
+            drop(mesh_data_borrow);
+            drop(model_data_ref);
+
             self.update_render_object_data_resources();
+
+            if self._mesh_data.borrow().has_animation_data() && self._animation_play_infos.is_empty() {
+                self.initialize_animation_play_info();
+            }
+
+            self.update_render_object_data(0.0);
+
             if crate::resource::resource::LOG_RESOURCE_LIFECYCLE {
                 log::info!(
                     "[Visibility Gating] RenderObject '{}' is now READY and VISIBLE",
