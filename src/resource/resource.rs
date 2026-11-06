@@ -139,6 +139,27 @@ impl Default for MetaData {
 pub const DEFAULT_RESOURCE_GC_TIMEOUT_SEC: f32 = 30.0;
 pub const RESOURCE_GC_CHECK_INTERVAL_SEC: f32 = 1.0;
 pub const LOG_RESOURCE_LIFECYCLE: bool = false;
+pub const DEFAULT_VRAM_BUDGET_BYTES: usize = 1536 * 1024 * 1024; // 1.5 GB
+pub const DEFAULT_ASYNC_LOAD_TIME_SLICE_MS: f32 = 2.0; // 2.0 ms per frame
+pub const DEFAULT_ASYNC_LOAD_MAX_ITEMS: usize = 8;
+
+#[derive(Clone, Debug, Default)]
+pub struct ResourceStreamingMetrics {
+    pub _loaded_textures: usize,
+    pub _total_textures: usize,
+    pub _texture_memory_bytes: usize,
+    pub _loaded_meshes: usize,
+    pub _total_meshes: usize,
+    pub _mesh_memory_bytes: usize,
+    pub _loaded_models: usize,
+    pub _total_models: usize,
+    pub _total_vram_bytes: usize,
+    pub _vram_budget_bytes: usize,
+    pub _pending_async_requests: usize,
+    pub _last_async_processed_count: u32,
+    pub _last_async_process_duration_ms: f32,
+    pub _total_gc_evicted_count: u64,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ResourceState {
@@ -464,6 +485,13 @@ pub struct EngineResources<'a> {
     pub _gc_timeout_sec: f32,
     pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
     pub _async_loader: Option<AsyncResourceLoader>,
+    pub _vram_budget_bytes: usize,
+    pub _enable_budget_gc: bool,
+    pub _async_load_time_slice_ms: f32,
+    pub _async_load_max_items_per_frame: usize,
+    pub _total_gc_evicted_count: u64,
+    pub _last_async_processed_count: u32,
+    pub _last_async_process_duration_ms: f32,
 }
 
 fn walk_directory_recursive(
@@ -710,6 +738,13 @@ impl<'a> EngineResources<'a> {
             _gc_timeout_sec: DEFAULT_RESOURCE_GC_TIMEOUT_SEC,
             _callback_load_render_pass_create_infos: callback_load_render_pass_create_info,
             _async_loader: Some(AsyncResourceLoader::new(2)),
+            _vram_budget_bytes: DEFAULT_VRAM_BUDGET_BYTES,
+            _enable_budget_gc: true,
+            _async_load_time_slice_ms: DEFAULT_ASYNC_LOAD_TIME_SLICE_MS,
+            _async_load_max_items_per_frame: DEFAULT_ASYNC_LOAD_MAX_ITEMS,
+            _total_gc_evicted_count: 0,
+            _last_async_processed_count: 0,
+            _last_async_process_duration_ms: 0.0,
         });
 
         engine_resource.preinitialize_engine_resources();
@@ -767,8 +802,15 @@ impl<'a> EngineResources<'a> {
             None => return 0,
         };
 
+        let start_time = std::time::Instant::now();
+        let time_budget = std::time::Duration::from_secs_f32(self._async_load_time_slice_ms * 0.001);
         let mut processed_count = 0;
+
         while processed_count < max_items {
+            if processed_count > 0 && start_time.elapsed() >= time_budget {
+                break;
+            }
+
             let result = match loader.try_recv_result() {
                 Some(res) => res,
                 None => break,
@@ -838,12 +880,18 @@ impl<'a> EngineResources<'a> {
                 },
             }
         }
+
+        let elapsed_ms = start_time.elapsed().as_secs_f32() * 1000.0;
+        self._last_async_processed_count = processed_count as u32;
+        self._last_async_process_duration_ms = elapsed_ms;
+
         processed_count as u32
     }
 
     pub fn update_async_loading(&mut self) -> u32 {
         let renderer_context = get_renderer_context();
-        self.process_async_loading(renderer_context, 8)
+        let max_items = self._async_load_max_items_per_frame;
+        self.process_async_loading(renderer_context, max_items)
     }
 
     pub fn pin_texture_data(&mut self, texture_name: &str) {
@@ -1123,10 +1171,250 @@ impl<'a> EngineResources<'a> {
 
         evicted += gpu_evicted;
 
+        // VRAM Budget 초과 시 LRU 조기 회수 실행
+        let budget_evicted = self.evict_resources_to_fit_budget(renderer_context);
+        evicted += budget_evicted;
+
+        self._total_gc_evicted_count += (evicted - budget_evicted) as u64;
+
         if LOG_RESOURCE_LIFECYCLE && 0 < evicted {
             log::info!("[EngineResources GC] Evicted total {} unused resources", evicted);
         }
         evicted
+    }
+
+    pub fn evict_resources_to_fit_budget(&mut self, renderer_context: &RendererContext) -> u32 {
+        if !self._enable_budget_gc {
+            return 0;
+        }
+
+        let current_vram = self.get_total_vram_usage_bytes();
+        if current_vram <= self._vram_budget_bytes {
+            return 0;
+        }
+
+        let target_bytes = (self._vram_budget_bytes * 9) / 10;
+        let mut bytes_to_free = current_vram.saturating_sub(target_bytes);
+        let now = std::time::Instant::now();
+
+        struct EvictCandidate {
+            _name: String,
+            _is_texture: bool,
+            _unused_time: std::time::Instant,
+            _mem_bytes: usize,
+        }
+
+        let mut candidates = Vec::new();
+
+        for (name, entry) in self._texture_data_map.iter() {
+            if entry.is_pinned() || entry.is_loading() {
+                continue;
+            }
+            let strong_count = unsafe {
+                match *entry._cached_data.get() {
+                    Some(ref data) => std::rc::Rc::strong_count(data),
+                    None => 0,
+                }
+            };
+            if strong_count == 1 {
+                if let Some(tex) = entry.get_loaded_data() {
+                    let mem = tex.borrow().get_memory_usage_bytes();
+                    let unused_time = entry._unused_start_time.unwrap_or(now);
+                    candidates.push(EvictCandidate {
+                        _name: name.clone(),
+                        _is_texture: true,
+                        _unused_time: unused_time,
+                        _mem_bytes: mem,
+                    });
+                }
+            }
+        }
+
+        for (name, entry) in self._mesh_data_map.iter() {
+            if entry.is_pinned() || entry.is_loading() {
+                continue;
+            }
+            let strong_count = unsafe {
+                match *entry._cached_data.get() {
+                    Some(ref data) => std::rc::Rc::strong_count(data),
+                    None => 0,
+                }
+            };
+            if strong_count == 1 {
+                if let Some(mesh) = entry.get_loaded_data() {
+                    let mem = mesh.borrow().get_memory_usage_bytes();
+                    let unused_time = entry._unused_start_time.unwrap_or(now);
+                    candidates.push(EvictCandidate {
+                        _name: name.clone(),
+                        _is_texture: false,
+                        _unused_time: unused_time,
+                        _mem_bytes: mem,
+                    });
+                }
+            }
+        }
+
+        if candidates.is_empty() {
+            return 0;
+        }
+
+        // LRU 정렬 (가장 먼저 미사용된 리소스부터 오름차순)
+        candidates.sort_by_key(|c| c._unused_time);
+
+        // GPU 리소스 안전 파괴를 위한 펜스 대기
+        renderer_context.device_wait_idle();
+
+        let mut evicted_count = 0;
+        let mut freed_bytes = 0;
+
+        for cand in candidates {
+            if bytes_to_free == 0 {
+                break;
+            }
+
+            if cand._is_texture {
+                if let Some(entry) = self._texture_data_map.get_mut(&cand._name) {
+                    entry.unload_with(|texture_data| {
+                        renderer_context.destroy_texture(&(*texture_data).borrow());
+                    });
+                    entry._unused_start_time = None;
+                    evicted_count += 1;
+                    freed_bytes += cand._mem_bytes;
+                    bytes_to_free = bytes_to_free.saturating_sub(cand._mem_bytes);
+                }
+            } else {
+                if let Some(entry) = self._mesh_data_map.get_mut(&cand._name) {
+                    entry.unload_with(|mesh_data| {
+                        for geometry_data in (*mesh_data).borrow().get_geometry_data_list() {
+                            renderer_context.destroy_geometry_buffer(&geometry_data.borrow());
+                        }
+                    });
+                    entry._unused_start_time = None;
+                    evicted_count += 1;
+                    freed_bytes += cand._mem_bytes;
+                    bytes_to_free = bytes_to_free.saturating_sub(cand._mem_bytes);
+                }
+            }
+        }
+
+        if evicted_count > 0 {
+            self._total_gc_evicted_count += evicted_count as u64;
+            log::warn!(
+                "[RESOURCE BUDGET GC] VRAM exceeded budget ({:.1}MB / {:.1}MB). Evicted {} resources, freed {:.1}MB",
+                current_vram as f32 / (1024.0 * 1024.0),
+                self._vram_budget_bytes as f32 / (1024.0 * 1024.0),
+                evicted_count,
+                freed_bytes as f32 / (1024.0 * 1024.0)
+            );
+        }
+
+        evicted_count
+    }
+
+    pub fn get_texture_memory_usage(&self) -> (usize, usize, usize) {
+        let total_count = self._texture_data_map.len();
+        let mut loaded_count = 0;
+        let mut total_bytes = 0;
+        for entry in self._texture_data_map.values() {
+            if let Some(tex) = entry.get_loaded_data() {
+                loaded_count += 1;
+                total_bytes += tex.borrow().get_memory_usage_bytes();
+            }
+        }
+        (loaded_count, total_count, total_bytes)
+    }
+
+    pub fn get_mesh_memory_usage(&self) -> (usize, usize, usize) {
+        let total_count = self._mesh_data_map.len();
+        let mut loaded_count = 0;
+        let mut total_bytes = 0;
+        for entry in self._mesh_data_map.values() {
+            if let Some(mesh) = entry.get_loaded_data() {
+                loaded_count += 1;
+                total_bytes += mesh.borrow().get_memory_usage_bytes();
+            }
+        }
+        (loaded_count, total_count, total_bytes)
+    }
+
+    pub fn get_model_status(&self) -> (usize, usize) {
+        let total_count = self._model_data_map.len();
+        let loaded_count = self._model_data_map.values().filter(|e| e.is_loaded()).count();
+        (loaded_count, total_count)
+    }
+
+    pub fn get_total_vram_usage_bytes(&self) -> usize {
+        let (_, _, tex_bytes) = self.get_texture_memory_usage();
+        let (_, _, mesh_bytes) = self.get_mesh_memory_usage();
+        tex_bytes + mesh_bytes
+    }
+
+    pub fn get_pending_async_count(&self) -> usize {
+        match self._async_loader {
+            Some(ref loader) => loader.get_pending_count(),
+            None => 0,
+        }
+    }
+
+    pub fn get_resource_metrics(&self) -> ResourceStreamingMetrics {
+        let (loaded_tex, total_tex, tex_bytes) = self.get_texture_memory_usage();
+        let (loaded_mesh, total_mesh, mesh_bytes) = self.get_mesh_memory_usage();
+        let (loaded_models, total_models) = self.get_model_status();
+        let total_vram = tex_bytes + mesh_bytes;
+        let pending = self.get_pending_async_count();
+
+        ResourceStreamingMetrics {
+            _loaded_textures: loaded_tex,
+            _total_textures: total_tex,
+            _texture_memory_bytes: tex_bytes,
+            _loaded_meshes: loaded_mesh,
+            _total_meshes: total_mesh,
+            _mesh_memory_bytes: mesh_bytes,
+            _loaded_models: loaded_models,
+            _total_models: total_models,
+            _total_vram_bytes: total_vram,
+            _vram_budget_bytes: self._vram_budget_bytes,
+            _pending_async_requests: pending,
+            _last_async_processed_count: self._last_async_processed_count,
+            _last_async_process_duration_ms: self._last_async_process_duration_ms,
+            _total_gc_evicted_count: self._total_gc_evicted_count,
+        }
+    }
+
+    pub fn get_vram_budget_bytes(&self) -> usize {
+        self._vram_budget_bytes
+    }
+
+    pub fn set_vram_budget_bytes(&mut self, budget_bytes: usize) {
+        self._vram_budget_bytes = budget_bytes;
+    }
+
+    pub fn is_budget_gc_enabled(&self) -> bool {
+        self._enable_budget_gc
+    }
+
+    pub fn set_budget_gc_enabled(&mut self, enable: bool) {
+        self._enable_budget_gc = enable;
+    }
+
+    pub fn get_async_load_time_slice_ms(&self) -> f32 {
+        self._async_load_time_slice_ms
+    }
+
+    pub fn set_async_load_time_slice_ms(&mut self, time_slice_ms: f32) {
+        self._async_load_time_slice_ms = time_slice_ms;
+    }
+
+    pub fn get_async_load_max_items_per_frame(&self) -> usize {
+        self._async_load_max_items_per_frame
+    }
+
+    pub fn set_async_load_max_items_per_frame(&mut self, max_items: usize) {
+        self._async_load_max_items_per_frame = max_items;
+    }
+
+    pub fn get_total_gc_evicted_count(&self) -> u64 {
+        self._total_gc_evicted_count
     }
 
     pub fn get_gc_timeout_sec(&self) -> f32 {

@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -322,6 +323,7 @@ pub struct AsyncResourceLoader {
     pub _request_sender: Sender<AsyncLoadRequest>,
     pub _result_receiver: Receiver<AsyncLoadResult>,
     pub _worker_handles: Vec<JoinHandle<()>>,
+    pub _pending_count: Arc<AtomicUsize>,
 }
 
 impl AsyncResourceLoader {
@@ -329,6 +331,7 @@ impl AsyncResourceLoader {
         let (request_sender, request_receiver) = channel::<AsyncLoadRequest>();
         let (result_sender, result_receiver) = channel::<AsyncLoadResult>();
         let request_receiver = Arc::new(Mutex::new(request_receiver));
+        let pending_count = Arc::new(AtomicUsize::new(0));
 
         let mut worker_handles = Vec::with_capacity(num_workers);
         for worker_id in 0..num_workers {
@@ -374,15 +377,28 @@ impl AsyncResourceLoader {
             _request_sender: request_sender,
             _result_receiver: result_receiver,
             _worker_handles: worker_handles,
+            _pending_count: pending_count,
         }
     }
 
     pub fn send_request(&self, request: AsyncLoadRequest) -> bool {
-        self._request_sender.send(request).is_ok()
+        let success = self._request_sender.send(request).is_ok();
+        if success {
+            self._pending_count.fetch_add(1, Ordering::SeqCst);
+        }
+        success
     }
 
     pub fn try_recv_result(&self) -> Option<AsyncLoadResult> {
-        self._result_receiver.try_recv().ok()
+        let res = self._result_receiver.try_recv().ok();
+        if res.is_some() {
+            self._pending_count.fetch_sub(1, Ordering::SeqCst);
+        }
+        res
+    }
+
+    pub fn get_pending_count(&self) -> usize {
+        self._pending_count.load(Ordering::SeqCst)
     }
 }
 
@@ -418,5 +434,6 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         assert!(received, "Worker should process and return result");
+        assert_eq!(loader.get_pending_count(), 0);
     }
 }

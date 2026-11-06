@@ -111,4 +111,14 @@ impl MeshData {
     }
 
     pub fn update_mesh_data(&self) {}
+
+    pub fn get_memory_usage_bytes(&self) -> usize {
+        let mut total_bytes = 0;
+        for geom in self._geometry_data_list.iter() {
+            let g = geom.borrow();
+            total_bytes += g._vertex_buffer_data._buffer_memory_requirements.size as usize;
+            total_bytes += g._index_buffer_data._buffer_memory_requirements.size as usize;
+        }
+        total_bytes
+    }
 }

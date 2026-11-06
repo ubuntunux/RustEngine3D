@@ -1023,9 +1023,26 @@ impl<'a> EngineCore<'a> {
                             scene_manager._point_light_object_map.len(),
                             scene_manager.get_render_point_light_count()
                         ));
+                        let (rt_count, rt_total_bytes) = renderer_context.get_render_target_memory_usage();
+                        let debug_rt_name = renderer_context._renderer_data._debug_render_target;
+                        let debug_rt_info = if let Some(tex) =
+                            renderer_context._renderer_data._render_target_data_map.get(&debug_rt_name)
+                        {
+                            format!(
+                                "({}x{}, {:.2}MB)",
+                                tex._image_width,
+                                tex._image_height,
+                                tex.get_memory_usage_bytes() as f32 / (1024.0 * 1024.0)
+                            )
+                        } else {
+                            String::new()
+                        };
                         font_manager.log(format!(
-                            "RenderTarget: {:?}",
-                            renderer_context._renderer_data._debug_render_target
+                            "RenderTarget: {:?} {} | Total RTs: {} ({:.1}MB)",
+                            debug_rt_name,
+                            debug_rt_info,
+                            rt_count,
+                            rt_total_bytes as f32 / (1024.0 * 1024.0)
                         ));
                         font_manager.log(format!(
                             "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
@@ -1037,6 +1054,30 @@ impl<'a> EngineCore<'a> {
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
+                        ));
+
+                        let metrics = self._engine_resources.get_resource_metrics();
+                        let total_gpu_vram_bytes = metrics._total_vram_bytes + rt_total_bytes;
+                        font_manager.log(format!(
+                            "VRAM Total: {:.1}MB (RT: {:.1}MB, Asset: {:.1}MB) / Budget: {:.0}MB",
+                            total_gpu_vram_bytes as f32 / (1024.0 * 1024.0),
+                            rt_total_bytes as f32 / (1024.0 * 1024.0),
+                            metrics._total_vram_bytes as f32 / (1024.0 * 1024.0),
+                            metrics._vram_budget_bytes as f32 / (1024.0 * 1024.0),
+                        ));
+                        font_manager.log(format!(
+                            "Streaming: Tex {}/{} ({:.1}MB) | Mesh {}/{} ({:.1}MB) | Model {}/{} | Queue: {} ({:.2}ms) | GC: {}",
+                            metrics._loaded_textures,
+                            metrics._total_textures,
+                            metrics._texture_memory_bytes as f32 / (1024.0 * 1024.0),
+                            metrics._loaded_meshes,
+                            metrics._total_meshes,
+                            metrics._mesh_memory_bytes as f32 / (1024.0 * 1024.0),
+                            metrics._loaded_models,
+                            metrics._total_models,
+                            metrics._pending_async_requests,
+                            metrics._last_async_process_duration_ms,
+                            metrics._total_gc_evicted_count,
                         ));
 
                         if let Some(time_profiler_mutex) = TIME_PROFILER.get() {

@@ -380,6 +380,9 @@ impl<'a> RendererContext<'a> {
     pub fn get_renderer_data_mut(&self) -> &mut RendererData<'a> {
         ptr_as_mut(self._renderer_data.as_ref())
     }
+    pub fn get_render_target_memory_usage(&self) -> (usize, usize) {
+        self._renderer_data.get_render_target_memory_usage()
+    }
     pub fn get_need_recreate_swapchain(&self) -> bool {
         self._need_recreate_swapchain
     }

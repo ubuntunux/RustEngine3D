@@ -655,6 +655,17 @@ impl<'a> RendererData<'a> {
         &self._render_target_data_map.get(&render_target_type).unwrap()
     }
 
+    pub fn get_render_target_memory_usage(&self) -> (usize, usize) {
+        let count = self._render_target_data_map.len();
+        let total_bytes: usize =
+            self._render_target_data_map.values().map(|texture_data| texture_data.get_memory_usage_bytes()).sum();
+        (count, total_bytes)
+    }
+
+    pub fn get_render_target_memory_bytes(&self, render_target_type: RenderTargetType) -> usize {
+        self._render_target_data_map.get(&render_target_type).map(|t| t.get_memory_usage_bytes()).unwrap_or(0)
+    }
+
     pub fn upload_shader_buffer_data<T>(
         &self,
         command_buffer: vk::CommandBuffer,

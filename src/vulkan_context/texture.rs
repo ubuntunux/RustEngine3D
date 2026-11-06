@@ -88,6 +88,26 @@ impl Default for TextureData {
     }
 }
 
+impl TextureData {
+    pub fn get_memory_usage_bytes(&self) -> usize {
+        let bpp = match self._image_format {
+            vk::Format::R8_UNORM | vk::Format::R8_SNORM | vk::Format::R8_UINT | vk::Format::R8_SINT => 1,
+            vk::Format::R8G8_UNORM | vk::Format::R8G8_SNORM | vk::Format::R16_SFLOAT => 2,
+            vk::Format::R8G8B8_UNORM | vk::Format::R8G8B8_SRGB => 3,
+            vk::Format::R16G16B16A16_SFLOAT | vk::Format::R32G32_SFLOAT => 8,
+            vk::Format::R32G32B32A32_SFLOAT => 16,
+            _ => 4,
+        };
+        let base_size =
+            self._image_width as usize * self._image_height as usize * bpp * (self._image_layers.max(1) as usize);
+        if self._image_mip_levels > 1 {
+            (base_size * 4) / 3
+        } else {
+            base_size
+        }
+    }
+}
+
 pub struct ImageDataList {
     pub _image_view: vk::ImageView,
     pub _image_sampler: vk::Sampler,
