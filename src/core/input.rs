@@ -483,28 +483,28 @@ impl JoystickInputData {
                 Axis::LeftX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
                         // Axis motion is an absolin the range [-32768, 32767]. Let's simulate a very rough dead zone to ignore spurious events.
-                        self._stick_left_direction.x = value;
+                        self._stick_left_direction.x = value.max(-i16::MAX);
                     } else {
                         self._stick_left_direction.x = 0;
                     }
                 }
                 Axis::LeftY => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
-                        self._stick_left_direction.y = value;
+                        self._stick_left_direction.y = value.max(-i16::MAX);
                     } else {
                         self._stick_left_direction.y = 0;
                     }
                 }
                 Axis::RightX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
-                        self._stick_right_direction.x = value;
+                        self._stick_right_direction.x = value.max(-i16::MAX);
                     } else {
                         self._stick_right_direction.x = 0;
                     }
                 }
                 Axis::RightY => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
-                        self._stick_right_direction.y = value;
+                        self._stick_right_direction.y = value.max(-i16::MAX);
                     } else {
                         self._stick_right_direction.y = 0;
                     }
