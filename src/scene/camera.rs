@@ -77,6 +77,7 @@ pub struct CameraObjectData {
     pub _jitter_frame: i32,
     pub _enable_jitter: bool,
     pub _updated_projection: bool,
+    pub _updated_frame: u64,
 }
 
 impl CameraObjectData {
@@ -125,6 +126,7 @@ impl CameraObjectData {
             _jitter_frame: 0,
             _enable_jitter: camera_create_info.enable_jitter,
             _updated_projection: true,
+            _updated_frame: u64::MAX,
         };
 
         // initialize
@@ -249,20 +251,25 @@ impl CameraObjectData {
     }
 
     pub fn update_camera_object_data(&mut self) {
-        if self._enable_jitter {
-            self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
-            // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
-            self._jitter_prev = self._jitter.into();
-            self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
-            self._jitter[0] /= self._window_size.x as f32;
-            self._jitter[1] /= self._window_size.y as f32;
-            // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
-            self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
-        }
+        let current_frame = crate::core::engine_core::get_current_frame();
+        if self._updated_frame != current_frame {
+            if self._enable_jitter {
+                self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
+                // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
+                self._jitter_prev = self._jitter.into();
+                self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
+                self._jitter[0] /= self._window_size.x as f32;
+                self._jitter[1] /= self._window_size.y as f32;
+                // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
+                self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
+            }
 
-        // copy prev matrices
-        self._view_origin_projection_prev.copy_from(&self._view_origin_projection);
-        self._view_origin_projection_prev_jitter.copy_from(&self._view_origin_projection_jitter);
+            // copy prev matrices
+            self._view_origin_projection_prev.copy_from(&self._view_origin_projection);
+            self._view_origin_projection_prev_jitter.copy_from(&self._view_origin_projection_jitter);
+
+            self._updated_frame = current_frame;
+        }
 
         // update matrices
         let updated = self._transform_object.update_transform_object() || self._updated_projection;

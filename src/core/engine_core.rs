@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time;
 
 use log;
@@ -35,6 +36,16 @@ use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumCount, EnumIter, FromRepr};
+
+static CURRENT_FRAME: AtomicU64 = AtomicU64::new(0);
+
+pub fn get_current_frame() -> u64 {
+    CURRENT_FRAME.load(Ordering::Relaxed)
+}
+
+pub fn set_current_frame(frame: u64) {
+    CURRENT_FRAME.store(frame, Ordering::Relaxed);
+}
 
 const DEFAULT_FALLBACK_WIDTH: u32 = 1920;
 const DEFAULT_FALLBACK_HEIGHT: u32 = 1080;
@@ -261,6 +272,7 @@ impl TimeData {
         let acc_frame_time = self._acc_frame_time + delta_time;
         let acc_frame_count = self._acc_frame_count + 1;
         self._elapsed_frame += 1;
+        set_current_frame(self._elapsed_frame);
 
         if 1.0 < acc_frame_time {
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;

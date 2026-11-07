@@ -40,12 +40,12 @@ impl SimpleTransform {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct TransformObjectData {
     pub _owner_entity_id: EntityId,
+    pub _updated_frame: u64,
     pub _updated: bool,
-    pub _prev_updated: bool,
     pub _is_dirty: bool,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
@@ -56,18 +56,22 @@ pub struct TransformObjectData {
     pub _rotation_matrix: Matrix4<f32>,
     pub _matrix: Matrix4<f32>,
     pub _inverse_matrix: Matrix4<f32>,
-    pub _matrix_store: Matrix4<f32>,
-    pub _inverse_matrix_store: Matrix4<f32>,
     pub _prev_matrix: Matrix4<f32>,
     pub _prev_inverse_matrix: Matrix4<f32>,
+}
+
+impl Default for TransformObjectData {
+    fn default() -> Self {
+        Self::create_transform_object_data()
+    }
 }
 
 impl TransformObjectData {
     pub fn create_transform_object_data() -> TransformObjectData {
         TransformObjectData {
             _owner_entity_id: INVALID_ENTITY_ID,
+            _updated_frame: u64::MAX,
             _updated: true,
-            _prev_updated: true,
             _is_dirty: true,
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
@@ -78,8 +82,6 @@ impl TransformObjectData {
             _rotation_matrix: Matrix4::identity(),
             _matrix: Matrix4::identity(),
             _inverse_matrix: Matrix4::identity(),
-            _matrix_store: Matrix4::identity(),
-            _inverse_matrix_store: Matrix4::identity(),
             _prev_matrix: Matrix4::identity(),
             _prev_inverse_matrix: Matrix4::identity(),
         }
@@ -228,32 +230,10 @@ impl TransformObjectData {
     }
 
     pub fn update_matrix(&mut self) -> bool {
-        let updated_position = self._prev_position != self._position;
-        let updated_rotation = self._prev_rotation != self._rotation;
-        let updated_scale = self._prev_scale != self._scale;
-        let updated = updated_position || updated_rotation || updated_scale;
-        if updated {
-            self._prev_matrix.copy_from(&self._matrix);
-            self._prev_inverse_matrix.copy_from(&self._inverse_matrix);
-
-            if updated_rotation {
-                self._rotation_matrix =
-                    math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
-            }
-
-            self._matrix = math::combinate_matrix(&self._position, &self._rotation_matrix, &self._scale);
-
-            self._inverse_matrix =
-                math::inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale);
-
-            self._prev_position.clone_from(&self._position);
-            self._prev_rotation.clone_from(&self._rotation);
-            self._prev_scale.clone_from(&self._scale);
-
-            self._matrix_store.copy_from(&self._matrix);
-            self._inverse_matrix_store.copy_from(&self._inverse_matrix);
-        }
-        updated
+        self._rotation_matrix = math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
+        self._matrix = math::combinate_matrix(&self._position, &self._rotation_matrix, &self._scale);
+        self._inverse_matrix = math::inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale);
+        true
     }
 
     pub fn reset_update_flag(&mut self) {
@@ -261,17 +241,20 @@ impl TransformObjectData {
     }
 
     pub fn update_transform_object(&mut self) -> bool {
-        if self._prev_updated {
-            self._prev_matrix.copy_from(&self._matrix_store);
-            self._prev_inverse_matrix.copy_from(&self._inverse_matrix_store);
-            self._prev_updated = false;
+        let current_frame = crate::core::engine_core::get_current_frame();
+        if self._updated_frame != current_frame {
+            self._prev_matrix.copy_from(&self._matrix);
+            self._prev_inverse_matrix.copy_from(&self._inverse_matrix);
+            self._prev_position.copy_from(&self._position);
+            self._prev_rotation.copy_from(&self._rotation);
+            self._prev_scale.copy_from(&self._scale);
+            self._updated_frame = current_frame;
+            self._updated = false;
         }
 
         if self._is_dirty {
-            if self.update_matrix() {
-                self._updated = true;
-                self._prev_updated = true;
-            }
+            self.update_matrix();
+            self._updated = true;
             self._is_dirty = false;
         }
         self._updated
@@ -292,5 +275,52 @@ impl TransformSystem {
             transform.reset_update_flag();
             transform.update_transform_object();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::engine_core::{get_current_frame, set_current_frame};
+
+    #[test]
+    fn test_transform_prev_state_preservation_under_multiple_updates() {
+        let initial_frame = get_current_frame();
+        let test_frame_1 = initial_frame + 1;
+        let test_frame_2 = initial_frame + 2;
+
+        let mut transform = TransformObjectData::create_transform_object_data();
+        // Frame 0 초기화
+        set_current_frame(initial_frame);
+        transform.update_transform_object();
+
+        assert_eq!(*transform.get_position(), Vector3::zeros());
+        assert_eq!(*transform.get_prev_position(), Vector3::zeros());
+
+        // Frame 1: 첫 번째 이동 (1, 2, 3)
+        set_current_frame(test_frame_1);
+        transform.set_position(&Vector3::new(1.0, 2.0, 3.0));
+        assert!(transform.update_transform_object());
+
+        // Frame 1의 첫 업데이트 후: prev는 직전 프레임의 위치(0, 0, 0)
+        assert_eq!(*transform.get_position(), Vector3::new(1.0, 2.0, 3.0));
+        assert_eq!(*transform.get_prev_position(), Vector3::zeros());
+
+        // Frame 1: 같은 프레임 내에서 두 번째 이동 (4, 5, 6)
+        transform.set_position(&Vector3::new(4.0, 5.0, 6.0));
+        assert!(transform.update_transform_object());
+
+        // 핵심 검증: 같은 프레임에서 아무리 여러 번 update되어도 prev_position은 (1, 2, 3)으로 오염되지 않고 (0, 0, 0) 유지!
+        assert_eq!(*transform.get_position(), Vector3::new(4.0, 5.0, 6.0));
+        assert_eq!(*transform.get_prev_position(), Vector3::zeros());
+
+        // Frame 2: 다음 프레임으로 넘어가서 이동 (10, 20, 30)
+        set_current_frame(test_frame_2);
+        transform.set_position(&Vector3::new(10.0, 20.0, 30.0));
+        assert!(transform.update_transform_object());
+
+        // Frame 2 검증: prev_position은 Frame 1의 최종 결과였던 (4, 5, 6)이어야 함!
+        assert_eq!(*transform.get_position(), Vector3::new(10.0, 20.0, 30.0));
+        assert_eq!(*transform.get_prev_position(), Vector3::new(4.0, 5.0, 6.0));
     }
 }
