@@ -349,14 +349,24 @@ impl AsyncResourceLoader {
                                 _texture_name,
                                 _meta_data,
                             } => {
-                                let load_res = AsyncTextureData::load_from_meta(&_texture_name, &_meta_data);
+                                let load_res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                    AsyncTextureData::load_from_meta(&_texture_name, &_meta_data)
+                                })) {
+                                    Ok(res) => res,
+                                    Err(_) => Err(format!("Worker panicked while loading texture '{}'", _texture_name)),
+                                };
                                 AsyncLoadResult::Texture {
                                     _texture_name,
                                     _result: load_res,
                                 }
                             }
                             AsyncLoadRequest::Mesh { _mesh_name, _meta_data } => {
-                                let load_res = AsyncMeshData::load_from_meta(&_mesh_name, &_meta_data);
+                                let load_res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                    AsyncMeshData::load_from_meta(&_mesh_name, &_meta_data)
+                                })) {
+                                    Ok(res) => res,
+                                    Err(_) => Err(format!("Worker panicked while loading mesh '{}'", _mesh_name)),
+                                };
                                 AsyncLoadResult::Mesh {
                                     _mesh_name,
                                     _result: load_res,

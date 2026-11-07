@@ -142,6 +142,8 @@ pub const LOG_RESOURCE_LIFECYCLE: bool = false;
 pub const DEFAULT_VRAM_BUDGET_BYTES: usize = 1536 * 1024 * 1024; // 1.5 GB
 pub const DEFAULT_ASYNC_LOAD_TIME_SLICE_MS: f32 = 2.0; // 2.0 ms per frame
 pub const DEFAULT_ASYNC_LOAD_MAX_ITEMS: usize = 8;
+pub const LOADING_SCENE_ASYNC_TIME_SLICE_MS: f32 = 16.0;
+pub const LOADING_SCENE_ASYNC_MAX_ITEMS: usize = 64;
 
 #[derive(Clone, Debug, Default)]
 pub struct ResourceStreamingMetrics {
@@ -784,8 +786,12 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn request_model_resources(&self, model_data: &ModelData) {
-        let mesh_name = &model_data._mesh_data.borrow()._name;
-        self.request_mesh_data(mesh_name);
+        if !model_data._mesh_name.is_empty() {
+            self.request_mesh_data(&model_data._mesh_name);
+        } else {
+            let mesh_name = &model_data._mesh_data.borrow()._name;
+            self.request_mesh_data(mesh_name);
+        }
 
         for mat_inst in model_data._material_instance_data_list.iter() {
             for (_key, value) in mat_inst.borrow()._material_parameters.iter() {
@@ -797,13 +803,23 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn process_async_loading(&mut self, renderer_context: &RendererContext, max_items: usize) -> u32 {
+        let time_slice_ms = self._async_load_time_slice_ms;
+        self.process_async_loading_with_budget(renderer_context, max_items, time_slice_ms)
+    }
+
+    pub fn process_async_loading_with_budget(
+        &mut self,
+        renderer_context: &RendererContext,
+        max_items: usize,
+        time_slice_ms: f32,
+    ) -> u32 {
         let loader = match self._async_loader {
             Some(ref loader) => loader,
             None => return 0,
         };
 
         let start_time = std::time::Instant::now();
-        let time_budget = std::time::Duration::from_secs_f32(self._async_load_time_slice_ms * 0.001);
+        let time_budget = std::time::Duration::from_secs_f32(time_slice_ms * 0.001);
         let mut processed_count = 0;
 
         while processed_count < max_items {
@@ -819,26 +835,30 @@ impl<'a> EngineResources<'a> {
             match result {
                 AsyncLoadResult::Texture { _texture_name, _result } => match _result {
                     Ok(texture_data) => {
-                        let texture_create_info = TextureCreateInfo {
-                            _texture_name: texture_data._texture_name.clone(),
-                            _texture_width: texture_data._image_width,
-                            _texture_height: texture_data._image_height,
-                            _texture_layers: texture_data._image_layers,
-                            _texture_format: texture_data._image_format,
-                            _texture_min_filter: texture_data._min_filter,
-                            _texture_mag_filter: texture_data._mag_filter,
-                            _texture_wrap_mode: texture_data._wrap_mode,
-                            _texture_view_type: texture_data._image_view_type,
-                            _texture_initial_data_list: texture_data._image_data,
-                            _enable_mipmap: texture_data._enable_mipmap,
-                            _enable_anisotropy: false,
-                            ..Default::default()
-                        };
-                        let created = renderer_context.create_texture(&texture_create_info);
-                        if let Some(entry) = self._texture_data_map.get(&_texture_name) {
-                            entry.set_loaded_data(newRcRefCell(created));
-                            if LOG_RESOURCE_LIFECYCLE {
-                                log::info!("[ASYNC LOAD COMPLETE] Texture: {}", _texture_name);
+                        let already_loaded =
+                            self._texture_data_map.get(&_texture_name).map(|entry| entry.is_loaded()).unwrap_or(false);
+                        if !already_loaded {
+                            let texture_create_info = TextureCreateInfo {
+                                _texture_name: texture_data._texture_name.clone(),
+                                _texture_width: texture_data._image_width,
+                                _texture_height: texture_data._image_height,
+                                _texture_layers: texture_data._image_layers,
+                                _texture_format: texture_data._image_format,
+                                _texture_min_filter: texture_data._min_filter,
+                                _texture_mag_filter: texture_data._mag_filter,
+                                _texture_wrap_mode: texture_data._wrap_mode,
+                                _texture_view_type: texture_data._image_view_type,
+                                _texture_initial_data_list: texture_data._image_data,
+                                _enable_mipmap: texture_data._enable_mipmap,
+                                _enable_anisotropy: false,
+                                ..Default::default()
+                            };
+                            let created = renderer_context.create_texture(&texture_create_info);
+                            if let Some(entry) = self._texture_data_map.get(&_texture_name) {
+                                entry.set_loaded_data(newRcRefCell(created));
+                                if LOG_RESOURCE_LIFECYCLE {
+                                    log::info!("[ASYNC LOAD COMPLETE] Texture: {}", _texture_name);
+                                }
                             }
                         }
                         processed_count += 1;
@@ -846,27 +866,33 @@ impl<'a> EngineResources<'a> {
                     Err(err) => {
                         log::error!("[ASYNC LOAD ERROR] Texture '{}': {}", _texture_name, err);
                         if let Some(entry) = self._texture_data_map.get(&_texture_name) {
-                            entry.set_state(ResourceState::Failed);
+                            if !entry.is_loaded() {
+                                entry.set_state(ResourceState::Failed);
+                            }
                         }
                     }
                 },
                 AsyncLoadResult::Mesh { _mesh_name, _result } => match _result {
                     Ok(mesh_data) => {
-                        let mut geometry_data_list: Vec<RcRefCell<GeometryData>> = Vec::new();
-                        for (i, geometry_create_info) in
-                            mesh_data._create_info._geometry_create_infos.iter().enumerate()
-                        {
-                            let geometry_name = format!("{}_{}", _mesh_name, i);
-                            let geometry_data =
-                                renderer_context.create_geometry_buffer(&geometry_name, geometry_create_info);
-                            geometry_data_list.push(newRcRefCell(geometry_data));
-                        }
-                        let created =
-                            MeshData::create_mesh_data(&_mesh_name, mesh_data._create_info, geometry_data_list);
-                        if let Some(entry) = self._mesh_data_map.get(&_mesh_name) {
-                            entry.set_loaded_data(newRcRefCell(created));
-                            if LOG_RESOURCE_LIFECYCLE {
-                                log::info!("[ASYNC LOAD COMPLETE] Mesh: {}", _mesh_name);
+                        let already_loaded =
+                            self._mesh_data_map.get(&_mesh_name).map(|entry| entry.is_loaded()).unwrap_or(false);
+                        if !already_loaded {
+                            let mut geometry_data_list: Vec<RcRefCell<GeometryData>> = Vec::new();
+                            for (i, geometry_create_info) in
+                                mesh_data._create_info._geometry_create_infos.iter().enumerate()
+                            {
+                                let geometry_name = format!("{}_{}", _mesh_name, i);
+                                let geometry_data =
+                                    renderer_context.create_geometry_buffer(&geometry_name, geometry_create_info);
+                                geometry_data_list.push(newRcRefCell(geometry_data));
+                            }
+                            let created =
+                                MeshData::create_mesh_data(&_mesh_name, mesh_data._create_info, geometry_data_list);
+                            if let Some(entry) = self._mesh_data_map.get(&_mesh_name) {
+                                entry.set_loaded_data(newRcRefCell(created));
+                                if LOG_RESOURCE_LIFECYCLE {
+                                    log::info!("[ASYNC LOAD COMPLETE] Mesh: {}", _mesh_name);
+                                }
                             }
                         }
                         processed_count += 1;
@@ -874,7 +900,9 @@ impl<'a> EngineResources<'a> {
                     Err(err) => {
                         log::error!("[ASYNC LOAD ERROR] Mesh '{}': {}", _mesh_name, err);
                         if let Some(entry) = self._mesh_data_map.get(&_mesh_name) {
-                            entry.set_state(ResourceState::Failed);
+                            if !entry.is_loaded() {
+                                entry.set_state(ResourceState::Failed);
+                            }
                         }
                     }
                 },
@@ -889,9 +917,17 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn update_async_loading(&mut self) -> u32 {
+        self.update_async_loading_with_mode(false)
+    }
+
+    pub fn update_async_loading_with_mode(&mut self, boost_loading: bool) -> u32 {
         let renderer_context = get_renderer_context();
-        let max_items = self._async_load_max_items_per_frame;
-        self.process_async_loading(renderer_context, max_items)
+        let (max_items, time_slice_ms) = if boost_loading {
+            (LOADING_SCENE_ASYNC_MAX_ITEMS, LOADING_SCENE_ASYNC_TIME_SLICE_MS)
+        } else {
+            (self._async_load_max_items_per_frame, self._async_load_time_slice_ms)
+        };
+        self.process_async_loading_with_budget(renderer_context, max_items, time_slice_ms)
     }
 
     pub fn pin_texture_data(&mut self, texture_name: &str) {
@@ -1898,16 +1934,24 @@ impl<'a> EngineResources<'a> {
         };
 
         let engine_resources = get_engine_resources();
-        let mesh_data = engine_resources.get_mesh_data(model_data_info._mesh.as_str());
+        let mesh_name = &model_data_info._mesh;
+        let mesh_data = if !mesh_name.is_empty() {
+            if let Some(entry) = engine_resources._mesh_data_map.get(mesh_name) {
+                if let Some(loaded) = entry.get_loaded_data() {
+                    loaded
+                } else {
+                    engine_resources.request_mesh_data(mesh_name);
+                    engine_resources.get_mesh_data(DEFAULT_MESH_NAME).clone()
+                }
+            } else {
+                engine_resources.get_mesh_data(DEFAULT_MESH_NAME).clone()
+            }
+        } else {
+            engine_resources.get_mesh_data(DEFAULT_MESH_NAME).clone()
+        };
         let material_instance_count = model_data_info._material_instances.len();
         let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
-        let num_materials = if geometry_data_count > 0 {
-            geometry_data_count
-        } else if material_instance_count > 0 {
-            material_instance_count
-        } else {
-            1
-        };
+        let num_materials = geometry_data_count.max(material_instance_count).max(1);
 
         let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>> = (0..num_materials)
             .map(|index| {
@@ -1924,7 +1968,7 @@ impl<'a> EngineResources<'a> {
 
         Some(ModelData::create_model_data(
             &model_name.to_string(),
-            mesh_data,
+            &mesh_data,
             material_instance_data_list,
             &model_data_info,
         ))

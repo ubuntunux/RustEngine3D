@@ -57,6 +57,9 @@ impl<'a> CaptureHeightMap<'a> {
     }
     pub fn is_capture_height_map_complete(&self) -> bool {
         self._is_capture_height_map_complete
+            && !self._start_capture_height_map
+            && self._static_render_elements.is_empty()
+            && self._read_back_frames.is_empty()
     }
     pub fn set_capture_height_map_complete(&mut self) {
         self._is_capture_height_map_complete = true;
@@ -93,6 +96,16 @@ impl<'a> CaptureHeightMap<'a> {
     }
     pub fn clear_static_render_elements(&mut self) {
         self._static_render_elements.clear();
+    }
+    pub fn clear_read_back_frames(&mut self) {
+        self._read_back_frames.clear();
+    }
+    pub fn reset_capture_height_map(&mut self) {
+        self._static_render_elements.clear();
+        self._skeletal_render_elements.clear();
+        self._read_back_frames.clear();
+        self._start_capture_height_map = false;
+        self._is_capture_height_map_complete = true;
     }
     pub fn add_static_render_elements(&mut self, render_element: RenderElementData<'a>) {
         self._static_render_elements.push(render_element);
@@ -138,7 +151,9 @@ impl<'a> CaptureHeightMap<'a> {
         );
         self.clear_static_render_elements();
 
-        // be able to read back at next frame
+        // Replace any superseded pending readback so _bounding_box stays 1:1 with the latest rendered height map
+        self._read_back_frames.clear();
+        self._is_capture_height_map_complete = false;
         self._read_back_frames.push(renderer_context.get_render_frame() + 1);
     }
 

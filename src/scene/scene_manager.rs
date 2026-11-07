@@ -138,7 +138,30 @@ impl Default for SceneDataCreateInfo {
 }
 
 impl<'a> SceneManager<'a> {
+    pub fn are_all_render_objects_ready(&self) -> bool {
+        for render_object in self._static_render_object_map.values() {
+            if !render_object.borrow().is_ready() {
+                return false;
+            }
+        }
+        for render_object in self._skeletal_render_object_map.values() {
+            if !render_object.borrow().is_ready() {
+                return false;
+            }
+        }
+        true
+    }
+
     pub fn is_load_complete(&self) -> bool {
+        if crate::core::engine_service_locator::is_engine_core_valid() {
+            let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+            if engine_resources.get_pending_async_count() > 0 {
+                return false;
+            }
+        }
+        if !self.are_all_render_objects_ready() {
+            return false;
+        }
         self._capture_height_map.is_capture_height_map_complete()
     }
     pub fn get_main_camera(&self) -> &CameraObjectData {
@@ -729,7 +752,8 @@ impl<'a> SceneManager<'a> {
                 && render_object_data._is_render_shadow
                 && SceneManager::shadow_culling(light, &render_object_data._bounding_box) == false;
 
-            let is_render_height_map = enable_capture_height_map && render_object_data._is_render_height_map;
+            let is_render_height_map =
+                enable_capture_height_map && render_object_data.is_ready() && render_object_data._is_render_height_map;
 
             if is_render_height_map {
                 bound_min = math::get_min(&bound_min, &render_object_data._bounding_box._min);
@@ -750,7 +774,7 @@ impl<'a> SceneManager<'a> {
             // gather render element infos
             if is_render_camera || is_render_shadow || is_render_height_map {
                 let local_matrix_count = if render_object_data.is_instancing_render_object() {
-                    render_object_data.get_instancing_render_object_count()
+                    render_object_data.get_instancing_render_object_transforms().len()
                 } else {
                     1
                 };
@@ -764,11 +788,15 @@ impl<'a> SceneManager<'a> {
                     }
                 };
 
-                if (*render_element_transform_count + required_transform_count) <= MAX_TRANSFORM_COUNT {
-                    let model_data = ptr_as_ref(render_object_data.get_model_data().as_ptr());
-                    let mesh_data_refcell = model_data.get_mesh_data();
+                if 0 < local_matrix_count
+                    && (*render_element_transform_count + required_transform_count) <= MAX_TRANSFORM_COUNT
+                {
+                    let mesh_data_refcell = render_object_data.get_mesh_data();
                     let mesh_data = ptr_as_ref(mesh_data_refcell.as_ptr());
-                    let geometry_count = mesh_data.get_geometry_data_count();
+                    let geometry_count = mesh_data
+                        .get_geometry_data_count()
+                        .min(render_object_data.get_material_instance_data_list().len())
+                        .min(render_object_data._push_constant_data_list_group.len());
 
                     // gather render element
                     for geometry_index in 0..geometry_count {
@@ -1120,7 +1148,7 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn close_scene_data(&mut self) {
-        self._capture_height_map.clear_static_render_elements();
+        self._capture_height_map.reset_capture_height_map();
         get_effect_manager_mut().clear_effects();
 
         self._camera_object_map.clear();
@@ -1229,6 +1257,36 @@ impl<'a> SceneManager<'a> {
 
     pub fn update_scene_manager(&mut self, delta_time: f64) {
         TransformSystem::update(&mut self._transform_storage);
+
+        let mut need_recapture_height_map = false;
+        let mut need_refresh_light_probe = false;
+
+        for (_key, update_object_data) in self._dynamic_update_object_map.iter() {
+            let was_ready = update_object_data.borrow().is_ready();
+            update_object_data.borrow_mut().update_render_object_data(delta_time as f32);
+            let obj_ref = update_object_data.borrow();
+            if !was_ready && obj_ref.is_ready() {
+                need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_refresh_light_probe |= obj_ref._is_render_camera;
+            }
+        }
+
+        for static_object_data in self._static_render_object_map.values() {
+            if !static_object_data.borrow().is_ready() && static_object_data.borrow_mut().check_and_update_ready_state()
+            {
+                let obj_ref = static_object_data.borrow();
+                need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_refresh_light_probe |= obj_ref._is_render_camera;
+            }
+        }
+
+        if need_recapture_height_map {
+            self.set_start_capture_height_map(true);
+        }
+        if need_refresh_light_probe {
+            self.reset_frame_count_for_refresh_light_probe();
+        }
+
         // refresh environment map
         if 0 <= self._frame_count_for_refresh_light_probe {
             get_renderer_data_mut().reset_render_light_probe_time();
@@ -1241,10 +1299,6 @@ impl<'a> SceneManager<'a> {
 
         let mut main_light = self._main_light.as_ref().unwrap().borrow_mut();
         main_light.update_light_data(camera_position);
-
-        for (_key, update_object_data) in self._dynamic_update_object_map.iter() {
-            update_object_data.borrow_mut().update_render_object_data(delta_time as f32);
-        }
 
         begin_block!("gather point lights");
         {
@@ -1274,6 +1328,9 @@ impl<'a> SceneManager<'a> {
             self._bound_boxes.clear();
 
             let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_start_capture_height_map();
+            if capture_height_map_fot_static_mesh {
+                self._capture_height_map.clear_static_render_elements();
+            }
             let capture_height_map_fot_skeletal_mesh: bool = false;
             let mut height_map_bounding_box_for_static_mesh = BoundingBox::default();
             let mut height_map_bounding_box_for_skeletal_mesh = BoundingBox::default();
@@ -1320,6 +1377,7 @@ impl<'a> SceneManager<'a> {
                 let dead_zone = self.get_dead_zone_height();
                 self._capture_height_map.update_capture_height_map(height_map_bounding_box_for_static_mesh, dead_zone);
                 if self._capture_height_map.need_to_render_height_map() == false {
+                    self._capture_height_map.clear_read_back_frames();
                     self._capture_height_map.set_capture_height_map_complete();
                 }
                 self._capture_height_map.set_start_capture_height_map(false);

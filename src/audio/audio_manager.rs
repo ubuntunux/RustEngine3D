@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 use sdl2::mixer::{AUDIO_S16LSB, Channel, Chunk, DEFAULT_CHANNELS, InitFlag, Sdl2MixerContext};
 use sdl2::{self, AudioSubsystem, Sdl};
 use serde::{Deserialize, Serialize};

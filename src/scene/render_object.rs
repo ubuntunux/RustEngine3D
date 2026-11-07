@@ -19,23 +19,33 @@ use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
-use strum_macros::EnumCount;
+use strum::EnumCount;
+use strum_macros::EnumCount as EnumCountMacro;
 
 static DUMMY_TRANSFORM: OnceLock<TransformObjectData> = OnceLock::new();
+
+thread_local! {
+    static DUMMY_ANIMATION_PLAY_INFO: std::cell::UnsafeCell<AnimationPlayInfo> =
+        std::cell::UnsafeCell::new(AnimationPlayInfo::default());
+}
 
 fn get_dummy_transform() -> &'static mut TransformObjectData {
     ptr_as_mut(DUMMY_TRANSFORM.get_or_init(TransformObjectData::create_transform_object_data))
 }
 
+fn get_dummy_animation_play_info() -> &'static mut AnimationPlayInfo {
+    DUMMY_ANIMATION_PLAY_INFO.with(|cell| unsafe { &mut *cell.get() })
+}
+
 #[repr(i32)]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount, Default)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCountMacro, Default)]
 pub enum AnimationLayer {
     #[default]
     BaseLayer,
     ActionLayer,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCountMacro)]
 pub enum SceneObjectType {
     Default,
     Collision,
@@ -96,6 +106,10 @@ pub struct RenderObjectData<'a> {
     pub _instance_objects: RenderObjectMap<'a>,
     pub _instance_transforms: Vec<Matrix4<f32>>,
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
+    pub _pending_animations: [Option<Option<(RcRefCell<MeshData>, AnimationPlayArgs)>>; AnimationLayer::COUNT],
+    pub _pending_animation_layers: [Option<*const AnimationLayerData>; AnimationLayer::COUNT],
+    pub _pending_save_data: Option<RenderObjectSaveData>,
+    pub _pending_push_constants: HashMap<String, PushConstantParameter>,
     pub _animation_buffer: Option<AnimationBuffer>,
     pub _bone_count: usize,
     pub _sockets: HashMap<String, RcRefCell<Socket>>,
@@ -116,6 +130,7 @@ impl<'a> RenderObjectData<'a> {
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
 
+        model_data.borrow_mut().update_model_data_resources();
         let model_data_ref = model_data.borrow();
         let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>> = model_data_ref
             ._material_instance_data_list
@@ -167,6 +182,10 @@ impl<'a> RenderObjectData<'a> {
             _instance_transforms: Vec::new(),
             _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_infos: Vec::new(),
+            _pending_animations: [None, None],
+            _pending_animation_layers: [None, None],
+            _pending_save_data: None,
+            _pending_push_constants: HashMap::new(),
             _animation_buffer: None,
             _bone_count: 0,
             _sockets: sockets,
@@ -234,6 +253,10 @@ impl<'a> RenderObjectData<'a> {
         self._instance_objects = src_render_object._instance_objects.clone();
         self._instance_transforms = src_render_object._instance_transforms.clone();
         self._animation_play_infos = src_render_object._animation_play_infos.clone();
+        self._pending_animations = src_render_object._pending_animations.clone();
+        self._pending_animation_layers = src_render_object._pending_animation_layers;
+        self._pending_save_data = src_render_object._pending_save_data.clone();
+        self._pending_push_constants = src_render_object._pending_push_constants.clone();
         self._animation_buffer = src_render_object._animation_buffer.clone();
     }
 
@@ -257,38 +280,122 @@ impl<'a> RenderObjectData<'a> {
         if self._is_ready {
             return true;
         }
-        if self._model_data.borrow().is_ready() {
-            self._is_ready = true;
-            let model_data_ref = self._model_data.borrow();
-            self._mesh_data = model_data_ref._mesh_data.clone();
-            let mesh_data_borrow = self._mesh_data.borrow();
-            self._bounding_box = mesh_data_borrow._bound_box.clone();
-            self._geometry_bound_boxes = mesh_data_borrow
-                ._geometry_data_list
-                .iter()
-                .map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone())
-                .collect();
-            drop(mesh_data_borrow);
-            drop(model_data_ref);
+        self._model_data.borrow_mut().update_model_data_resources();
+        if !self._model_data.borrow().is_ready() {
+            return false;
+        }
 
-            self.update_render_object_data_resources();
+        self._is_ready = true;
+        let loaded_mesh = self._model_data.borrow()._mesh_data.clone();
+        let geometry_bound_boxes: Vec<BoundingBox> = loaded_mesh
+            .borrow()
+            ._geometry_data_list
+            .iter()
+            .map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone())
+            .collect();
+        self._mesh_data = loaded_mesh;
+        self._geometry_bound_boxes = geometry_bound_boxes;
+
+        self.update_render_object_data_resources();
+        if !self._pending_push_constants.is_empty() {
+            let pending_push_constants = std::mem::take(&mut self._pending_push_constants);
+            for (key, value) in pending_push_constants.iter() {
+                self.set_push_constant_parameter(key, value);
+            }
+        }
+
+        if self.is_instancing_render_object() {
+            let mesh_bound_box = self._mesh_data.borrow()._bound_box.clone();
+            let model_collision_box = self._model_data.borrow()._collision._bounding_box.clone();
+            let has_valid_collision = self._collision.is_valid_collision();
+            let mut is_first = true;
+            let mut merged_min = Vector3::zeros();
+            let mut merged_max = Vector3::zeros();
+            let mut merged_collision_min = Vector3::zeros();
+            let mut merged_collision_max = Vector3::zeros();
+            self._instance_transforms.clear();
+            for instance_object in self._instance_objects.values() {
+                let mut child = instance_object.borrow_mut();
+                child._is_ready = true;
+                child._mesh_data = self._mesh_data.clone();
+                child._geometry_bound_boxes = self._geometry_bound_boxes.clone();
+                let child_matrix = {
+                    let transform = child.get_transform_object_data_mut();
+                    transform.update_transform_object();
+                    *transform.get_matrix()
+                };
+                let child_final_transform = child_matrix * child._local_transform;
+                child._final_transform = child_final_transform;
+                child._prev_transform = child_final_transform;
+                child._bounding_box.update_axis_aligned_bounding_box(&mesh_bound_box, &child_final_transform);
+                if has_valid_collision {
+                    child._collision._bounding_box.update_oriented_bounding_box(&model_collision_box, &child_matrix);
+                }
+                self._instance_transforms.push(child_final_transform);
+                if is_first {
+                    merged_min = child._bounding_box._min;
+                    merged_max = child._bounding_box._max;
+                    merged_collision_min = child._collision._bounding_box._min;
+                    merged_collision_max = child._collision._bounding_box._max;
+                    is_first = false;
+                } else {
+                    merged_min = math::get_min(&merged_min, &child._bounding_box._min);
+                    merged_max = math::get_max(&merged_max, &child._bounding_box._max);
+                    merged_collision_min = math::get_min(&merged_collision_min, &child._collision._bounding_box._min);
+                    merged_collision_max = math::get_max(&merged_collision_max, &child._collision._bounding_box._max);
+                }
+            }
+            if !is_first {
+                self._bounding_box = BoundingBox::create_bounding_box(&merged_min, &merged_max);
+                if has_valid_collision {
+                    self._collision._bounding_box =
+                        BoundingBox::create_bounding_box(&merged_collision_min, &merged_collision_max);
+                }
+                let center = self._bounding_box._center;
+                let transform = self.get_transform_object_data_mut();
+                transform.set_position(&center);
+                transform.update_transform_object();
+            }
+        } else {
+            let matrix = {
+                let transform = self.get_transform_object_data_mut();
+                transform.update_transform_object();
+                *transform.get_matrix()
+            };
+            self._final_transform = matrix * self._local_transform;
+            self._prev_transform = self._final_transform;
+            let mesh_bound_box = self._mesh_data.borrow()._bound_box.clone();
+            self._bounding_box.update_axis_aligned_bounding_box(&mesh_bound_box, &self._final_transform);
+
+            if self._collision.is_valid_collision() {
+                let model_collision_box = self._model_data.borrow()._collision._bounding_box.clone();
+                self._collision._bounding_box.update_oriented_bounding_box(&model_collision_box, &matrix);
+            }
+
+            for socket in self._sockets.values() {
+                socket.borrow_mut()._transform = Matrix4::identity();
+            }
 
             if self._mesh_data.borrow().has_animation_data() && self._animation_play_infos.is_empty() {
                 self.initialize_animation_play_info();
             }
 
-            self.update_render_object_data(0.0);
-
-            if crate::resource::resource::LOG_RESOURCE_LIFECYCLE {
-                log::info!(
-                    "[Visibility Gating] RenderObject '{}' is now READY and VISIBLE",
-                    self._render_object_name
-                );
+            if !self.has_animation() {
+                for socket in self._sockets.values() {
+                    let mut socket_borrowed = socket.borrow_mut();
+                    let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
+                    socket_borrowed._transform = self._final_transform * local_transform;
+                }
             }
-            true
-        } else {
-            false
         }
+
+        if crate::resource::resource::LOG_RESOURCE_LIFECYCLE {
+            log::info!(
+                "[Visibility Gating] RenderObject '{}' is now READY and VISIBLE",
+                self._render_object_name
+            );
+        }
+        true
     }
 
     pub fn is_visible(&self) -> bool {
@@ -396,15 +503,17 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn initialize_animation_play_info(&mut self) {
-        let animation_data_list = &self._mesh_data.borrow()._animation_data_list;
-        assert!(!animation_data_list.is_empty());
-        let first_animation = animation_data_list.first();
-        assert!(!first_animation.is_none());
-        let bone_count = first_animation.unwrap().get_bone_count();
+        let bone_count = {
+            let mesh_borrow = self._mesh_data.borrow();
+            let animation_data_list = &mesh_borrow._animation_data_list;
+            assert!(!animation_data_list.is_empty());
+            let first_animation = animation_data_list.first().unwrap();
+            first_animation.get_bone_count()
+        };
 
         assert!(0 < bone_count);
         let base_layer_index = AnimationLayer::BaseLayer as usize;
-        for i in 0..2 {
+        for i in 0..AnimationLayer::COUNT {
             let mesh_data = if base_layer_index == i {
                 Some(self._mesh_data.clone())
             } else {
@@ -418,6 +527,36 @@ impl<'a> RenderObjectData<'a> {
         }
         self._animation_buffer = Some(AnimationBuffer::create_animation_buffer(bone_count));
         self._bone_count = bone_count;
+
+        if let Some(save_data) = self._pending_save_data.take() {
+            for (info, save_info) in self._animation_play_infos.iter_mut().zip(save_data._animation_play_infos.iter()) {
+                info.load_animation_play_info_save_data(save_info);
+            }
+            if let Some(saved_buffer) = save_data._animation_buffer {
+                if saved_buffer._animation_buffer.len() == bone_count
+                    && saved_buffer._prev_animation_buffer.len() == bone_count
+                {
+                    self._animation_buffer = Some(saved_buffer);
+                }
+            }
+        }
+
+        for layer_idx in 0..AnimationLayer::COUNT {
+            let layer: AnimationLayer = unsafe { std::mem::transmute(layer_idx as i32) };
+            if let Some(layer_ptr) = self._pending_animation_layers[layer_idx].take() {
+                self.set_animation_layers(layer_ptr, layer);
+            }
+            if let Some(pending_anim) = self._pending_animations[layer_idx].take() {
+                match pending_anim {
+                    Some((anim_mesh, anim_args)) => {
+                        self.set_animation(&anim_mesh, &anim_args, layer);
+                    }
+                    None => {
+                        self.set_animation_none(layer);
+                    }
+                }
+            }
+        }
     }
 
     pub fn get_mesh_data(&self) -> &RcRefCell<MeshData> {
@@ -449,6 +588,9 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
+        if !self._is_ready {
+            self._pending_push_constants.insert(key.to_string(), value.clone());
+        }
         for push_constant_data_list in self._push_constant_data_list_group.iter_mut() {
             for push_constant_data in push_constant_data_list.iter_mut() {
                 push_constant_data._push_constant.set_push_constant_parameter(key, value);
@@ -458,7 +600,7 @@ impl<'a> RenderObjectData<'a> {
 
     #[inline(always)]
     pub fn get_transform_object_data(&self) -> &TransformObjectData {
-        if self._entity_id == INVALID_ENTITY_ID {
+        if self._entity_id == INVALID_ENTITY_ID || !crate::core::engine_service_locator::is_engine_core_valid() {
             return get_dummy_transform();
         }
         if let Some(transform) = get_scene_manager()._transform_storage.get(self._entity_id) {
@@ -470,7 +612,7 @@ impl<'a> RenderObjectData<'a> {
 
     #[inline(always)]
     pub fn get_transform_object_data_mut(&self) -> &mut TransformObjectData {
-        if self._entity_id == INVALID_ENTITY_ID {
+        if self._entity_id == INVALID_ENTITY_ID || !crate::core::engine_service_locator::is_engine_core_valid() {
             return get_dummy_transform();
         }
         if let Some(transform) = ptr_as_mut(get_scene_manager())._transform_storage.get_mut(self._entity_id) {
@@ -481,7 +623,7 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn has_animation(&self) -> bool {
-        self._animation_buffer.is_some()
+        self._animation_buffer.is_some() && self._animation_play_infos.len() >= AnimationLayer::COUNT
     }
 
     pub fn get_bone_count(&self) -> usize {
@@ -489,28 +631,57 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn get_animation_play_info(&self, layer: AnimationLayer) -> &AnimationPlayInfo {
-        &self._animation_play_infos[layer as usize]
+        let index = layer as usize;
+        if index < self._animation_play_infos.len() {
+            &self._animation_play_infos[index]
+        } else {
+            get_dummy_animation_play_info()
+        }
     }
 
     pub fn get_animation_play_info_mut(&mut self, layer: AnimationLayer) -> &mut AnimationPlayInfo {
-        &mut self._animation_play_infos[layer as usize]
+        let index = layer as usize;
+        if index < self._animation_play_infos.len() {
+            &mut self._animation_play_infos[index]
+        } else {
+            get_dummy_animation_play_info()
+        }
     }
 
     pub fn get_animation_layers(&self, layer: AnimationLayer) -> *const AnimationLayerData {
-        self.get_animation_play_info(layer)._animation_layers
+        let index = layer as usize;
+        if index < self._animation_play_infos.len() {
+            self._animation_play_infos[index]._animation_layers
+        } else {
+            self._pending_animation_layers[index].unwrap_or(std::ptr::null())
+        }
     }
 
     pub fn set_animation_layers(&mut self, animation_layers: *const AnimationLayerData, layer: AnimationLayer) {
-        self.get_animation_play_info_mut(layer)._animation_layers = animation_layers;
+        let index = layer as usize;
+        if index < self._animation_play_infos.len() {
+            self._animation_play_infos[index]._animation_layers = animation_layers;
+        } else {
+            self._pending_animation_layers[index] = Some(animation_layers);
+        }
     }
 
     pub fn clear_animation_layers(&mut self, layer: AnimationLayer) {
-        self.get_animation_play_info_mut(layer)._animation_layers = std::ptr::null();
+        let index = layer as usize;
+        if index < self._animation_play_infos.len() {
+            self._animation_play_infos[index]._animation_layers = std::ptr::null();
+        } else {
+            self._pending_animation_layers[index] = Some(std::ptr::null());
+        }
     }
 
     pub fn set_animation_none(&mut self, layer: AnimationLayer) {
-        let animation_play_info = &mut self.get_animation_play_info_mut(layer);
-        animation_play_info._animation_mesh = None;
+        let index = layer as usize;
+        if index < self._animation_play_infos.len() {
+            self._animation_play_infos[index]._animation_mesh = None;
+        } else {
+            self._pending_animations[index] = Some(None);
+        }
     }
 
     pub fn set_animation(
@@ -519,6 +690,11 @@ impl<'a> RenderObjectData<'a> {
         animation_args: &AnimationPlayArgs,
         layer: AnimationLayer,
     ) {
+        let index = layer as usize;
+        if index >= self._animation_play_infos.len() {
+            self._pending_animations[index] = Some(Some((animation_mesh.clone(), animation_args.clone())));
+            return;
+        }
         if let Some(first_animation_data) = animation_mesh.borrow()._animation_data_list.first() {
             if self._bone_count == first_animation_data.get_bone_count() {
                 let animation_play_info = &mut self.get_animation_play_info_mut(layer);
@@ -549,9 +725,7 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn update_render_object_data(&mut self, delta_time: f32) {
-        if !self._is_ready {
-            self.check_and_update_ready_state();
-        }
+        let became_ready = !self._is_ready && self.check_and_update_ready_state();
         let mut need_to_update_socket = false;
 
         self._prev_transform = self._final_transform.clone();
@@ -630,6 +804,9 @@ impl<'a> RenderObjectData<'a> {
                 let animation_buffer = self._animation_buffer.as_mut().unwrap();
                 animation_buffer.swap_animation_buffer();
                 animation_buffer.update_animation_buffer(base_animation, &mut self._sockets);
+                if became_ready {
+                    animation_buffer._prev_animation_buffer.clone_from(&animation_buffer._animation_buffer);
+                }
             }
         }
 
@@ -645,6 +822,11 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn get_render_object_save_data(&self) -> RenderObjectSaveData {
+        if let Some(ref pending) = self._pending_save_data {
+            let mut cloned = pending.clone();
+            cloned._render_object_name = self._render_object_name.clone();
+            return cloned;
+        }
         RenderObjectSaveData {
             _render_object_name: self._render_object_name.clone(),
             _animation_play_infos: self
@@ -658,9 +840,19 @@ impl<'a> RenderObjectData<'a> {
 
     pub fn load_render_object_save_data(&mut self, save_data: &RenderObjectSaveData) {
         self._render_object_name.clone_from(&save_data._render_object_name);
+        if self._animation_play_infos.len() < AnimationLayer::COUNT {
+            self._pending_save_data = Some(save_data.clone());
+            return;
+        }
         for (info, save_info) in self._animation_play_infos.iter_mut().zip(save_data._animation_play_infos.iter()) {
             info.load_animation_play_info_save_data(save_info);
         }
-        self._animation_buffer.clone_from(&save_data._animation_buffer);
+        if let Some(ref saved_buffer) = save_data._animation_buffer {
+            if saved_buffer._animation_buffer.len() == self._bone_count
+                && saved_buffer._prev_animation_buffer.len() == self._bone_count
+            {
+                self._animation_buffer.clone_from(&save_data._animation_buffer);
+            }
+        }
     }
 }

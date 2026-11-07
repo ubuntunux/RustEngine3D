@@ -45,6 +45,7 @@ impl Default for ModelDataInfo {
 #[derive(Clone, Debug)]
 pub struct ModelData<'a> {
     pub _model_data_name: String,
+    pub _mesh_name: String,
     pub _local_transform: Matrix4<f32>,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _is_render_camera: bool,
@@ -93,6 +94,7 @@ impl<'a> ModelData<'a> {
 
         ModelData {
             _model_data_name: model_name.clone(),
+            _mesh_name: model_data_info._mesh.clone(),
             _mesh_data: mesh_data.clone(),
             _local_transform: math::make_srt_transform(
                 &model_data_info._position,
@@ -108,6 +110,28 @@ impl<'a> ModelData<'a> {
     }
 
     pub fn is_ready(&self) -> bool {
+        if crate::core::engine_service_locator::is_engine_core_valid() && !self._mesh_name.is_empty() {
+            let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+            if let Some(entry) = engine_resources._mesh_data_map.get(&self._mesh_name) {
+                match entry.get_state() {
+                    crate::resource::resource::ResourceState::Unloaded => {
+                        engine_resources.request_mesh_data(&self._mesh_name);
+                        return false;
+                    }
+                    crate::resource::resource::ResourceState::Loading => {
+                        return false;
+                    }
+                    crate::resource::resource::ResourceState::Loaded => {
+                        if let Some(loaded_mesh) = entry.get_loaded_data() {
+                            if self._mesh_data.as_ptr() != loaded_mesh.as_ptr() {
+                                return false;
+                            }
+                        }
+                    }
+                    crate::resource::resource::ResourceState::Failed => {}
+                }
+            }
+        }
         if !self._mesh_data.borrow().is_ready() {
             return false;
         }
@@ -117,6 +141,53 @@ impl<'a> ModelData<'a> {
             }
         }
         true
+    }
+
+    pub fn update_model_data_resources(&mut self) {
+        if crate::core::engine_service_locator::is_engine_core_valid() && !self._mesh_name.is_empty() {
+            let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+            if let Some(entry) = engine_resources._mesh_data_map.get(&self._mesh_name) {
+                if let Some(loaded_mesh) = entry.get_loaded_data() {
+                    if self._mesh_data.as_ptr() != loaded_mesh.as_ptr() {
+                        let geometry_data_count = loaded_mesh.borrow().get_geometry_data_count();
+                        while self._material_instance_data_list.len() < geometry_data_count {
+                            let fallback_mat = if let Some(last_mat) = self._material_instance_data_list.last() {
+                                last_mat.clone()
+                            } else {
+                                engine_resources
+                                    .get_material_instance_data(
+                                        crate::resource::resource::DEFAULT_MATERIAL_INSTANCE_NAME,
+                                    )
+                                    .clone()
+                            };
+                            self._material_instance_data_list.push(fallback_mat);
+                        }
+                        if geometry_data_count > 0 && self._material_instance_data_list.len() > geometry_data_count {
+                            self._material_instance_data_list.truncate(geometry_data_count);
+                        }
+
+                        {
+                            let mesh_borrow = loaded_mesh.borrow();
+                            for socket_data_cell in self._socket_data_map.values() {
+                                let mut socket_data = socket_data_cell.borrow_mut();
+                                let mut parent_bone_index: usize = INVALID_BONE_INDEX;
+                                for skeleton_data in mesh_borrow._skeleton_data_list.iter() {
+                                    if let Some(bone_index) =
+                                        skeleton_data._bone_index_map.get(&socket_data._parent_bone)
+                                    {
+                                        parent_bone_index = *bone_index;
+                                        break;
+                                    }
+                                }
+                                socket_data._parent_bone_index = parent_bone_index;
+                            }
+                        }
+
+                        self._mesh_data = loaded_mesh;
+                    }
+                }
+            }
+        }
     }
 
     pub fn destroy_model_data(&self) {}

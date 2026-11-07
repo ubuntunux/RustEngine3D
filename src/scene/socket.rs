@@ -25,6 +25,7 @@ impl Default for SocketDataCreateInfo {
 #[derive(Debug, Clone)]
 pub struct SocketData {
     pub _socket_name: String,
+    pub _parent_bone: String,
     pub _parent_bone_index: usize,
     pub _local_transform: Matrix4<f32>,
 }
@@ -37,6 +38,7 @@ impl SocketData {
     ) -> SocketData {
         SocketData {
             _socket_name: socket_name.clone(),
+            _parent_bone: socket_data_info._parent_bone.clone(),
             _parent_bone_index: parent_bone_index,
             _local_transform: math::make_srt_transform(
                 &socket_data_info._position,

@@ -148,8 +148,16 @@ impl<'a> MaterialInstanceData<'a> {
         for (_key, value) in self._material_parameters.iter() {
             if let serde_json::Value::String(texture_name) = value {
                 if let Some(entry) = engine_resources._texture_data_map.get(texture_name) {
-                    if !entry.is_loaded() {
-                        return false;
+                    match entry.get_state() {
+                        crate::resource::resource::ResourceState::Unloaded => {
+                            engine_resources.request_texture_data(texture_name);
+                            return false;
+                        }
+                        crate::resource::resource::ResourceState::Loading => {
+                            return false;
+                        }
+                        crate::resource::resource::ResourceState::Loaded
+                        | crate::resource::resource::ResourceState::Failed => {}
                     }
                 }
             }

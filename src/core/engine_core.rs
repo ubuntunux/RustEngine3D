@@ -949,7 +949,9 @@ impl<'a> EngineCore<'a> {
         } else {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
-                engine_service_locator::get_engine_resources_mut().update_async_loading();
+                let is_scene_loading = !scene_manager.are_all_render_objects_ready()
+                    || !scene_manager.get_capture_height_map().is_capture_height_map_complete();
+                engine_service_locator::get_engine_resources_mut().update_async_loading_with_mode(is_scene_loading);
                 self.update_application(delta_time);
                 scene_manager.update_scene_manager(delta_time);
                 audio_manager.update_audio_manager();
