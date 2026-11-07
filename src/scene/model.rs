@@ -212,6 +212,15 @@ impl<'a> ModelData<'a> {
         &self._mesh_data
     }
 
+    pub fn has_skeletal_animation_or_material(&self) -> bool {
+        if self._mesh_data.borrow().has_animation_data() {
+            return true;
+        }
+        self._material_instance_data_list
+            .iter()
+            .any(|material_instance| material_instance.borrow().is_skeletal_material_instance())
+    }
+
     pub fn get_material_instance_data_count(&self) -> usize {
         self._material_instance_data_list.len()
     }

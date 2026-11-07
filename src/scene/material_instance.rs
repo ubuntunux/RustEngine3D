@@ -13,6 +13,9 @@ use crate::vulkan_context::render_pass::{
 };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
+static EMPTY_RENDER_PASS_PIPELINE_DATA_NAMES: Vec<String> = Vec::new();
+pub const SKELETAL_GBUFFER_RENDER_PASS_NAME: &str = "render_pass_skeletal_gbuffer";
+
 #[derive(Clone, Debug)]
 pub struct PipelineBindingDataCreateInfo<'a> {
     pub _render_pass_pipeline_data: RenderPassPipelineData<'a>,
@@ -188,7 +191,25 @@ impl<'a> MaterialInstanceData<'a> {
         self._pipeline_binding_data_map.get_mut(render_pass_pipeline_data_name).unwrap()
     }
 
+    pub fn has_render_pass(&self, render_pass_name: &str) -> bool {
+        self._render_pass_pipeline_data_names_map.contains_key(render_pass_name)
+    }
+
+    pub fn is_skeletal_material_instance(&self) -> bool {
+        self.has_render_pass(SKELETAL_GBUFFER_RENDER_PASS_NAME)
+    }
+
     pub fn get_render_pass_pipeline_data_names(&self, render_pass_name: &str) -> &Vec<String> {
-        self._render_pass_pipeline_data_names_map.get(render_pass_name).unwrap()
+        if let Some(pipeline_data_names) = self._render_pass_pipeline_data_names_map.get(render_pass_name) {
+            pipeline_data_names
+        } else {
+            log::warn!(
+                "Render pass '{}' not found in material instance '{}' (material '{}')",
+                render_pass_name,
+                self._material_instance_data_name,
+                self._material_data.borrow()._material_data_name
+            );
+            &EMPTY_RENDER_PASS_PIPELINE_DATA_NAMES
+        }
     }
 }

@@ -1070,7 +1070,9 @@ impl<'a> RendererData<'a> {
                     )
                 }
             }
-            renderer_context.end_render_pass(command_buffer);
+            if !prev_pipeline_data.is_null() {
+                renderer_context.end_render_pass(command_buffer);
+            }
         }
     }
 
