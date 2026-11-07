@@ -655,13 +655,24 @@ impl<'a> EngineCore<'a> {
             initial_window_size.unwrap_or_else(|| Vector2::new(window_size.x as u32, window_size.y as u32));
 
         // create managers
+        let startup_timer = std::time::Instant::now();
+        let step_timer = std::time::Instant::now();
         let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo =
             ptr_as_ref(application).get_render_pass_create_info_callback();
         let engine_resources = EngineResources::create_engine_resources(callback_load_render_pass_create_info);
+        log::info!(
+            "[StartupTimer] EngineResources::create_engine_resources: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
+        let step_timer = std::time::Instant::now();
         let renderer_context = RendererContext::create_renderer_context(app_name, app_version, &window_size, window);
+        log::info!(
+            "[StartupTimer] RendererContext::create_renderer_context: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
         let effect_manager = EffectManager::create_effect_manager();
         let audio_manager = AudioManager::create_audio_manager(&sdl);
         let scene_manager = SceneManager::create_scene_manager();
@@ -700,20 +711,47 @@ impl<'a> EngineCore<'a> {
         // register engine service locator
         engine_service_locator::set_engine_core(engine_core.as_ref() as *const EngineCore);
 
+        let step_timer = std::time::Instant::now();
         engine_core._renderer_context.initialize_renderer_context(engine_core._effect_manager.as_ref());
+        log::info!(
+            "[StartupTimer] RendererContext::initialize_renderer_context: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         engine_core._engine_resources.load_engine_resources();
+        log::info!(
+            "[StartupTimer] EngineResources::load_engine_resources (total): {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         engine_core._debug_line_manager.initialize_debug_line_manager();
         engine_core._font_manager.initialize_font_manager();
         engine_core._ui_manager.initialize_ui_manager();
         engine_core._ui_manager.update_window_size(&window_size);
         engine_core._audio_manager.initialize_audio_manager();
         engine_core._effect_manager.initialize_effect_manager();
+        log::info!(
+            "[StartupTimer] Managers initialize (debug_line/font/ui/audio/effect): {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
 
         // initialize graphics data
+        let step_timer = std::time::Instant::now();
         engine_core._renderer_context.prepare_framebuffer_and_descriptors();
+        log::info!(
+            "[StartupTimer] RendererContext::prepare_framebuffer_and_descriptors: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
 
         // center mouse pos on application creation
         engine_core.center_mouse_pos();
+
+        log::info!(
+            "[StartupTimer] EngineCore::create_application (total): {:.2}ms",
+            startup_timer.elapsed().as_secs_f64() * 1000.0
+        );
 
         engine_core
     }
@@ -783,8 +821,8 @@ impl<'a> EngineCore<'a> {
             swapchain_extent,
             new_window_size
         );
-        if need_recreate_swapchain {
-            self._renderer_context.set_need_recreate_swapchain(true);
+        if need_recreate_swapchain != self._renderer_context.get_need_recreate_swapchain() {
+            self._renderer_context.set_need_recreate_swapchain(need_recreate_swapchain);
         }
     }
 
@@ -1115,6 +1153,13 @@ impl<'a> EngineCore<'a> {
                 }
 
                 // render scene
+                let is_first_frame = renderer_context.is_first_rendering();
+                let first_frame_timer = if is_first_frame {
+                    log::info!("[StartupTimer] First frame render_scene started (drawing intro_image)");
+                    Some(std::time::Instant::now())
+                } else {
+                    None
+                };
                 let render_time = self._time_data.get_current_time();
                 renderer_context.render_scene(
                     scene_manager,
@@ -1125,6 +1170,12 @@ impl<'a> EngineCore<'a> {
                     &mut self._time_data,
                 );
                 self._time_data._acc_render_time += self._time_data.get_current_time() - render_time;
+                if let Some(timer) = first_frame_timer {
+                    log::info!(
+                        "[StartupTimer] First frame render_scene finished (intro_image presented): {:.2}ms",
+                        timer.elapsed().as_secs_f64() * 1000.0
+                    );
+                }
             }
         }
     }
@@ -1182,6 +1233,7 @@ impl<'a> EngineAppHandler<'a> {
     }
 
     fn init_engine_core(&mut self) {
+        let init_timer = std::time::Instant::now();
         if self._maybe_engine_core.is_some() {
             let engine_core = self._maybe_engine_core.as_mut().unwrap().as_mut();
             engine_core.terminate_application();
@@ -1199,12 +1251,21 @@ impl<'a> EngineAppHandler<'a> {
             self._application,
         );
         let window_size = engine_core._window_size;
+        let app_init_timer = std::time::Instant::now();
         let application_mut = ptr_as_mut(engine_core._application);
         application_mut.initialize_application(&window_size);
+        log::info!(
+            "[StartupTimer] Application::initialize_application (total): {:.2}ms",
+            app_init_timer.elapsed().as_secs_f64() * 1000.0
+        );
 
         self._maybe_engine_core = Some(engine_core);
         self._run_application = true;
         self._initialize_done = true;
+        log::info!(
+            "[StartupTimer] EngineAppHandler::init_engine_core (total blocking before event loop redraw): {:.2}ms",
+            init_timer.elapsed().as_secs_f64() * 1000.0
+        );
     }
 }
 

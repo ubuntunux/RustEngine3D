@@ -248,6 +248,7 @@ pub struct UIComponentInstance<'a> {
     pub _changed_deep_child_layout: bool,
     pub _changed_render_data: bool,
     pub _changed_text: bool,
+    pub _material_instance_ready: bool,
     pub _render_ui_index: u32,
     pub _transform: TransformObjectData,
     pub _world_to_local_matrix: Matrix4<f32>,
@@ -476,6 +477,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _changed_deep_child_layout: false,
             _changed_render_data: true,
             _changed_text: false,
+            _material_instance_ready: false,
             _render_ui_index: u32::MAX,
             _transform: TransformObjectData::create_transform_object_data(),
             _world_to_local_matrix: Matrix4::identity(),
@@ -1180,6 +1182,8 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn set_material_instance(&mut self, material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>) {
         self._ui_component_data._material_instance = material_instance;
+        self._material_instance_ready = false;
+        self._changed_render_data = true;
     }
     pub fn get_round(&self) -> f32 {
         self._ui_component_data._round
@@ -1763,7 +1767,16 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("    _changed_render_data");
         }
 
-        if self._enable && self._visible && self._renderable {
+        let is_material_ready = match self.get_material_instance() {
+            Some(material_instance) => material_instance.borrow().is_ready(),
+            None => true,
+        };
+        if is_material_ready != self._material_instance_ready {
+            self._material_instance_ready = is_material_ready;
+            need_to_collect_render_data = true;
+        }
+
+        if self._enable && self._visible && self._renderable && is_material_ready {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 

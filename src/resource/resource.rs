@@ -854,12 +854,18 @@ impl<'a> EngineResources<'a> {
                                 ..Default::default()
                             };
                             let created = renderer_context.create_texture(&texture_create_info);
+                            let created_rc = newRcRefCell(created);
                             if let Some(entry) = self._texture_data_map.get(&_texture_name) {
-                                entry.set_loaded_data(newRcRefCell(created));
+                                entry.set_loaded_data(created_rc.clone());
                                 if LOG_RESOURCE_LIFECYCLE {
                                     log::info!("[ASYNC LOAD COMPLETE] Texture: {}", _texture_name);
                                 }
                             }
+                            self.notify_texture_loaded(
+                                renderer_context.get_device(),
+                                &_texture_name,
+                                &created_rc.borrow(),
+                            );
                         }
                         processed_count += 1;
                     }
@@ -961,27 +967,29 @@ impl<'a> EngineResources<'a> {
             // update engine resources
             self.update_engine_resources();
 
-            // create resources.txt file
-            let include_extensions: &[&str] = &[];
-            let ignore_extensions: &[&str] = &["log"];
-            let mut application_resource_files = walk_directory(
-                &Path::new(APPLICATION_RESOURCE_PATH),
-                include_extensions,
-                ignore_extensions,
-            );
-            application_resource_files.sort();
-            let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
-            for file_path in application_resource_files {
-                if let Some(filename) = file_path.file_name() {
-                    if "empty" == filename {
-                        continue;
+            if !resource_list_file_path.exists() {
+                log::info!("Creating initial resources.txt file");
+                let include_extensions: &[&str] = &[];
+                let ignore_extensions: &[&str] = &["log"];
+                let mut application_resource_files = walk_directory(
+                    &Path::new(APPLICATION_RESOURCE_PATH),
+                    include_extensions,
+                    ignore_extensions,
+                );
+                application_resource_files.sort();
+                let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
+                for file_path in application_resource_files {
+                    if let Some(filename) = file_path.file_name() {
+                        if "empty" == filename {
+                            continue;
+                        }
                     }
-                }
 
-                if resource_list_file_path != file_path {
-                    write_file
-                        .write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
-                        .expect("Failed to write");
+                    if resource_list_file_path != file_path {
+                        write_file
+                            .write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
+                            .expect("Failed to write");
+                    }
                 }
             }
         }
@@ -1100,19 +1108,115 @@ impl<'a> EngineResources<'a> {
         log::info!("load_engine_resources");
         let renderer_context = get_renderer_context();
         let is_reload: bool = false;
+
+        let step_timer = std::time::Instant::now();
         self.load_texture_data_list(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_texture_data_list (catalog & meta): {:.2}ms (loaded: {}/{})",
+            step_timer.elapsed().as_secs_f64() * 1000.0,
+            self._texture_data_map.values().filter(|e| e.is_loaded()).count(),
+            self._texture_data_map.len()
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_font_data_list(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_font_data_list: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_render_pass_data_create_infos(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_render_pass_data_create_infos: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_render_pass_data_list(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_render_pass_data_list (shaders & pipelines): {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_framebuffer_data_list(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_framebuffer_data_list: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_material_data_list();
+        log::info!(
+            "[StartupTimer]   load_material_data_list: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
+        let tex_before = self._texture_data_map.values().filter(|e| e.is_loaded()).count();
         self.load_material_instance_data_list(renderer_context, is_reload);
+        let tex_after = self._texture_data_map.values().filter(|e| e.is_loaded()).count();
+        log::info!(
+            "[StartupTimer]   load_material_instance_data_list: {:.2}ms (synchronously loaded {} textures! loaded: {} -> {}/{})",
+            step_timer.elapsed().as_secs_f64() * 1000.0,
+            tex_after.saturating_sub(tex_before),
+            tex_before,
+            tex_after,
+            self._texture_data_map.len()
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_mesh_data_list(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_mesh_data_list (catalog & meta): {:.2}ms (loaded: {}/{})",
+            step_timer.elapsed().as_secs_f64() * 1000.0,
+            self._mesh_data_map.values().filter(|e| e.is_loaded()).count(),
+            self._mesh_data_map.len()
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_model_data_list();
+        log::info!(
+            "[StartupTimer]   load_model_data_list (catalog & meta): {:.2}ms (loaded: {}/{})",
+            step_timer.elapsed().as_secs_f64() * 1000.0,
+            self._model_data_map.values().filter(|e| e.is_loaded()).count(),
+            self._model_data_map.len()
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_animation_layer_data_list();
+        log::info!(
+            "[StartupTimer]   load_animation_layer_data_list: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_audio_data_list();
+        log::info!(
+            "[StartupTimer]   load_audio_data_list: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
+
+        let step_timer = std::time::Instant::now();
+        let mesh_before = self._mesh_data_map.values().filter(|e| e.is_loaded()).count();
         self.load_effect_data_list();
+        let mesh_after = self._mesh_data_map.values().filter(|e| e.is_loaded()).count();
+        log::info!(
+            "[StartupTimer]   load_effect_data_list: {:.2}ms (synchronously loaded {} meshes! loaded: {} -> {}/{})",
+            step_timer.elapsed().as_secs_f64() * 1000.0,
+            mesh_after.saturating_sub(mesh_before),
+            mesh_before,
+            mesh_after,
+            self._mesh_data_map.len()
+        );
+
+        let step_timer = std::time::Instant::now();
         self.load_scene_data_list(renderer_context);
+        log::info!(
+            "[StartupTimer]   load_scene_data_list: {:.2}ms",
+            step_timer.elapsed().as_secs_f64() * 1000.0
+        );
     }
 
     pub fn destroy_engine_resources(&mut self, renderer_context: &RendererContext) {
@@ -2508,14 +2612,68 @@ impl<'a> EngineResources<'a> {
         self._texture_data_map.contains_key(resource_name)
     }
 
+    pub fn get_loaded_texture_data(&self, resource_name: &str) -> Option<RcRefCell<TextureData>> {
+        self._texture_data_map.get(resource_name).and_then(|entry| entry.get_loaded_data())
+    }
+
     pub fn get_texture_data(&self, resource_name: &str) -> &RcRefCell<TextureData> {
-        get_resource_entry_data(
+        let was_loaded = self._texture_data_map.get(resource_name).map(|entry| entry.is_loaded()).unwrap_or(true);
+        let result = get_resource_entry_data(
             "texture_data",
             &self._texture_data_map,
             resource_name,
             DEFAULT_TEXTURE_NAME,
             |texture_name, meta_data| Self::load_texture_data(texture_name, meta_data),
-        )
+        );
+        if !was_loaded && crate::core::engine_service_locator::is_engine_core_valid() {
+            self.notify_texture_loaded(get_renderer_context().get_device(), resource_name, &result.borrow());
+        }
+        result
+    }
+
+    pub fn notify_texture_loaded(&self, device: &ash::Device, texture_name: &str, texture_data: &TextureData) {
+        for (name, mat_inst_cell) in self._material_instance_data_map.iter() {
+            if let Ok(mut mat_inst) = mat_inst_cell.try_borrow_mut() {
+                mat_inst.update_texture_descriptor_sets(device, texture_name, texture_data);
+            } else {
+                log::warn!(
+                    "notify_texture_loaded: Failed to borrow_mut MaterialInstance '{}' for texture '{}'",
+                    name,
+                    texture_name
+                );
+            }
+        }
+    }
+
+    fn get_fallback_texture_name_for(&self, texture_name: &str) -> &'static str {
+        if let Some(entry) = self._texture_data_map.get(texture_name) {
+            let ext = entry._meta_data._source_file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if ext == EXT_TEXTURE_2D_ARRAY {
+                return texture_generator::DEFAULT_2D_ARRAY_TEXTURE;
+            } else if ext == EXT_TEXTURE_3D {
+                return texture_generator::DEFAULT_3D_TEXTURE;
+            } else if ext == EXT_TEXTURE_CUBE {
+                return texture_generator::DEFAULT_CUBE_TEXTURE;
+            }
+        }
+        DEFAULT_TEXTURE_NAME
+    }
+
+    fn get_loaded_or_fallback_texture_data(
+        &self,
+        texture_name: &str,
+        force_sync_load: bool,
+    ) -> &RcRefCell<TextureData> {
+        if force_sync_load {
+            return self.get_texture_data(texture_name);
+        }
+        if let Some(entry) = self._texture_data_map.get(texture_name) {
+            if entry.is_loaded() {
+                return self.get_texture_data(texture_name);
+            }
+        }
+        let fallback_name = self.get_fallback_texture_name_for(texture_name);
+        self.get_texture_data(fallback_name)
     }
 
     // Framebuffer
@@ -2718,36 +2876,78 @@ impl<'a> EngineResources<'a> {
     // MaterialInstance_data_list
     pub fn load_material_instance_data_list(&mut self, renderer_context: &'a RendererContext<'a>, is_reload: bool) {
         log::info!("    load_material_instance_data_list");
-        let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_DIRECTORY);
-        let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
-        for material_instance_file in material_instance_files.iter() {
-            let material_instance_name = if is_reload {
-                get_resource_name_from_file_path(&material_instance_directory, &material_instance_file)
-            } else {
-                get_unique_resource_name(
-                    &self._material_instance_data_map,
-                    &material_instance_directory,
-                    &material_instance_file,
-                )
-            };
+        let material_instance_entries: Vec<(String, String, serde_json::Map<String, Value>, bool)> = if is_reload
+            && !self._material_instance_data_map.is_empty()
+        {
+            self._material_instance_data_map
+                .iter()
+                .map(|(name, mat_inst_cell)| {
+                    let mat_inst = mat_inst_cell.borrow();
+                    let mat_data_name = mat_inst._material_data.borrow()._material_data_name.clone();
+                    let is_engine_resource = self
+                        ._relative_resource_file_path_map
+                        .get(&PathBuf::from(format!("material_instances/{}.matinst", name)))
+                        .map(|path| path.starts_with(ENGINE_RESOURCE_PATH))
+                        .unwrap_or(false);
+                    (
+                        name.clone(),
+                        mat_data_name,
+                        mat_inst._material_parameters.clone(),
+                        is_engine_resource,
+                    )
+                })
+                .collect()
+        } else {
+            let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_DIRECTORY);
+            let material_instance_files =
+                self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
+            let mut entries = Vec::with_capacity(material_instance_files.len());
+            let mut seen_names = std::collections::HashSet::new();
+            for material_instance_file in material_instance_files.iter() {
+                let base_name = get_resource_name_from_file_path(&material_instance_directory, &material_instance_file);
+                let mut material_instance_name = base_name.clone();
+                if !is_reload {
+                    let mut index = 0;
+                    while self._material_instance_data_map.contains_key(&material_instance_name)
+                        || seen_names.contains(&material_instance_name)
+                    {
+                        material_instance_name = format!("{}_{}", base_name, index);
+                        index += 1;
+                    }
+                    seen_names.insert(material_instance_name.clone());
+                }
 
-            let loaded_contents = system::load(material_instance_file);
-            let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let material_instance_create_info = match contents {
-                Value::Object(material_instance_create_info) => material_instance_create_info,
-                _ => panic!("material instance parsing error"),
-            };
-            let material_data_name = match material_instance_create_info.get("material_name").unwrap() {
-                Value::String(material_data_name) => material_data_name,
-                _ => panic!("material name parsing error"),
-            };
+                let is_engine_resource = material_instance_file.starts_with(ENGINE_RESOURCE_PATH);
 
-            let mut material_parameters: serde_json::Map<String, Value> =
-                match material_instance_create_info.get("material_parameters") {
-                    Some(Value::Object(material_parameters)) => material_parameters.clone(),
-                    _ => serde_json::Map::new(),
+                let loaded_contents = system::load(material_instance_file);
+                let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+                let material_instance_create_info = match contents {
+                    Value::Object(material_instance_create_info) => material_instance_create_info,
+                    _ => panic!("material instance parsing error"),
+                };
+                let material_data_name = match material_instance_create_info.get("material_name").unwrap() {
+                    Value::String(material_data_name) => material_data_name.clone(),
+                    _ => panic!("material name parsing error"),
                 };
 
+                let material_parameters: serde_json::Map<String, Value> =
+                    match material_instance_create_info.get("material_parameters") {
+                        Some(Value::Object(material_parameters)) => material_parameters.clone(),
+                        _ => serde_json::Map::new(),
+                    };
+                entries.push((
+                    material_instance_name,
+                    material_data_name,
+                    material_parameters,
+                    is_engine_resource,
+                ));
+            }
+            entries
+        };
+
+        for (material_instance_name, material_data_name, mut material_parameters, is_engine_resource) in
+            material_instance_entries
+        {
             let material_data = self.get_material_data(material_data_name.as_str()).clone();
             let default_material_parameters = &material_data.borrow()._material_parameters;
             for (key, value) in default_material_parameters.iter() {
@@ -2765,6 +2965,8 @@ impl<'a> EngineResources<'a> {
                     Value::String(String::from("fonts/") + &String::from(DEFAULT_FONT_NAME)),
                 );
             }
+
+            let force_sync_load = is_engine_resource;
 
             // Pin all textures referenced by this material instance so they are never evicted by GC
             for (_key, value) in material_parameters.iter() {
@@ -2809,7 +3011,9 @@ impl<'a> EngineResources<'a> {
                                         | DescriptorResourceType::Texture
                                         | DescriptorResourceType::StorageTexture => {
                                             let texture_data = match maybe_material_parameter {
-                                                Some(Value::String(value)) => self.get_texture_data(value),
+                                                Some(Value::String(value)) => {
+                                                    self.get_loaded_or_fallback_texture_data(value, force_sync_load)
+                                                }
                                                 _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                             };
                                             if descriptor_data_create_info.use_sub_image() {

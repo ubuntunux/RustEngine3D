@@ -6,11 +6,12 @@ use ash::{Device, vk};
 use crate::scene::material::MaterialData;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::descriptor::{
-    DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update,
+    DescriptorResourceInfo, DescriptorResourceType, create_descriptor_sets, create_write_descriptor_sets_with_update,
 };
 use crate::vulkan_context::render_pass::{
     PipelineData, PipelinePushConstantData, RenderPassData, RenderPassPipelineData, get_render_pass_pipeline_data_name,
 };
+use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 static EMPTY_RENDER_PASS_PIPELINE_DATA_NAMES: Vec<String> = Vec::new();
@@ -166,6 +167,81 @@ impl<'a> MaterialInstanceData<'a> {
             }
         }
         true
+    }
+
+    pub fn update_texture_descriptor_sets(
+        &mut self,
+        device: &Device,
+        loaded_texture_name: &str,
+        texture_data: &TextureData,
+    ) {
+        let mut uses_texture = false;
+        for (_key, value) in self._material_parameters.iter() {
+            if let serde_json::Value::String(tex_name) = value {
+                if tex_name == loaded_texture_name {
+                    uses_texture = true;
+                    break;
+                }
+            }
+        }
+        if !uses_texture {
+            return;
+        }
+
+        for pipeline_binding_data in self._pipeline_binding_data_map.values_mut() {
+            let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+            let descriptor_data = &pipeline_data._descriptor_data;
+            let mut updated_any_binding = false;
+
+            for (descriptor_index, descriptor_data_create_info) in
+                descriptor_data._descriptor_data_create_infos.iter().enumerate()
+            {
+                match descriptor_data_create_info._descriptor_resource_type {
+                    DescriptorResourceType::Image
+                    | DescriptorResourceType::Texture
+                    | DescriptorResourceType::StorageTexture => {
+                        let matches_param =
+                            match self._material_parameters.get(&descriptor_data_create_info._descriptor_name) {
+                                Some(serde_json::Value::String(tex_name)) => tex_name == loaded_texture_name,
+                                _ => false,
+                            };
+                        if matches_param {
+                            let new_resource_info = if descriptor_data_create_info.use_sub_image() {
+                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_sub_image_info(
+                                    descriptor_data_create_info._descriptor_image_layer,
+                                    descriptor_data_create_info._descriptor_image_mip_level,
+                                ))
+                            } else {
+                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_default_image_info())
+                            };
+                            for swapchain_resources in pipeline_binding_data._descriptor_resource_infos_list.iter_mut()
+                            {
+                                if descriptor_index < swapchain_resources.len() {
+                                    swapchain_resources[descriptor_index] = new_resource_info.clone();
+                                    updated_any_binding = true;
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if updated_any_binding {
+                let descriptor_binding_indices: Vec<u32> = descriptor_data
+                    ._descriptor_data_create_infos
+                    .iter()
+                    .map(|info| info._descriptor_binding_index)
+                    .collect();
+                pipeline_binding_data._write_descriptor_sets = create_write_descriptor_sets_with_update(
+                    device,
+                    &pipeline_binding_data._descriptor_sets,
+                    &descriptor_binding_indices,
+                    &descriptor_data._descriptor_set_layout_bindings,
+                    &pipeline_binding_data._descriptor_resource_infos_list,
+                );
+            }
+        }
     }
 
     pub fn destroy_material_instance(&self) {
