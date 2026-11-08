@@ -817,19 +817,62 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn request_model_resources_with_priority(&self, model_data: &ModelData, priority: LoadPriority) {
-        if !model_data._mesh_name.is_empty() {
-            self.request_mesh_data_with_priority(&model_data._mesh_name, priority);
-        } else {
-            let mesh_name = &model_data._mesh_data.borrow()._name;
-            self.request_mesh_data_with_priority(mesh_name, priority);
-        }
+        let (mesh_name, texture_names) = {
+            let mesh_name = if !model_data._mesh_name.is_empty() {
+                model_data._mesh_name.clone()
+            } else {
+                model_data._mesh_data.borrow()._name.clone()
+            };
 
-        for mat_inst in model_data._material_instance_data_list.iter() {
-            for (_key, value) in mat_inst.borrow()._material_parameters.iter() {
-                if let serde_json::Value::String(texture_name) = value {
-                    self.request_texture_data_with_priority(texture_name, priority);
+            let mut texture_names = Vec::new();
+            for mat_inst in model_data._material_instance_data_list.iter() {
+                let mat_borrow = mat_inst.borrow();
+                for (_key, value) in mat_borrow._material_parameters.iter() {
+                    if let serde_json::Value::String(texture_name) = value {
+                        texture_names.push(texture_name.clone());
+                    }
                 }
             }
+            (mesh_name, texture_names)
+        };
+
+        if !mesh_name.is_empty() {
+            self.request_mesh_data_with_priority(&mesh_name, priority);
+        }
+
+        for texture_name in texture_names.iter() {
+            self.request_texture_data_with_priority(texture_name, priority);
+        }
+    }
+
+    pub fn load_model_resources_sync(&self, model_name: &str) {
+        let (mesh_name, texture_names) = {
+            let model_rc = self.get_model_data(model_name);
+            let model_borrow = model_rc.borrow();
+            let mesh_name = if !model_borrow._mesh_name.is_empty() {
+                model_borrow._mesh_name.clone()
+            } else {
+                model_borrow._mesh_data.borrow()._name.clone()
+            };
+
+            let mut texture_names = Vec::new();
+            for mat_inst in model_borrow._material_instance_data_list.iter() {
+                let mat_borrow = mat_inst.borrow();
+                for (_key, value) in mat_borrow._material_parameters.iter() {
+                    if let serde_json::Value::String(texture_name) = value {
+                        texture_names.push(texture_name.clone());
+                    }
+                }
+            }
+            (mesh_name, texture_names)
+        };
+
+        if !mesh_name.is_empty() {
+            self.get_mesh_data(&mesh_name);
+        }
+
+        for texture_name in texture_names.iter() {
+            self.get_texture_data(texture_name);
         }
     }
 
@@ -3038,7 +3081,7 @@ impl<'a> EngineResources<'a> {
 
             let force_sync_load = is_engine_resource;
 
-            // Pin all textures referenced by this material instance so they are never evicted by GC
+            // Pin all textures referenced by material instances so they are never evicted by GC while bound
             for (_key, value) in material_parameters.iter() {
                 if let Value::String(texture_name) = value {
                     self.pin_texture_data(texture_name);

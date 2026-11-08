@@ -2,7 +2,8 @@ use crate::core::engine_service_locator::get_scene_manager;
 use crate::ecs::entity::{EntityId, INVALID_ENTITY_ID};
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::scene::animation::{
-    AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo, AnimationPlayInfoSaveData,
+    AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo,
+    AnimationPlayInfoSaveData, INVALID_BONE_INDEX,
 };
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
@@ -311,6 +312,7 @@ impl<'a> RenderObjectData<'a> {
                 self.set_push_constant_parameter(key, value);
             }
         }
+        self.update_all_sockets();
 
         if self.is_instancing_render_object() {
             let mesh_bound_box = self._mesh_data.borrow()._bound_box.clone();
@@ -380,21 +382,11 @@ impl<'a> RenderObjectData<'a> {
                 self._collision._bounding_box.update_oriented_bounding_box(&model_collision_box, &matrix);
             }
 
-            for socket in self._sockets.values() {
-                socket.borrow_mut()._transform = Matrix4::identity();
-            }
-
             if self._mesh_data.borrow().has_animation_data() && self._animation_play_infos.is_empty() {
                 self.initialize_animation_play_info();
             }
 
-            if !self.has_animation() {
-                for socket in self._sockets.values() {
-                    let mut socket_borrowed = socket.borrow_mut();
-                    let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
-                    socket_borrowed._transform = self._final_transform * local_transform;
-                }
-            }
+            self.update_all_sockets();
         }
 
         if crate::resource::resource::LOG_RESOURCE_LIFECYCLE {
@@ -581,6 +573,48 @@ impl<'a> RenderObjectData<'a> {
         self.flush_pending_animations();
     }
 
+    pub fn update_all_sockets(&mut self) {
+        if self._sockets.is_empty() {
+            return;
+        }
+
+        let has_animation = self.has_animation();
+        if has_animation && self._animation_buffer.is_some() {
+            let base_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::BaseLayer));
+            if base_animation.is_valid() {
+                let animation_buffer = self._animation_buffer.as_mut().unwrap();
+                animation_buffer.update_animation_buffer(base_animation, &mut self._sockets);
+                for (_socket_name, socket) in self._sockets.iter() {
+                    let mut socket_borrowed = socket.borrow_mut();
+                    let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
+                    socket_borrowed._transform = self._final_transform * socket_borrowed._transform * local_transform;
+                }
+                return;
+            }
+        }
+
+        let mesh_borrow = self._mesh_data.borrow();
+        for socket in self._sockets.values() {
+            let mut socket_borrowed = socket.borrow_mut();
+            let parent_bone_index = socket_borrowed._socket_data.borrow()._parent_bone_index;
+            let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
+
+            let bone_transform =
+                if parent_bone_index != INVALID_BONE_INDEX && !mesh_borrow._skeleton_data_list.is_empty() {
+                    let skeleton = &mesh_borrow._skeleton_data_list[0];
+                    if parent_bone_index < skeleton._bone_names.len() {
+                        skeleton._transform
+                    } else {
+                        Matrix4::identity()
+                    }
+                } else {
+                    Matrix4::identity()
+                };
+
+            socket_borrowed._transform = self._final_transform * bone_transform * local_transform;
+        }
+    }
+
     pub fn notify_mesh_loaded(&mut self, mesh_name: &str, _loaded_mesh: &RcRefCell<MeshData>) {
         let is_my_mesh = self._model_data.borrow()._mesh_name == mesh_name;
         let mut has_matching_pending = false;
@@ -594,6 +628,7 @@ impl<'a> RenderObjectData<'a> {
         if is_my_mesh || has_matching_pending {
             self.check_and_update_ready_state();
             self.flush_pending_animations();
+            self.update_all_sockets();
         }
     }
 

@@ -571,7 +571,7 @@ impl<'a> RendererData<'a> {
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
-            _render_option: unsafe { CURRENT_RENDER_OPTION as u32 },
+            _render_option: unsafe { CURRENT_RENDER_OPTION },
             _is_render_scene: true,
         }
     }

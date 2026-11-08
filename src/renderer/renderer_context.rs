@@ -1241,7 +1241,7 @@ impl<'a> RendererContext<'a> {
             };
 
             if is_swapchain_suboptimal {
-                self.set_need_recreate_swapchain(true);
+                log::debug!("acquire_next_image returned SUBOPTIMAL_KHR");
             }
 
             let present_result: vk::Result = if (swapchain_index as usize) < self._command_buffers.len() {
@@ -1314,8 +1314,11 @@ impl<'a> RendererContext<'a> {
                 }
             }
 
-            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
+            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result {
+                log::info!("present swapchain returned ERROR_OUT_OF_DATE_KHR, recreating swapchain.");
                 self.set_need_recreate_swapchain(true);
+            } else if vk::Result::SUBOPTIMAL_KHR == present_result {
+                log::debug!("present swapchain returned SUBOPTIMAL_KHR");
             }
 
             self._frame_index = (self._frame_index + 1) % (constants::MAX_FRAME_COUNT as i32);

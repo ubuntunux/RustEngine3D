@@ -156,7 +156,7 @@ impl<'a> SceneManager<'a> {
     pub fn are_essential_render_objects_ready(&self) -> bool {
         for render_object in self._static_render_object_map.values() {
             let obj = render_object.borrow();
-            if obj._is_render_height_map && !obj.is_ready() {
+            if obj._scene_object_type == SceneObjectType::Terrain && !obj.is_ready() {
                 return false;
             }
         }
@@ -511,8 +511,14 @@ impl<'a> SceneManager<'a> {
         is_dynamic_update_object: bool,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
+        let is_terrain = render_object_create_info._scene_object_type == SceneObjectType::Terrain;
+        if is_terrain {
+            get_engine_resources().load_model_resources_sync(&render_object_create_info._model_data_name);
+        } else {
+            let model_data = get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
+            get_engine_resources().request_model_resources(&model_data.borrow());
+        }
         let model_data = get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
-        get_engine_resources().request_model_resources(&model_data.borrow());
         let (mut render_object_data_obj, transform_object_data) = RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
@@ -526,6 +532,9 @@ impl<'a> SceneManager<'a> {
 
         let render_object_data = newRcRefCell(render_object_data_obj);
         render_object_data.borrow_mut().initialize_render_object_data();
+        if is_terrain {
+            render_object_data.borrow_mut().check_and_update_ready_state();
+        }
 
         // register a collision object
         if render_object_data.borrow().get_collision_type() != CollisionType::NONE {

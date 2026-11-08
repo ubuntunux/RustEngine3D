@@ -392,6 +392,7 @@ pub struct EngineCore<'a> {
     pub _monitor_index: Option<usize>,
     pub _resolution: Vector2<u32>,
     pub _pending_window_size: Option<dpi::PhysicalSize<u32>>,
+    pub _is_minimized: bool,
     pub _is_terminated: bool,
 }
 
@@ -705,6 +706,7 @@ impl<'a> EngineCore<'a> {
             _monitor_index: initial_monitor_index,
             _resolution: initial_resolution,
             _pending_window_size: None,
+            _is_minimized: false,
             _is_terminated: false,
         });
 
@@ -793,18 +795,20 @@ impl<'a> EngineCore<'a> {
 
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         if size.width == 0 || size.height == 0 {
-            self._window_size.x = size.width as i32;
-            self._window_size.y = size.height as i32;
+            log::info!("Window minimized or zero size: {:?}", size);
+            self._is_minimized = true;
             return;
         }
 
+        self._is_minimized = false;
         let old_window_size = self._window_size;
         let new_window_size = Vector2::new(size.width as i32, size.height as i32);
+        if old_window_size == new_window_size {
+            return;
+        }
         self._window_size = new_window_size;
 
-        if old_window_size != new_window_size {
-            self._mouse_move_data.rescale_mouse_pos(&old_window_size, &new_window_size);
-        }
+        self._mouse_move_data.rescale_mouse_pos(&old_window_size, &new_window_size);
 
         get_scene_manager_mut().update_window_size(new_window_size.x, new_window_size.y);
         self._ui_manager.update_window_size(&new_window_size);
@@ -963,6 +967,11 @@ impl<'a> EngineCore<'a> {
 
         // update application event
         self.get_application_mut().update_event();
+
+        // If window is minimized or zero-sized, skip swapchain recreation and rendering.
+        if self._is_minimized || self._window_size.x <= 0 || self._window_size.y <= 0 {
+            return;
+        }
 
         let delta_time = self._time_data._delta_time_with_scale;
         if renderer_context.get_need_recreate_swapchain() {
@@ -1353,13 +1362,7 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
             window.set_ime_allowed(false);
 
             match self._window_mode {
-                WindowMode::WindowMode => {
-                    window.set_decorations(true);
-                    if !is_wayland_window(&window) {
-                        window.set_outer_position(dpi::Position::Physical(initial_position));
-                    }
-                    let _ = window.request_inner_size(dpi::Size::Physical(window_size));
-                }
+                WindowMode::WindowMode => {}
                 WindowMode::FullScreenExclusiveMode | WindowMode::FullScreenBorderlessMode => {
                     if !is_wayland_window(&window) {
                         window.set_fullscreen(initial_fullscreen);
