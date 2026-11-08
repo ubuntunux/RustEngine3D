@@ -110,6 +110,7 @@ impl<'a> ModelData<'a> {
     }
 
     pub fn is_ready(&self) -> bool {
+        let mut is_mesh_failed = false;
         if crate::core::engine_service_locator::is_engine_core_valid() && !self._mesh_name.is_empty() {
             let engine_resources = crate::core::engine_service_locator::get_engine_resources();
             if let Some(entry) = engine_resources._mesh_data_map.get(&self._mesh_name) {
@@ -128,11 +129,15 @@ impl<'a> ModelData<'a> {
                             }
                         }
                     }
-                    crate::resource::resource::ResourceState::Failed => {}
+                    crate::resource::resource::ResourceState::Failed => {
+                        is_mesh_failed = true;
+                    }
                 }
+            } else {
+                is_mesh_failed = true;
             }
         }
-        if !self._mesh_data.borrow().is_ready() {
+        if !is_mesh_failed && !self._mesh_data.borrow().is_ready() {
             return false;
         }
         for mat_inst in self._material_instance_data_list.iter() {
@@ -234,4 +239,34 @@ impl<'a> ModelData<'a> {
     }
 
     pub fn update_model_data(&self) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
+    use crate::utilities::system::newRcRefCell;
+
+    #[test]
+    fn test_model_is_ready_with_empty_or_failed_mesh() {
+        let empty_mesh = newRcRefCell(MeshData::create_mesh_data(
+            &String::from("empty"),
+            MeshDataCreateInfo::default(),
+            Vec::new(),
+        ));
+        let model = ModelData {
+            _model_data_name: String::from("test_model"),
+            _mesh_name: String::from("non_existent_mesh"),
+            _mesh_data: empty_mesh,
+            _local_transform: nalgebra::Matrix4::identity(),
+            _is_render_camera: false,
+            _is_render_shadow: false,
+            _material_instance_data_list: Vec::new(),
+            _collision: CollisionData::default(),
+            _socket_data_map: HashMap::new(),
+        };
+
+        // When engine core is invalid (in test environment), is_ready checks empty mesh:
+        assert!(!model.is_ready());
+    }
 }

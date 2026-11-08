@@ -100,6 +100,10 @@ pub struct RendererContext<'a> {
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
+    // last present result, used to log only when the result changes (avoid per-frame log spam)
+    _last_present_result: vk::Result,
+    // prevents an infinite recreate loop while the swapchain stays SUBOPTIMAL (e.g. alt+tab, focus lost)
+    _is_suboptimal_recreate_requested: bool,
     pub _entry: Entry,
     pub _instance: Instance,
     pub _device: Device,
@@ -332,6 +336,8 @@ impl<'a> RendererContext<'a> {
                 _frame_index: 0,
                 _swapchain_index: 0,
                 _need_recreate_swapchain: false,
+                _last_present_result: vk::Result::SUCCESS,
+                _is_suboptimal_recreate_requested: false,
                 _entry: entry,
                 _instance: instance,
                 _device: device,
@@ -1306,19 +1312,40 @@ impl<'a> RendererContext<'a> {
                 vk::Result::ERROR_OUT_OF_DATE_KHR
             };
 
-            if vk::Result::SUCCESS != present_result {
-                if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
-                    log::info!("present swapchain result: {:?}", present_result);
-                } else {
-                    log::error!("present swapchain result: {:?}", present_result);
+            // log only when the present result changes to avoid per-frame log spam
+            if self._last_present_result != present_result {
+                match present_result {
+                    vk::Result::SUCCESS | vk::Result::ERROR_OUT_OF_DATE_KHR | vk::Result::SUBOPTIMAL_KHR => {
+                        log::info!(
+                            "present swapchain result changed: {:?} -> {:?}",
+                            self._last_present_result,
+                            present_result
+                        );
+                    }
+                    _ => {
+                        log::error!("present swapchain result: {:?}", present_result);
+                    }
                 }
+                self._last_present_result = present_result;
             }
 
-            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result {
-                log::info!("present swapchain returned ERROR_OUT_OF_DATE_KHR, recreating swapchain.");
-                self.set_need_recreate_swapchain(true);
-            } else if vk::Result::SUBOPTIMAL_KHR == present_result {
-                log::debug!("present swapchain returned SUBOPTIMAL_KHR");
+            match present_result {
+                vk::Result::SUCCESS => {
+                    self._is_suboptimal_recreate_requested = false;
+                }
+                vk::Result::ERROR_OUT_OF_DATE_KHR => {
+                    log::info!("present swapchain returned ERROR_OUT_OF_DATE_KHR, recreating swapchain.");
+                    self.set_need_recreate_swapchain(true);
+                }
+                vk::Result::SUBOPTIMAL_KHR => {
+                    // recreate only once; if it is still suboptimal after recreation (e.g. focus lost), keep rendering
+                    if !self._is_suboptimal_recreate_requested {
+                        log::info!("present swapchain returned SUBOPTIMAL_KHR, recreating swapchain once.");
+                        self._is_suboptimal_recreate_requested = true;
+                        self.set_need_recreate_swapchain(true);
+                    }
+                }
+                _ => {}
             }
 
             self._frame_index = (self._frame_index + 1) % (constants::MAX_FRAME_COUNT as i32);

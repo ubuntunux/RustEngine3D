@@ -768,15 +768,21 @@ impl<'a> EngineResources<'a> {
             if entry.is_loaded() || entry.is_loading() {
                 return false;
             }
-            entry.set_state(ResourceState::Loading);
             if let Some(ref loader) = self._async_loader {
-                return loader.send_request_with_priority(
+                entry.set_state(ResourceState::Loading);
+                let sent = loader.send_request_with_priority(
                     AsyncLoadRequest::Texture {
                         _texture_name: texture_name.to_string(),
                         _meta_data: entry._meta_data.clone(),
                     },
                     priority,
                 );
+                if !sent {
+                    entry.set_state(ResourceState::Failed);
+                }
+                return sent;
+            } else {
+                entry.set_state(ResourceState::Failed);
             }
         }
         false
@@ -791,15 +797,21 @@ impl<'a> EngineResources<'a> {
             if entry.is_loaded() || entry.is_loading() {
                 return false;
             }
-            entry.set_state(ResourceState::Loading);
             if let Some(ref loader) = self._async_loader {
-                return loader.send_request_with_priority(
+                entry.set_state(ResourceState::Loading);
+                let sent = loader.send_request_with_priority(
                     AsyncLoadRequest::Mesh {
                         _mesh_name: mesh_name.to_string(),
                         _meta_data: entry._meta_data.clone(),
                     },
                     priority,
                 );
+                if !sent {
+                    entry.set_state(ResourceState::Failed);
+                }
+                return sent;
+            } else {
+                entry.set_state(ResourceState::Failed);
             }
         }
         false
