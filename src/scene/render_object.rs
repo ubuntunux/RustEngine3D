@@ -209,7 +209,7 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn initialize_render_object_data(&mut self) {
-        if self._mesh_data.borrow().has_animation_data() {
+        if self._mesh_data.borrow().has_animation_data() || self._mesh_data.borrow().has_skeleton() {
             self.initialize_animation_play_info();
         }
 
@@ -297,6 +297,14 @@ impl<'a> RenderObjectData<'a> {
         self._geometry_bound_boxes = geometry_bound_boxes;
 
         self.update_render_object_data_resources();
+        let has_skeletal = self._mesh_data.borrow().has_skeleton() || self._mesh_data.borrow().has_animation_data();
+        if has_skeletal {
+            if self._bone_count == 0 || self._animation_buffer.is_none() || self._animation_play_infos.is_empty() {
+                self.initialize_animation_play_info();
+            } else {
+                self.flush_pending_animations();
+            }
+        }
         if !self._pending_push_constants.is_empty() {
             let pending_push_constants = std::mem::take(&mut self._pending_push_constants);
             for (key, value) in pending_push_constants.iter() {
@@ -502,43 +510,9 @@ impl<'a> RenderObjectData<'a> {
         self._instance_transforms.push(render_object_data_ref._final_transform.clone());
     }
 
-    pub fn initialize_animation_play_info(&mut self) {
-        let bone_count = {
-            let mesh_borrow = self._mesh_data.borrow();
-            let animation_data_list = &mesh_borrow._animation_data_list;
-            assert!(!animation_data_list.is_empty());
-            let first_animation = animation_data_list.first().unwrap();
-            first_animation.get_bone_count()
-        };
-
-        assert!(0 < bone_count);
-        let base_layer_index = AnimationLayer::BaseLayer as usize;
-        for i in 0..AnimationLayer::COUNT {
-            let mesh_data = if base_layer_index == i {
-                Some(self._mesh_data.clone())
-            } else {
-                None
-            };
-            self._animation_play_infos.push(AnimationPlayInfo::create_animation_play_info(
-                unsafe { std::mem::transmute(i as i32) },
-                mesh_data,
-                bone_count,
-            ));
-        }
-        self._animation_buffer = Some(AnimationBuffer::create_animation_buffer(bone_count));
-        self._bone_count = bone_count;
-
-        if let Some(save_data) = self._pending_save_data.take() {
-            for (info, save_info) in self._animation_play_infos.iter_mut().zip(save_data._animation_play_infos.iter()) {
-                info.load_animation_play_info_save_data(save_info);
-            }
-            if let Some(saved_buffer) = save_data._animation_buffer {
-                if saved_buffer._animation_buffer.len() == bone_count
-                    && saved_buffer._prev_animation_buffer.len() == bone_count
-                {
-                    self._animation_buffer = Some(saved_buffer);
-                }
-            }
+    pub fn flush_pending_animations(&mut self) {
+        if self._bone_count == 0 || self._animation_play_infos.len() < AnimationLayer::COUNT {
+            return;
         }
 
         for layer_idx in 0..AnimationLayer::COUNT {
@@ -549,13 +523,77 @@ impl<'a> RenderObjectData<'a> {
             if let Some(pending_anim) = self._pending_animations[layer_idx].take() {
                 match pending_anim {
                     Some((anim_mesh, anim_args)) => {
-                        self.set_animation(&anim_mesh, &anim_args, layer);
+                        let anim_bone_count = anim_mesh.borrow().get_bone_count();
+                        if anim_bone_count > 0 && anim_bone_count == self._bone_count {
+                            self.set_animation(&anim_mesh, &anim_args, layer);
+                        } else {
+                            self._pending_animations[layer_idx] = Some(Some((anim_mesh, anim_args)));
+                        }
                     }
                     None => {
                         self.set_animation_none(layer);
                     }
                 }
             }
+        }
+    }
+
+    pub fn initialize_animation_play_info(&mut self) {
+        let bone_count = self._mesh_data.borrow().get_bone_count();
+        if bone_count == 0 {
+            return;
+        }
+
+        if self._bone_count != bone_count || self._animation_buffer.is_none() || self._animation_play_infos.is_empty() {
+            self._animation_play_infos.clear();
+            let base_layer_index = AnimationLayer::BaseLayer as usize;
+            for i in 0..AnimationLayer::COUNT {
+                let mesh_data = if base_layer_index == i {
+                    Some(self._mesh_data.clone())
+                } else {
+                    None
+                };
+                self._animation_play_infos.push(AnimationPlayInfo::create_animation_play_info(
+                    unsafe { std::mem::transmute(i as i32) },
+                    mesh_data,
+                    bone_count,
+                ));
+            }
+            self._animation_buffer = Some(AnimationBuffer::create_animation_buffer(bone_count));
+            self._bone_count = bone_count;
+
+            if let Some(save_data) = self._pending_save_data.take() {
+                for (info, save_info) in
+                    self._animation_play_infos.iter_mut().zip(save_data._animation_play_infos.iter())
+                {
+                    info.load_animation_play_info_save_data(save_info);
+                }
+                if let Some(saved_buffer) = save_data._animation_buffer {
+                    if saved_buffer._animation_buffer.len() == bone_count
+                        && saved_buffer._prev_animation_buffer.len() == bone_count
+                    {
+                        self._animation_buffer = Some(saved_buffer);
+                    }
+                }
+            }
+        }
+
+        self.flush_pending_animations();
+    }
+
+    pub fn notify_mesh_loaded(&mut self, mesh_name: &str, _loaded_mesh: &RcRefCell<MeshData>) {
+        let is_my_mesh = self._model_data.borrow()._mesh_name == mesh_name;
+        let mut has_matching_pending = false;
+        for pending in self._pending_animations.iter().flatten().flatten() {
+            if pending.0.borrow()._name == mesh_name {
+                has_matching_pending = true;
+                break;
+            }
+        }
+
+        if is_my_mesh || has_matching_pending {
+            self.check_and_update_ready_state();
+            self.flush_pending_animations();
         }
     }
 
@@ -691,27 +729,28 @@ impl<'a> RenderObjectData<'a> {
         layer: AnimationLayer,
     ) {
         let index = layer as usize;
-        if index >= self._animation_play_infos.len() {
+        if index >= self._animation_play_infos.len() || self._bone_count == 0 {
             self._pending_animations[index] = Some(Some((animation_mesh.clone(), animation_args.clone())));
             return;
         }
-        if let Some(first_animation_data) = animation_mesh.borrow()._animation_data_list.first() {
-            if self._bone_count == first_animation_data.get_bone_count() {
-                let animation_play_info = &mut self.get_animation_play_info_mut(layer);
-                let was_valid_animation = animation_play_info.is_valid();
-                let prev_animation_mesh_ptr: *mut MeshData = (if was_valid_animation {
-                    animation_play_info._animation_mesh.as_ref().unwrap().as_ptr()
-                } else {
-                    std::ptr::null()
-                }) as *mut MeshData;
-                if animation_args._force_animation_setting || animation_mesh.as_ptr() != prev_animation_mesh_ptr {
-                    animation_play_info.set_animation_play_info(animation_mesh, animation_args, was_valid_animation);
-                    if was_valid_animation && 0.0 < animation_play_info._animation_blend_time {
-                        animation_play_info
-                            ._last_animation_transforms
-                            .clone_from(&animation_play_info._animation_transforms);
-                    }
-                }
+
+        let anim_bone_count = animation_mesh.borrow().get_bone_count();
+        if anim_bone_count == 0 || anim_bone_count != self._bone_count {
+            self._pending_animations[index] = Some(Some((animation_mesh.clone(), animation_args.clone())));
+            return;
+        }
+
+        let animation_play_info = &mut self.get_animation_play_info_mut(layer);
+        let was_valid_animation = animation_play_info.is_valid();
+        let prev_animation_mesh_ptr: *mut MeshData = (if was_valid_animation {
+            animation_play_info._animation_mesh.as_ref().unwrap().as_ptr()
+        } else {
+            std::ptr::null()
+        }) as *mut MeshData;
+        if animation_args._force_animation_setting || animation_mesh.as_ptr() != prev_animation_mesh_ptr {
+            animation_play_info.set_animation_play_info(animation_mesh, animation_args, was_valid_animation);
+            if was_valid_animation && 0.0 < animation_play_info._animation_blend_time {
+                animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
             }
         }
     }

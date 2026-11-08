@@ -18,6 +18,7 @@ pub struct QueueFamilyIndices {
 pub struct QueueFamilyDataList {
     pub _graphics_queue: vk::Queue,
     pub _present_queue: vk::Queue,
+    pub _transfer_queue: vk::Queue,
     pub _queue_family_index_list: Vec<u32>,
     pub _queue_family_count: u32,
     pub _queue_family_indices: QueueFamilyIndices,

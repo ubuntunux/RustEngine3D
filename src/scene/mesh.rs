@@ -94,6 +94,20 @@ impl MeshData {
         false == self._animation_data_list.is_empty()
     }
 
+    pub fn has_skeleton(&self) -> bool {
+        false == self._skeleton_data_list.is_empty()
+    }
+
+    pub fn get_bone_count(&self) -> usize {
+        if let Some(first_anim) = self._animation_data_list.first() {
+            first_anim.get_bone_count()
+        } else if let Some(first_skeleton) = self._skeleton_data_list.first() {
+            first_skeleton._bone_names.len()
+        } else {
+            0
+        }
+    }
+
     pub fn get_geometry_data_count(&self) -> usize {
         self._geometry_data_list.len()
     }

@@ -20,6 +20,7 @@ use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{
     DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLights,
 };
+use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData, SceneObjectType};
@@ -150,6 +151,23 @@ impl<'a> SceneManager<'a> {
             }
         }
         true
+    }
+
+    pub fn are_essential_render_objects_ready(&self) -> bool {
+        for render_object in self._static_render_object_map.values() {
+            let obj = render_object.borrow();
+            if obj._is_render_height_map && !obj.is_ready() {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn is_essential_load_complete(&self) -> bool {
+        if !self.are_essential_render_objects_ready() {
+            return false;
+        }
+        self._capture_height_map.is_capture_height_map_complete()
     }
 
     pub fn is_load_complete(&self) -> bool {
@@ -639,6 +657,38 @@ impl<'a> SceneManager<'a> {
         self._skeletal_render_object_map.remove(&object_id);
         self.unregister_collision_object(&object_id);
         self.unregister_dynamic_update_object(&object_id);
+    }
+
+    pub fn notify_mesh_loaded(&mut self, mesh_name: &str, loaded_mesh: &RcRefCell<MeshData>) {
+        let mut need_recapture_height_map = false;
+        let mut need_refresh_light_probe = false;
+
+        for static_object in self._static_render_object_map.values() {
+            let was_ready = static_object.borrow().is_ready();
+            static_object.borrow_mut().notify_mesh_loaded(mesh_name, loaded_mesh);
+            let obj_ref = static_object.borrow();
+            if !was_ready && obj_ref.is_ready() {
+                need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_refresh_light_probe |= obj_ref._is_render_camera;
+            }
+        }
+
+        for skeletal_object in self._skeletal_render_object_map.values() {
+            let was_ready = skeletal_object.borrow().is_ready();
+            skeletal_object.borrow_mut().notify_mesh_loaded(mesh_name, loaded_mesh);
+            let obj_ref = skeletal_object.borrow();
+            if !was_ready && obj_ref.is_ready() {
+                need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_refresh_light_probe |= obj_ref._is_render_camera;
+            }
+        }
+
+        if need_recapture_height_map {
+            self.set_start_capture_height_map(true);
+        }
+        if need_refresh_light_probe {
+            self.reset_frame_count_for_refresh_light_probe();
+        }
     }
 
     pub fn get_effect(&self, effect_id: Uuid) -> Option<&RcRefCell<EffectInstance<'a>>> {
@@ -1275,6 +1325,16 @@ impl<'a> SceneManager<'a> {
             if !static_object_data.borrow().is_ready() && static_object_data.borrow_mut().check_and_update_ready_state()
             {
                 let obj_ref = static_object_data.borrow();
+                need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_refresh_light_probe |= obj_ref._is_render_camera;
+            }
+        }
+
+        for skeletal_object_data in self._skeletal_render_object_map.values() {
+            if !skeletal_object_data.borrow().is_ready()
+                && skeletal_object_data.borrow_mut().check_and_update_ready_state()
+            {
+                let obj_ref = skeletal_object_data.borrow();
                 need_recapture_height_map |= obj_ref._is_render_height_map;
                 need_refresh_light_probe |= obj_ref._is_render_camera;
             }

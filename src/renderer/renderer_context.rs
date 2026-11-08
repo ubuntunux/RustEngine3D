@@ -120,6 +120,7 @@ pub struct RendererContext<'a> {
     pub _queue_family_data_list: queue::QueueFamilyDataList,
     pub _frame_fences: Vec<vk::Fence>,
     pub _command_pool: vk::CommandPool,
+    pub _transfer_command_pool: vk::CommandPool,
     pub _command_buffers: SwapchainArray<CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
@@ -288,9 +289,11 @@ impl<'a> RendererContext<'a> {
             let ray_tracing = Rc::new(nv::ray_tracing::Device::new(&instance, &device));
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
+            let transfer_queue_index = queue_family_indices._transfer_queue_index;
             let queue_family_data_list = queue::QueueFamilyDataList {
                 _graphics_queue: queue_map.get(&graphics_queue_index).unwrap_or(default_queue).clone(),
                 _present_queue: queue_map.get(&present_queue_index).unwrap_or(default_queue).clone(),
+                _transfer_queue: queue_map.get(&transfer_queue_index).unwrap_or(default_queue).clone(),
                 _queue_family_index_list: queue_family_index_set.clone(),
                 _queue_family_count: queue_map.len() as u32,
                 _queue_family_indices: queue_family_indices.clone(),
@@ -312,6 +315,11 @@ impl<'a> RendererContext<'a> {
             let render_finished_semaphores = sync::create_semaphores(&device);
             let frame_fences = sync::create_fences(&device);
             let command_pool = command_buffer::create_command_pool(&device, &queue_family_data_list);
+            let transfer_command_pool = command_buffer::create_command_pool_with_flags(
+                &device,
+                transfer_queue_index,
+                vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER | vk::CommandPoolCreateFlags::TRANSIENT,
+            );
             let command_buffers =
                 command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
@@ -344,6 +352,7 @@ impl<'a> RendererContext<'a> {
                 _queue_family_data_list: queue_family_data_list,
                 _frame_fences: frame_fences,
                 _command_pool: command_pool,
+                _transfer_command_pool: transfer_command_pool,
                 _command_buffers: command_buffers,
                 _render_features: render_features,
                 _image_samplers: ImageSamplerData::default(),
@@ -470,6 +479,16 @@ impl<'a> RendererContext<'a> {
     pub fn get_present_queue(&self) -> vk::Queue {
         self._queue_family_data_list._present_queue
     }
+    pub fn get_transfer_queue(&self) -> vk::Queue {
+        self._queue_family_data_list._transfer_queue
+    }
+    pub fn get_transfer_command_pool(&self) -> vk::CommandPool {
+        self._transfer_command_pool
+    }
+    pub fn is_dedicated_transfer_queue(&self) -> bool {
+        self._queue_family_data_list._queue_family_indices._transfer_queue_index
+            != self._queue_family_data_list._queue_family_indices._graphics_queue_index
+    }
     pub fn create_render_target<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_render_target(
             self.get_instance(),
@@ -529,6 +548,7 @@ impl<'a> RendererContext<'a> {
         sync::destroy_fences(&self._device, &self._frame_fences);
         command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
         command_buffer::destroy_command_pool(&self._device, self._command_pool);
+        command_buffer::destroy_command_pool(&self._device, self._transfer_command_pool);
         swapchain::destroy_swapchain_data(&self._device, &self._swapchain_device, &self._swapchain_data);
         device::destroy_device(&self._device);
         device::destroy_vk_surface(&self._surface_instance, self._surface);

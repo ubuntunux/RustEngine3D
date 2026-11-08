@@ -18,7 +18,7 @@ use crate::constants::DEVELOPMENT;
 use crate::core::engine_service_locator::{get_engine_resources, get_renderer_context};
 use crate::effect::effect_data::{EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo};
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::async_loader::{AsyncLoadRequest, AsyncLoadResult, AsyncResourceLoader};
+use crate::resource::async_loader::{AsyncLoadRequest, AsyncLoadResult, AsyncResourceLoader, LoadPriority};
 use crate::resource::collada_loader::Collada;
 use crate::resource::font_loader;
 use crate::resource::gltf_loader::GLTF;
@@ -139,6 +139,7 @@ impl Default for MetaData {
 pub const DEFAULT_RESOURCE_GC_TIMEOUT_SEC: f32 = 30.0;
 pub const RESOURCE_GC_CHECK_INTERVAL_SEC: f32 = 1.0;
 pub const LOG_RESOURCE_LIFECYCLE: bool = false;
+pub const LOG_RESOURCE_FALLBACK: bool = false;
 pub const DEFAULT_VRAM_BUDGET_BYTES: usize = 1536 * 1024 * 1024; // 1.5 GB
 pub const DEFAULT_ASYNC_LOAD_TIME_SLICE_MS: f32 = 2.0; // 2.0 ms per frame
 pub const DEFAULT_ASYNC_LOAD_MAX_ITEMS: usize = 8;
@@ -592,19 +593,24 @@ where
         if let Some(data) = entry.get_or_load_ref(&loader) {
             return data;
         }
-        log::error!(
-            "Failed to load {}: {}, fallback to {}",
-            resource_type,
-            resource_name,
-            default_resource_name
-        );
+
+        if LOG_RESOURCE_FALLBACK {
+            log::error!(
+                "Failed to load {}: {}, fallback to {}",
+                resource_type,
+                resource_name,
+                default_resource_name
+            );
+        }
     } else {
-        log::error!(
-            "not found {}: {}, fallback to {}",
-            resource_type,
-            resource_name,
-            default_resource_name
-        );
+        if LOG_RESOURCE_FALLBACK {
+            log::error!(
+                "not found {}: {}, fallback to {}",
+                resource_type,
+                resource_name,
+                default_resource_name
+            );
+        }
     }
 
     if let Some(default_entry) = entry_map.get(default_resource_name) {
@@ -754,49 +760,74 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn request_texture_data(&self, texture_name: &str) -> bool {
+        self.request_texture_data_with_priority(texture_name, LoadPriority::Normal)
+    }
+
+    pub fn request_texture_data_with_priority(&self, texture_name: &str, priority: LoadPriority) -> bool {
         if let Some(entry) = self._texture_data_map.get(texture_name) {
             if entry.is_loaded() || entry.is_loading() {
                 return false;
             }
             entry.set_state(ResourceState::Loading);
             if let Some(ref loader) = self._async_loader {
-                return loader.send_request(AsyncLoadRequest::Texture {
-                    _texture_name: texture_name.to_string(),
-                    _meta_data: entry._meta_data.clone(),
-                });
+                return loader.send_request_with_priority(
+                    AsyncLoadRequest::Texture {
+                        _texture_name: texture_name.to_string(),
+                        _meta_data: entry._meta_data.clone(),
+                    },
+                    priority,
+                );
             }
         }
         false
     }
 
     pub fn request_mesh_data(&self, mesh_name: &str) -> bool {
+        self.request_mesh_data_with_priority(mesh_name, LoadPriority::Normal)
+    }
+
+    pub fn request_mesh_data_with_priority(&self, mesh_name: &str, priority: LoadPriority) -> bool {
         if let Some(entry) = self._mesh_data_map.get(mesh_name) {
             if entry.is_loaded() || entry.is_loading() {
                 return false;
             }
             entry.set_state(ResourceState::Loading);
             if let Some(ref loader) = self._async_loader {
-                return loader.send_request(AsyncLoadRequest::Mesh {
-                    _mesh_name: mesh_name.to_string(),
-                    _meta_data: entry._meta_data.clone(),
-                });
+                return loader.send_request_with_priority(
+                    AsyncLoadRequest::Mesh {
+                        _mesh_name: mesh_name.to_string(),
+                        _meta_data: entry._meta_data.clone(),
+                    },
+                    priority,
+                );
             }
         }
         false
     }
 
+    pub fn boost_resource_priority(&self, resource_name: &str, priority: LoadPriority) -> bool {
+        if let Some(ref loader) = self._async_loader {
+            return loader.boost_priority(resource_name, priority);
+        }
+        false
+    }
+
     pub fn request_model_resources(&self, model_data: &ModelData) {
+        self.request_model_resources_with_priority(model_data, LoadPriority::Normal);
+    }
+
+    pub fn request_model_resources_with_priority(&self, model_data: &ModelData, priority: LoadPriority) {
         if !model_data._mesh_name.is_empty() {
-            self.request_mesh_data(&model_data._mesh_name);
+            self.request_mesh_data_with_priority(&model_data._mesh_name, priority);
         } else {
             let mesh_name = &model_data._mesh_data.borrow()._name;
-            self.request_mesh_data(mesh_name);
+            self.request_mesh_data_with_priority(mesh_name, priority);
         }
 
         for mat_inst in model_data._material_instance_data_list.iter() {
             for (_key, value) in mat_inst.borrow()._material_parameters.iter() {
                 if let serde_json::Value::String(texture_name) = value {
-                    self.request_texture_data(texture_name);
+                    self.request_texture_data_with_priority(texture_name, priority);
                 }
             }
         }
@@ -894,12 +925,14 @@ impl<'a> EngineResources<'a> {
                             }
                             let created =
                                 MeshData::create_mesh_data(&_mesh_name, mesh_data._create_info, geometry_data_list);
+                            let created_rc = newRcRefCell(created);
                             if let Some(entry) = self._mesh_data_map.get(&_mesh_name) {
-                                entry.set_loaded_data(newRcRefCell(created));
+                                entry.set_loaded_data(created_rc.clone());
                                 if LOG_RESOURCE_LIFECYCLE {
                                     log::info!("[ASYNC LOAD COMPLETE] Mesh: {}", _mesh_name);
                                 }
                             }
+                            self.notify_mesh_loaded(&_mesh_name, &created_rc);
                         }
                         processed_count += 1;
                     }
@@ -2285,14 +2318,51 @@ impl<'a> EngineResources<'a> {
         self._mesh_data_map.contains_key(resource_name)
     }
 
+    pub fn get_loaded_mesh_data(&self, resource_name: &str) -> Option<RcRefCell<MeshData>> {
+        self._mesh_data_map.get(resource_name).and_then(|entry| {
+            if entry.is_loaded() {
+                entry.get_loaded_data()
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn is_mesh_loaded(&self, resource_name: &str) -> bool {
+        self._mesh_data_map.get(resource_name).map(|entry| entry.is_loaded()).unwrap_or(false)
+    }
+
+    pub fn notify_mesh_loaded(&self, mesh_name: &str, loaded_mesh: &RcRefCell<MeshData>) {
+        for (model_name, model_entry) in self._model_data_map.iter() {
+            if let Some(model_rc) = model_entry.get_loaded_data() {
+                if let Ok(mut model) = model_rc.try_borrow_mut() {
+                    if model._mesh_name == mesh_name {
+                        model.update_model_data_resources();
+                    }
+                } else {
+                    log::warn!("notify_mesh_loaded: Failed to borrow_mut ModelData '{}'", model_name);
+                }
+            }
+        }
+
+        if crate::core::engine_service_locator::is_engine_core_valid() {
+            crate::core::engine_service_locator::get_scene_manager_mut().notify_mesh_loaded(mesh_name, loaded_mesh);
+        }
+    }
+
     pub fn get_mesh_data(&self, resource_name: &str) -> &RcRefCell<MeshData> {
-        get_resource_entry_data(
+        let was_loaded = self._mesh_data_map.get(resource_name).map(|entry| entry.is_loaded()).unwrap_or(true);
+        let result = get_resource_entry_data(
             "mesh_data",
             &self._mesh_data_map,
             resource_name,
             DEFAULT_MESH_NAME,
             |mesh_name, meta_data| Self::load_mesh_data(mesh_name, meta_data),
-        )
+        );
+        if !was_loaded && crate::core::engine_service_locator::is_engine_core_valid() {
+            self.notify_mesh_loaded(resource_name, result);
+        }
+        result
     }
 
     // TextureLoader

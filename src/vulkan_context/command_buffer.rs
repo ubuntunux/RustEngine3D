@@ -16,6 +16,61 @@ pub fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFami
     unsafe { device.create_command_pool(&command_pool_create_info, None).expect("vkCreateCommandPool failed!") }
 }
 
+pub fn create_command_pool_with_flags(
+    device: &Device,
+    queue_family_index: u32,
+    flags: vk::CommandPoolCreateFlags,
+) -> vk::CommandPool {
+    let command_pool_create_info = vk::CommandPoolCreateInfo {
+        flags,
+        queue_family_index,
+        ..Default::default()
+    };
+    log::info!(
+        "create_command_pool_with_flags: queueFamilyIndex({:?}) flags({:?})",
+        queue_family_index,
+        flags
+    );
+    unsafe { device.create_command_pool(&command_pool_create_info, None).expect("vkCreateCommandPool failed!") }
+}
+
+pub fn record_image_ownership_transfer(
+    device: &Device,
+    command_buffer: vk::CommandBuffer,
+    image: vk::Image,
+    src_queue_family: u32,
+    dst_queue_family: u32,
+    old_layout: vk::ImageLayout,
+    new_layout: vk::ImageLayout,
+    subresource_range: vk::ImageSubresourceRange,
+) {
+    if src_queue_family == dst_queue_family {
+        return;
+    }
+    let barrier = vk::ImageMemoryBarrier {
+        src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+        dst_access_mask: vk::AccessFlags::SHADER_READ,
+        old_layout,
+        new_layout,
+        src_queue_family_index: src_queue_family,
+        dst_queue_family_index: dst_queue_family,
+        image,
+        subresource_range,
+        ..Default::default()
+    };
+    unsafe {
+        device.cmd_pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::TRANSFER,
+            vk::PipelineStageFlags::FRAGMENT_SHADER,
+            vk::DependencyFlags::empty(),
+            &[],
+            &[],
+            &[barrier],
+        );
+    }
+}
+
 pub fn destroy_command_pool(device: &Device, command_pool: vk::CommandPool) {
     log::info!("destroy_command_pool: {:?}", command_pool);
     unsafe {

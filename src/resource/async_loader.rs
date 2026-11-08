@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -319,8 +319,57 @@ impl AsyncMeshData {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum LoadPriority {
+    Low = 0,
+    Normal = 1,
+    High = 2,
+    Critical = 3,
+}
+
+impl Default for LoadPriority {
+    fn default() -> Self {
+        LoadPriority::Normal
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PrioritizedRequest {
+    pub _priority: LoadPriority,
+    pub _sequence: u64,
+    pub _request: AsyncLoadRequest,
+}
+
+impl PartialEq for PrioritizedRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self._priority == other._priority && self._sequence == other._sequence
+    }
+}
+impl Eq for PrioritizedRequest {}
+
+impl PartialOrd for PrioritizedRequest {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for PrioritizedRequest {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self._priority.cmp(&other._priority).then_with(|| other._sequence.cmp(&self._sequence))
+    }
+}
+
+#[derive(Default)]
+struct PriorityQueueState {
+    _queue: std::collections::BinaryHeap<PrioritizedRequest>,
+    _is_shutdown: bool,
+    _next_sequence: u64,
+}
+
 pub struct AsyncResourceLoader {
-    pub _request_sender: Sender<AsyncLoadRequest>,
+    _queue_state: Arc<Mutex<PriorityQueueState>>,
+    _condvar: Arc<std::sync::Condvar>,
     pub _result_receiver: Receiver<AsyncLoadResult>,
     pub _worker_handles: Vec<JoinHandle<()>>,
     pub _pending_count: Arc<AtomicUsize>,
@@ -328,54 +377,67 @@ pub struct AsyncResourceLoader {
 
 impl AsyncResourceLoader {
     pub fn new(num_workers: usize) -> Self {
-        let (request_sender, request_receiver) = channel::<AsyncLoadRequest>();
         let (result_sender, result_receiver) = channel::<AsyncLoadResult>();
-        let request_receiver = Arc::new(Mutex::new(request_receiver));
+        let queue_state = Arc::new(Mutex::new(PriorityQueueState::default()));
+        let condvar = Arc::new(std::sync::Condvar::new());
         let pending_count = Arc::new(AtomicUsize::new(0));
 
         let mut worker_handles = Vec::with_capacity(num_workers);
         for worker_id in 0..num_workers {
-            let req_rcv = Arc::clone(&request_receiver);
+            let q_state = Arc::clone(&queue_state);
+            let cvar = Arc::clone(&condvar);
             let res_snd = result_sender.clone();
             let handle = thread::Builder::new()
                 .name(format!("ResourceLoaderWorker-{}", worker_id))
                 .spawn(move || {
-                    while let Ok(request) = {
-                        let lock = req_rcv.lock().unwrap();
-                        lock.recv()
-                    } {
-                        let result = match request {
-                            AsyncLoadRequest::Texture {
-                                _texture_name,
-                                _meta_data,
-                            } => {
-                                let load_res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                    AsyncTextureData::load_from_meta(&_texture_name, &_meta_data)
-                                })) {
-                                    Ok(res) => res,
-                                    Err(_) => Err(format!("Worker panicked while loading texture '{}'", _texture_name)),
-                                };
-                                AsyncLoadResult::Texture {
-                                    _texture_name,
-                                    _result: load_res,
-                                }
+                    loop {
+                        let request = {
+                            let mut lock = q_state.lock().unwrap();
+                            while lock._queue.is_empty() && !lock._is_shutdown {
+                                lock = cvar.wait(lock).unwrap();
                             }
-                            AsyncLoadRequest::Mesh { _mesh_name, _meta_data } => {
-                                let load_res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                    AsyncMeshData::load_from_meta(&_mesh_name, &_meta_data)
-                                })) {
-                                    Ok(res) => res,
-                                    Err(_) => Err(format!("Worker panicked while loading mesh '{}'", _mesh_name)),
-                                };
-                                AsyncLoadResult::Mesh {
-                                    _mesh_name,
-                                    _result: load_res,
-                                }
+                            if lock._is_shutdown && lock._queue.is_empty() {
+                                break;
                             }
+                            lock._queue.pop()
                         };
 
-                        if res_snd.send(result).is_err() {
-                            break;
+                        if let Some(prioritized_req) = request {
+                            let result = match prioritized_req._request {
+                                AsyncLoadRequest::Texture {
+                                    _texture_name,
+                                    _meta_data,
+                                } => {
+                                    let load_res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                        AsyncTextureData::load_from_meta(&_texture_name, &_meta_data)
+                                    })) {
+                                        Ok(res) => res,
+                                        Err(_) => {
+                                            Err(format!("Worker panicked while loading texture '{}'", _texture_name))
+                                        }
+                                    };
+                                    AsyncLoadResult::Texture {
+                                        _texture_name,
+                                        _result: load_res,
+                                    }
+                                }
+                                AsyncLoadRequest::Mesh { _mesh_name, _meta_data } => {
+                                    let load_res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                        AsyncMeshData::load_from_meta(&_mesh_name, &_meta_data)
+                                    })) {
+                                        Ok(res) => res,
+                                        Err(_) => Err(format!("Worker panicked while loading mesh '{}'", _mesh_name)),
+                                    };
+                                    AsyncLoadResult::Mesh {
+                                        _mesh_name,
+                                        _result: load_res,
+                                    }
+                                }
+                            };
+
+                            if res_snd.send(result).is_err() {
+                                break;
+                            }
                         }
                     }
                 })
@@ -384,19 +446,54 @@ impl AsyncResourceLoader {
         }
 
         AsyncResourceLoader {
-            _request_sender: request_sender,
+            _queue_state: queue_state,
+            _condvar: condvar,
             _result_receiver: result_receiver,
             _worker_handles: worker_handles,
             _pending_count: pending_count,
         }
     }
 
-    pub fn send_request(&self, request: AsyncLoadRequest) -> bool {
-        let success = self._request_sender.send(request).is_ok();
-        if success {
-            self._pending_count.fetch_add(1, Ordering::SeqCst);
+    pub fn send_request_with_priority(&self, request: AsyncLoadRequest, priority: LoadPriority) -> bool {
+        let mut lock = self._queue_state.lock().unwrap();
+        if lock._is_shutdown {
+            return false;
         }
-        success
+        let seq = lock._next_sequence;
+        lock._next_sequence += 1;
+        lock._queue.push(PrioritizedRequest {
+            _priority: priority,
+            _sequence: seq,
+            _request: request,
+        });
+        self._pending_count.fetch_add(1, Ordering::SeqCst);
+        self._condvar.notify_one();
+        true
+    }
+
+    pub fn send_request(&self, request: AsyncLoadRequest) -> bool {
+        self.send_request_with_priority(request, LoadPriority::Normal)
+    }
+
+    pub fn boost_priority(&self, resource_name: &str, new_priority: LoadPriority) -> bool {
+        let mut lock = self._queue_state.lock().unwrap();
+        let mut found = false;
+        let mut items: Vec<PrioritizedRequest> = lock._queue.drain().collect();
+        for item in items.iter_mut() {
+            let matches = match &item._request {
+                AsyncLoadRequest::Texture { _texture_name, .. } => _texture_name == resource_name,
+                AsyncLoadRequest::Mesh { _mesh_name, .. } => _mesh_name == resource_name,
+            };
+            if matches && item._priority < new_priority {
+                item._priority = new_priority;
+                found = true;
+            }
+        }
+        lock._queue = std::collections::BinaryHeap::from(items);
+        if found {
+            self._condvar.notify_all();
+        }
+        found
     }
 
     pub fn try_recv_result(&self) -> Option<AsyncLoadResult> {
@@ -409,6 +506,19 @@ impl AsyncResourceLoader {
 
     pub fn get_pending_count(&self) -> usize {
         self._pending_count.load(Ordering::SeqCst)
+    }
+}
+
+impl Drop for AsyncResourceLoader {
+    fn drop(&mut self) {
+        {
+            let mut lock = self._queue_state.lock().unwrap();
+            lock._is_shutdown = true;
+            self._condvar.notify_all();
+        }
+        for handle in self._worker_handles.drain(..) {
+            let _ = handle.join();
+        }
     }
 }
 
@@ -445,5 +555,46 @@ mod tests {
         }
         assert!(received, "Worker should process and return result");
         assert_eq!(loader.get_pending_count(), 0);
+    }
+
+    #[test]
+    fn test_priority_queue_order_and_boost() {
+        let mut heap = std::collections::BinaryHeap::new();
+        heap.push(PrioritizedRequest {
+            _priority: LoadPriority::Low,
+            _sequence: 1,
+            _request: AsyncLoadRequest::Texture {
+                _texture_name: String::from("low_res"),
+                _meta_data: MetaData::default(),
+            },
+        });
+        heap.push(PrioritizedRequest {
+            _priority: LoadPriority::Critical,
+            _sequence: 2,
+            _request: AsyncLoadRequest::Texture {
+                _texture_name: String::from("critical_res"),
+                _meta_data: MetaData::default(),
+            },
+        });
+        heap.push(PrioritizedRequest {
+            _priority: LoadPriority::Normal,
+            _sequence: 3,
+            _request: AsyncLoadRequest::Texture {
+                _texture_name: String::from("normal_res"),
+                _meta_data: MetaData::default(),
+            },
+        });
+
+        // Critical이 가장 먼저 나와야 함
+        let first = heap.pop().unwrap();
+        assert_eq!(first._priority, LoadPriority::Critical);
+
+        // Normal이 다음으로 나와야 함
+        let second = heap.pop().unwrap();
+        assert_eq!(second._priority, LoadPriority::Normal);
+
+        // Low가 마지막으로 나와야 함
+        let third = heap.pop().unwrap();
+        assert_eq!(third._priority, LoadPriority::Low);
     }
 }
