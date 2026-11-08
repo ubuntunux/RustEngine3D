@@ -969,7 +969,8 @@ impl<'a> EngineCore<'a> {
         self.get_application_mut().update_event();
 
         // If window is minimized or zero-sized, skip swapchain recreation and rendering.
-        if self._is_minimized || self._window_size.x <= 0 || self._window_size.y <= 0 {
+        let is_window_minimized = self._is_minimized || self.get_window().is_minimized().unwrap_or(false);
+        if is_window_minimized || self._window_size.x <= 0 || self._window_size.y <= 0 {
             return;
         }
 
@@ -977,16 +978,38 @@ impl<'a> EngineCore<'a> {
         if renderer_context.get_need_recreate_swapchain() {
             #[cfg(not(target_os = "android"))]
             {
+                if !renderer_context.can_recreate_swapchain() {
+                    return;
+                }
+
                 log::info!("<<begin recreate_swapchain>>");
 
-                // destroy
-                ui_manager.destroy_ui_graphics_data();
-                font_manager.destroy_font_descriptor_sets();
-                renderer_context.resize_window(self._window_size.x as u32, self._window_size.y as u32);
+                let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
+                let is_window_size_changed = swapchain_extent.width != self._window_size.x as u32
+                    || swapchain_extent.height != self._window_size.y as u32;
 
-                // recreate
-                font_manager.create_font_descriptor_sets(renderer_context);
-                ui_manager.create_ui_graphics_data();
+                if is_window_size_changed {
+                    log::info!(
+                        "Window size changed (swapchain: {:?}, window: {:?}), full resize_window.",
+                        swapchain_extent,
+                        self._window_size
+                    );
+                    // destroy
+                    ui_manager.destroy_ui_graphics_data();
+                    font_manager.destroy_font_descriptor_sets();
+                    renderer_context.resize_window(self._window_size.x as u32, self._window_size.y as u32);
+
+                    // recreate
+                    font_manager.create_font_descriptor_sets(renderer_context);
+                    ui_manager.create_ui_graphics_data();
+                } else {
+                    log::info!(
+                        "Window size unchanged ({:?}), fast recreate_swapchain_only.",
+                        self._window_size
+                    );
+                    renderer_context.recreate_swapchain_only(self._window_size.x as u32, self._window_size.y as u32);
+                }
+
                 renderer_context.set_need_recreate_swapchain(false);
 
                 self._time_data.reset_time_data();
@@ -1457,6 +1480,10 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                         event_loop.exit();
                     }
                 }
+            }
+            WindowEvent::Occluded(occluded) => {
+                log::info!("WindowEvent::Occluded: {}", occluded);
+                engine_core._is_minimized = occluded;
             }
             WindowEvent::Resized(size) => {
                 log::info!(

@@ -95,17 +95,20 @@ pub fn choose_swapchain_extent(
     window_height: u32,
 ) -> vk::Extent2D {
     let capabilities: &vk::SurfaceCapabilitiesKHR = &swapchain_support_details._capabilities;
-    if capabilities.current_extent.width != u32::MAX {
+    if capabilities.current_extent.width != u32::MAX
+        && capabilities.current_extent.width > 0
+        && capabilities.current_extent.height > 0
+    {
         capabilities.current_extent
     } else {
         vk::Extent2D {
             width: max(
                 capabilities.min_image_extent.width,
-                min(capabilities.max_image_extent.width, window_width),
+                min(capabilities.max_image_extent.width, window_width.max(1)),
             ),
             height: max(
                 capabilities.min_image_extent.height,
-                min(capabilities.max_image_extent.height, window_height),
+                min(capabilities.max_image_extent.height, window_height.max(1)),
             ),
         }
     }

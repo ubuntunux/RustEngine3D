@@ -984,6 +984,34 @@ impl<'a> RendererContext<'a> {
         self.set_is_first_rendering(true);
     }
 
+    pub fn can_recreate_swapchain(&self) -> bool {
+        let details = swapchain::query_swapchain_support(&self._surface_instance, self._physical_device, self._surface);
+        let extent = details._capabilities.current_extent;
+        if extent.width != u32::MAX && (extent.width == 0 || extent.height == 0) {
+            return false;
+        }
+        true
+    }
+
+    pub fn recreate_swapchain_only(&mut self, window_width: u32, window_height: u32) {
+        log::info!("<< recreate_swapchain_only >>");
+        self.device_wait_idle();
+
+        let render_context_ref = ptr_as_ref(self);
+
+        // destroy swapchain framebuffers
+        get_engine_resources_mut().unload_framebuffer_data_list(render_context_ref);
+
+        // recreate swapchain
+        self.recreate_swapchain(window_width, window_height);
+
+        // recreate render pass data create infos & framebuffers
+        get_engine_resources_mut().unload_render_pass_data_create_infos(render_context_ref);
+        get_engine_resources_mut().load_render_pass_data_create_infos(render_context_ref);
+        get_engine_resources_mut().load_framebuffer_data_list(render_context_ref);
+        self.set_is_first_rendering(true);
+    }
+
     pub fn recreate_swapchain(&mut self, window_width: u32, window_height: u32) {
         log::info!("<< recreateSwapChain >>");
         command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
