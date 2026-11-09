@@ -11,6 +11,13 @@ layout (location = INSTANCE_ID_LOCATION) flat in uint vs_out_instanceIndex;
 
 layout (location = 0) out vec4 fs_output;
 
+float calc_font_opacity(float dist)
+{
+    const float edge = 0.85;
+    const float afwidth = length(vec2(dFdx(dist), dFdy(dist))) * 0.7;
+    return smoothstep(edge - afwidth, edge + afwidth, dist);
+}
+
 void main()
 {
     UIRenderData ui_render_data = ui_render_data_list[vs_out_instanceIndex];
@@ -78,7 +85,7 @@ void main()
     {
         vec4 font_texture_color = textureLod(texture_font, vs_output._texcoord, 0.0);
         font_texture_color.xyz = pow(font_texture_color.xyz, vec3(2.2));
-        font_texture_color.w = distance_field_font_opacity(font_texture_color.w);
+        font_texture_color.w = calc_font_opacity(font_texture_color.w);
         color *= font_texture_color;
     }
     else
