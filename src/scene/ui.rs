@@ -1669,11 +1669,7 @@ impl<'a> UIComponentInstance<'a> {
         let font_size_ratio: f32 = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
         let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
         let is_cjk_font = (font_data._font_size.x / font_data._font_size.y) >= 0.7;
-        let char_step_x = if is_cjk_font {
-            font_size.x * 0.5
-        } else {
-            font_size.x
-        };
+        let char_step_x = if is_cjk_font { font_size.x * 0.5 } else { font_size.x };
         let mut column: i32 = 0;
         let mut row: i32 = 0;
         self._render_text_count = 0;
@@ -1728,11 +1724,7 @@ impl<'a> UIComponentInstance<'a> {
                 column += 1;
             } else {
                 let char_is_full = is_cjk_font && Self::is_fullwidth(ch);
-                let char_width = if char_is_full {
-                    char_step_x * 2.0
-                } else {
-                    char_step_x
-                };
+                let char_width = if char_is_full { char_step_x * 2.0 } else { char_step_x };
 
                 if let Some(index) = font_data.get_glyph_index(ch) {
                     let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;

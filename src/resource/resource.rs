@@ -95,7 +95,7 @@ pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
 pub const DEFAULT_EFFECT_NAME: &str = "default";
 pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "effect/render_particle";
-pub const DEFAULT_FONT_NAME: &str = "UbuntuSansMono-Regular_Basic_Latin";
+pub const DEFAULT_FONT_NAME: &str = "Pretendard-Bold_Korean";
 pub const DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME: &str = "ui/render_font";
 pub const DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME: &str = "ui/render_ui";
 pub const TEXTURE_FONT_MATERIAL_PARAMETER_NAME: &str = "texture_font";
@@ -1117,6 +1117,7 @@ impl<'a> EngineResources<'a> {
         if engine_resource_path.is_dir() {
             let engine_font_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_DIRECTORY);
             let engine_font_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_SOURCE_DIRECTORY);
             let engine_shader_cache_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
             let include_extensions: &[&str] = &[];
             let ignore_extensions: &[&str] = &["log"];
@@ -1124,6 +1125,7 @@ impl<'a> EngineResources<'a> {
             for file_path in engine_resource_files.iter() {
                 if false == file_path.starts_with(&engine_font_path)
                     && false == file_path.starts_with(&engine_font_texture_path)
+                    && false == file_path.starts_with(&engine_font_source_path)
                     && false == file_path.starts_with(&engine_shader_cache_path)
                 {
                     engine_resource_file_map.insert(file_path.clone(), file_path.clone());
@@ -1134,7 +1136,7 @@ impl<'a> EngineResources<'a> {
         // build engine_resource_source_file_map
         let mut engine_resource_source_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_source_path.is_dir() {
-            let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
+            let engine_font_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
             let engine_font_texture_source_path =
                 PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
             let engine_shader_cache_source_path =
@@ -1144,7 +1146,7 @@ impl<'a> EngineResources<'a> {
             let engine_resource_source_files =
                 walk_directory(&engine_resource_source_path, include_extensions, ignore_extensions);
             for file_path in engine_resource_source_files.iter() {
-                if false == file_path.starts_with(&engine_font_source_path)
+                if false == file_path.starts_with(&engine_font_path)
                     && false == file_path.starts_with(&engine_font_texture_source_path)
                     && false == file_path.starts_with(&engine_shader_cache_source_path)
                 {
@@ -2019,6 +2021,116 @@ impl<'a> EngineResources<'a> {
         font_data_create_info
     }
 
+    pub fn find_font_source_file(font_data_name: &str) -> Option<PathBuf> {
+        let base_name = if let Some(idx) = font_data_name.rfind('_') {
+            &font_data_name[..idx]
+        } else {
+            font_data_name
+        };
+
+        let candidate_dirs = [
+            PathBuf::from(APPLICATION_RESOURCE_PATH).join(FONT_SOURCE_DIRECTORY),
+            PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_SOURCE_DIRECTORY),
+            PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_SOURCE_DIRECTORY),
+            PathBuf::from("..").join(ENGINE_RESOURCE_PATH).join(FONT_SOURCE_DIRECTORY),
+            PathBuf::from("..").join(APPLICATION_RESOURCE_PATH).join(FONT_SOURCE_DIRECTORY),
+            PathBuf::from("engine_resources").join(FONT_SOURCE_DIRECTORY),
+        ];
+
+        let extensions = ["ttf", "otf", "TTF", "OTF"];
+
+        // 1. Try exact base_name match
+        for dir in &candidate_dirs {
+            for ext in &extensions {
+                let candidate = dir.join(format!("{}.{}", base_name, ext));
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+
+        // 2. Try prefix/substring match in candidate directories
+        for dir in &candidate_dirs {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        if extensions.contains(&ext) {
+                            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                if stem == base_name || base_name.starts_with(stem) || stem.starts_with(base_name) {
+                                    return Some(path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn ensure_font_texture(
+        font_data_name: &str,
+        font_data_create_info: &FontDataCreateInfo,
+        font_texture_file_path: &PathBuf,
+    ) {
+        if font_texture_file_path.is_file() {
+            return;
+        }
+
+        if let Some(font_source_path) = Self::find_font_source_file(font_data_name) {
+            if let Some(parent) = font_texture_file_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            log::info!(
+                "Auto-generating missing font texture for {:?} from {:?}",
+                font_data_name,
+                font_source_path
+            );
+            if !font_data_create_info._chars.is_empty() || font_data_name.contains("Korean") {
+                let chars = if !font_data_create_info._chars.is_empty() {
+                    font_data_create_info._chars.clone()
+                } else {
+                    font_loader::build_korean_character_set()
+                };
+                font_loader::get_font_data_create_info_from_chars(
+                    &font_source_path,
+                    32,
+                    24.0,
+                    &font_data_name.to_string(),
+                    font_texture_file_path,
+                    &chars,
+                );
+            } else {
+                let range_min = if font_data_create_info._range_min > 0 {
+                    font_data_create_info._range_min
+                } else {
+                    32
+                };
+                let range_max = if font_data_create_info._range_max > 0 {
+                    font_data_create_info._range_max
+                } else {
+                    127
+                };
+                font_loader::get_font_data_create_info(
+                    &font_source_path,
+                    font::FONT_SIZE as f32,
+                    font::FONT_PADDING as f32,
+                    &font_data_name.to_string(),
+                    font_texture_file_path,
+                    range_min,
+                    range_max,
+                );
+            }
+        } else {
+            log::warn!(
+                "Could not find font source file to auto-generate texture for {}",
+                font_data_name
+            );
+        }
+    }
+
     pub fn load_font_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
@@ -2040,15 +2152,15 @@ impl<'a> EngineResources<'a> {
         let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
         for font_source_file in font_source_files {
             let is_engine_resource = font_source_file.starts_with(ENGINE_RESOURCE_PATH);
-            let resource_root_path: PathBuf;
-            if is_engine_resource {
-                resource_root_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+            let resource_root_path: PathBuf = if is_engine_resource {
+                PathBuf::from(ENGINE_RESOURCE_PATH)
             } else {
-                resource_root_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
-            }
+                PathBuf::from(APPLICATION_RESOURCE_PATH)
+            };
             let is_korean_source = font_source_file.to_string_lossy().contains("Coding")
                 || font_source_file.to_string_lossy().contains("Nanum")
-                || font_source_file.to_string_lossy().contains("D2");
+                || font_source_file.to_string_lossy().contains("D2")
+                || font_source_file.to_string_lossy().contains("Pretendard");
 
             let block_keys = if is_korean_source {
                 vec!["Korean"]
@@ -2096,33 +2208,41 @@ impl<'a> EngineResources<'a> {
 
                 // regist font texture
                 if false == self.has_texture_data(&font_texture_name) {
-                    let mut font_texture_file_path: PathBuf;
-                    if is_engine_resource {
-                        font_texture_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+                    let mut font_texture_file_path = if is_engine_resource {
+                        PathBuf::from(ENGINE_RESOURCE_PATH)
                     } else {
-                        font_texture_file_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
-                    }
+                        PathBuf::from(APPLICATION_RESOURCE_PATH)
+                    };
                     font_texture_file_path.push(&font_texture_directory);
                     font_texture_file_path.push(&font_data_name);
                     font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
 
+                    Self::ensure_font_texture(&font_data_name, &font_data_create_info, &font_texture_file_path);
+
                     let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType =
                         EngineResources::load_image_data(&font_texture_file_path);
 
-                    assert_ne!(vk::Format::UNDEFINED, image_format);
-                    let texture_create_info = TextureCreateInfo {
-                        _texture_name: font_texture_name.clone(),
-                        _texture_width: image_width,
-                        _texture_height: image_height,
-                        _texture_layers: image_layers,
-                        _texture_format: image_format,
-                        _texture_view_type: vk::ImageViewType::TYPE_2D,
-                        _texture_initial_data_list: image_data,
-                        _enable_mipmap: false,
-                        _enable_anisotropy: false,
-                        ..Default::default()
+                    let texture_data = if vk::Format::UNDEFINED != image_format {
+                        let texture_create_info = TextureCreateInfo {
+                            _texture_name: font_texture_name.clone(),
+                            _texture_width: image_width,
+                            _texture_height: image_height,
+                            _texture_layers: image_layers,
+                            _texture_format: image_format,
+                            _texture_view_type: vk::ImageViewType::TYPE_2D,
+                            _texture_initial_data_list: image_data,
+                            _enable_mipmap: false,
+                            _enable_anisotropy: false,
+                            ..Default::default()
+                        };
+                        newRcRefCell(renderer_context.create_texture(&texture_create_info))
+                    } else {
+                        log::warn!(
+                            "Fallback font texture to DEFAULT_TEXTURE_NAME for {}",
+                            font_texture_name
+                        );
+                        self.get_texture_data(DEFAULT_TEXTURE_NAME).clone()
                     };
-                    let texture_data = newRcRefCell(renderer_context.create_texture(&texture_create_info));
                     self.register_texture_data(font_texture_name.clone(), texture_data);
                 };
                 let texture_data = self.get_texture_data(&font_texture_name);
@@ -2176,10 +2296,12 @@ impl<'a> EngineResources<'a> {
                     font_texture_file_path.push(font_data_name);
                     font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
 
+                    Self::ensure_font_texture(&font_data_name, &font_data_create_info, &font_texture_file_path);
+
                     let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType =
                         EngineResources::load_image_data(&font_texture_file_path);
 
-                    if vk::Format::UNDEFINED != image_format {
+                    let texture_data = if vk::Format::UNDEFINED != image_format {
                         let texture_create_info = TextureCreateInfo {
                             _texture_name: font_texture_name.clone(),
                             _texture_width: image_width,
@@ -2192,40 +2314,44 @@ impl<'a> EngineResources<'a> {
                             _enable_anisotropy: false,
                             ..Default::default()
                         };
-                        let texture_data = newRcRefCell(renderer_context.create_texture(&texture_create_info));
-                        self.register_texture_data(font_texture_name.clone(), texture_data);
+                        newRcRefCell(renderer_context.create_texture(&texture_create_info))
+                    } else {
+                        log::warn!(
+                            "Fallback font texture to DEFAULT_TEXTURE_NAME for {}",
+                            font_texture_name
+                        );
+                        self.get_texture_data(DEFAULT_TEXTURE_NAME).clone()
+                    };
+                    self.register_texture_data(font_texture_name.clone(), texture_data);
+                }
+
+                let texture_data = self.get_texture_data(&font_texture_name);
+                let mut char_to_index = Vec::new();
+                if !font_data_create_info._chars.is_empty() {
+                    let mut max_codepoint: usize = 0;
+                    for ch in font_data_create_info._chars.chars() {
+                        max_codepoint = max_codepoint.max(ch as usize);
+                    }
+                    char_to_index.resize(max_codepoint + 1, -1);
+                    for (idx, ch) in font_data_create_info._chars.chars().enumerate() {
+                        char_to_index[ch as usize] = idx as i32;
                     }
                 }
 
-                if self.has_texture_data(&font_texture_name) {
-                    let texture_data = self.get_texture_data(&font_texture_name);
-                    let mut char_to_index = Vec::new();
-                    if !font_data_create_info._chars.is_empty() {
-                        let mut max_codepoint: usize = 0;
-                        for ch in font_data_create_info._chars.chars() {
-                            max_codepoint = max_codepoint.max(ch as usize);
-                        }
-                        char_to_index.resize(max_codepoint + 1, -1);
-                        for (idx, ch) in font_data_create_info._chars.chars().enumerate() {
-                            char_to_index[ch as usize] = idx as i32;
-                        }
-                    }
-
-                    let font_data = newRcRefCell(FontData {
-                        _font_data_name: font_data_create_info._font_data_name.clone(),
-                        _range_min: font_data_create_info._range_min,
-                        _range_max: font_data_create_info._range_max,
-                        _text_count: font_data_create_info._text_count,
-                        _count_of_side: font_data_create_info._count_of_side,
-                        _font_size: Vector2::new(
-                            (texture_data.borrow()._image_width / font_data_create_info._count_of_side) as f32,
-                            (texture_data.borrow()._image_height / font_data_create_info._count_of_side) as f32,
-                        ),
-                        _texture: texture_data.clone(),
-                        _char_to_index: char_to_index,
-                    });
-                    self._font_data_map.insert(font_data_name.clone(), font_data);
-                }
+                let font_data = newRcRefCell(FontData {
+                    _font_data_name: font_data_create_info._font_data_name.clone(),
+                    _range_min: font_data_create_info._range_min,
+                    _range_max: font_data_create_info._range_max,
+                    _text_count: font_data_create_info._text_count,
+                    _count_of_side: font_data_create_info._count_of_side,
+                    _font_size: Vector2::new(
+                        (texture_data.borrow()._image_width / font_data_create_info._count_of_side) as f32,
+                        (texture_data.borrow()._image_height / font_data_create_info._count_of_side) as f32,
+                    ),
+                    _texture: texture_data.clone(),
+                    _char_to_index: char_to_index,
+                });
+                self._font_data_map.insert(font_data_name.clone(), font_data);
             }
         }
     }
@@ -2239,14 +2365,18 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_default_font_data(&self) -> &RcRefCell<FontData> {
-        if self._font_data_map.contains_key(DEFAULT_FONT_NAME) {
-            get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
+        if self._font_data_map.contains_key("Pretendard-Bold_Korean") {
+            get_resource_data_must("font_data", &self._font_data_map, "Pretendard-Bold_Korean")
+        } else if self._font_data_map.contains_key("D2Coding-Regular_Korean") {
+            get_resource_data_must("font_data", &self._font_data_map, "D2Coding-Regular_Korean")
         } else if self._font_data_map.contains_key("NanumGothicCoding-Regular_Korean") {
             get_resource_data_must("font_data", &self._font_data_map, "NanumGothicCoding-Regular_Korean")
-        } else if self._font_data_map.contains_key("NanumGothic-Regular_Korean") {
-            get_resource_data_must("font_data", &self._font_data_map, "NanumGothic-Regular_Korean")
+        } else if self._font_data_map.contains_key(DEFAULT_FONT_NAME) {
+            get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
+        } else if let Some((_, first_font)) = self._font_data_map.iter().next() {
+            first_font
         } else {
-            get_resource_data_must("font_data", &self._font_data_map, "UbuntuSansMono-Regular_Basic_Latin")
+            panic!("No font data available in EngineResources!");
         }
     }
 

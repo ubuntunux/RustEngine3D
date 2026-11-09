@@ -11,7 +11,6 @@ use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
-use crate::resource::resource::DEFAULT_FONT_NAME;
 use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{RcRefCell, newRcRefCell};
 use crate::vulkan_context::buffer;
@@ -365,7 +364,7 @@ impl FontManager {
     pub fn initialize_font_manager(&mut self) {
         let renderer_context = get_renderer_context();
         let engine_resources = get_engine_resources();
-        let ascii_font_data = engine_resources.get_font_data(DEFAULT_FONT_NAME);
+        let ascii_font_data = engine_resources.get_default_font_data();
         self._ascii = ascii_font_data.clone();
         self._text_render_data = TextRenderData::create_text_render_data(
             renderer_context.get_device(),

@@ -9,8 +9,8 @@ use crate::utilities::system;
 
 /// Standard special symbols useful in game and UI contexts
 pub const SPECIAL_SYMBOLS: [char; 30] = [
-    '·', '…', '‘', '’', '“', '”', '~', '₩', '★', '☆', '▶', '◀', '▲', '▼', '※', '℃', '±', '×', '÷', '°',
-    '○', '●', '◇', '◆', '□', '■', '♪', '♬', '♥', '♡',
+    '·', '…', '‘', '’', '“', '”', '~', '₩', '★', '☆', '▶', '◀', '▲', '▼', '※', '℃', '±', '×', '÷', '°', '○', '●', '◇',
+    '◆', '□', '■', '♪', '♬', '♥', '♡',
 ];
 
 /// Builds a comprehensive character set for Korean font atlas generation:
@@ -143,11 +143,7 @@ fn compute_cell_edt(
             let dist = dist_sq.sqrt();
             let norm_dist = (dist / max_dist).clamp(0.0, 1.0);
             let alpha = 255u8.saturating_sub((norm_dist.sqrt() * 255.0).min(255.0) as u8);
-            distance_field_image.put_pixel(
-                offset_x + px as u32,
-                offset_y + py as u32,
-                Rgba([255, 255, 255, alpha]),
-            );
+            distance_field_image.put_pixel(offset_x + px as u32, offset_y + py as u32, Rgba([255, 255, 255, alpha]));
         }
     }
 }
@@ -297,9 +293,8 @@ pub fn get_font_data_create_info(
         let ch = char::from_u32(text).unwrap_or('?');
         let mut text_str = String::new();
         text_str.push(ch);
-        let glyphs: Vec<PositionedGlyph> = font
-            .layout(&text_str, scale, point(padding, padding + v_metrics.ascent))
-            .collect();
+        let glyphs: Vec<PositionedGlyph> =
+            font.layout(&text_str, scale, point(padding, padding + v_metrics.ascent)).collect();
         let glyphs_first_bounding_box = glyphs.first().and_then(|g| g.pixel_bounding_box());
         let glyphs_last_bounding_box = glyphs.last().and_then(|g| g.pixel_bounding_box());
         match (glyphs_first_bounding_box, glyphs_last_bounding_box) {
@@ -430,6 +425,7 @@ mod tests {
             PathBuf::from("..")
         };
         let fonts = [
+            ("Pretendard-Bold", "Pretendard-Bold_Korean"),
             ("D2Coding-Regular", "D2Coding-Regular_Korean"),
             ("NanumGothicCoding-Regular", "NanumGothicCoding-Regular_Korean"),
         ];
@@ -461,5 +457,61 @@ mod tests {
                 std::fs::write(&font_file_path, write_contents).expect("Failed to write font file");
             }
         }
+    }
+
+    #[test]
+    fn test_auto_regenerate_missing_font_texture() {
+        use crate::resource::resource::EngineResources;
+        let font_data_name = "UbuntuSansMono-Regular_Basic_Latin";
+        let found = EngineResources::find_font_source_file(font_data_name);
+        assert!(found.is_some(), "Must locate font source for UbuntuSansMono-Regular");
+
+        let pretendard_found = EngineResources::find_font_source_file("Pretendard-Bold_Korean");
+        assert!(
+            pretendard_found.is_some(),
+            "Must locate font source for Pretendard-Bold"
+        );
+
+        let test_texture_path = PathBuf::from("/tmp/test_auto_gen_font_texture.png");
+        if test_texture_path.exists() {
+            let _ = std::fs::remove_file(&test_texture_path);
+        }
+
+        let create_info = FontDataCreateInfo {
+            _font_data_name: font_data_name.to_string(),
+            _range_min: 32,
+            _range_max: 127,
+            _text_count: 96,
+            _count_of_side: 10,
+            _font_size: font::FONT_SIZE as f32,
+            _chars: String::new(),
+        };
+
+        EngineResources::ensure_font_texture(font_data_name, &create_info, &test_texture_path);
+        assert!(
+            test_texture_path.exists(),
+            "ensure_font_texture must auto-generate missing png"
+        );
+        let _ = std::fs::remove_file(&test_texture_path);
+
+        let test_korean_path = PathBuf::from("/tmp/test_korean_auto_gen.png");
+        if test_korean_path.exists() {
+            let _ = std::fs::remove_file(&test_korean_path);
+        }
+        let korean_info = FontDataCreateInfo {
+            _font_data_name: "Pretendard-Bold_Korean".to_string(),
+            _range_min: 0,
+            _range_max: 0,
+            _text_count: 5,
+            _count_of_side: 3,
+            _font_size: 24.0,
+            _chars: " 가나다".to_string(),
+        };
+        EngineResources::ensure_font_texture("Pretendard-Bold_Korean", &korean_info, &test_korean_path);
+        assert!(
+            test_korean_path.exists(),
+            "ensure_font_texture must auto-generate missing Korean png"
+        );
+        let _ = std::fs::remove_file(&test_korean_path);
     }
 }
