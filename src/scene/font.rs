@@ -71,6 +71,7 @@ pub struct FontDataCreateInfo {
     pub _text_count: u32,
     pub _count_of_side: u32,
     pub _font_size: f32,
+    pub _chars: String,
 }
 
 impl Default for FontDataCreateInfo {
@@ -82,6 +83,7 @@ impl Default for FontDataCreateInfo {
             _text_count: 0,
             _count_of_side: 0,
             _font_size: 10.0,
+            _chars: String::new(),
         }
     }
 }
@@ -94,6 +96,7 @@ pub struct FontData {
     pub _count_of_side: u32,
     pub _font_size: Vector2<f32>,
     pub _texture: RcRefCell<TextureData>,
+    pub _char_to_index: Vec<i32>,
 }
 
 impl Default for FontData {
@@ -106,6 +109,26 @@ impl Default for FontData {
             _count_of_side: 0,
             _font_size: Vector2::zeros(),
             _texture: newRcRefCell(TextureData::default()),
+            _char_to_index: Vec::new(),
+        }
+    }
+}
+
+impl FontData {
+    pub fn get_glyph_index(&self, ch: char) -> Option<u32> {
+        let code = ch as usize;
+        if !self._char_to_index.is_empty() {
+            if code < self._char_to_index.len() {
+                let idx = self._char_to_index[code];
+                if idx >= 0 {
+                    return Some(idx as u32);
+                }
+            }
+            None
+        } else if code >= self._range_min as usize && code <= self._range_max as usize {
+            Some((code - self._range_min as usize) as u32)
+        } else {
+            None
         }
     }
 }
@@ -265,15 +288,13 @@ impl TextRenderData {
         self._text = text;
 
         let font_data = &self._font_data.borrow();
-        let range_min = font_data._range_min;
         let count_of_side = font_data._count_of_side;
         let ratio = 1.0 / font_data._count_of_side as f32;
         let mut render_index: u32 = 0;
         let mut max_column: i32 = self._initial_column;
         let mut column: i32 = self._initial_column;
         let mut row: i32 = self._initial_row;
-        for c in self._text.as_bytes().iter() {
-            let ch = (*c) as char;
+        for ch in self._text.chars() {
             if '\n' == ch {
                 column = self._initial_column;
                 row -= 1;
@@ -281,16 +302,19 @@ impl TextRenderData {
                 column += 4;
             } else if ' ' == ch {
                 column += 1;
-            } else {
-                let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
+            } else if let Some(index) = font_data.get_glyph_index(ch) {
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
                 let texcoord_y = (index / count_of_side) as f32 * ratio;
-                let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
-                font_instance_data._font_column = column as f32;
-                font_instance_data._font_row = row as f32;
-                font_instance_data._font_texcoord.x = texcoord_x;
-                font_instance_data._font_texcoord.y = texcoord_y;
-                render_index += 1;
+                if (render_index as usize) < self._font_instance_data_list.len() {
+                    let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
+                    font_instance_data._font_column = column as f32;
+                    font_instance_data._font_row = row as f32;
+                    font_instance_data._font_texcoord.x = texcoord_x;
+                    font_instance_data._font_texcoord.y = texcoord_y;
+                    render_index += 1;
+                }
+                column += 1;
+            } else {
                 column += 1;
             }
             max_column = max(max_column, column);

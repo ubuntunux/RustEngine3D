@@ -1448,6 +1448,17 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
 
+    pub fn is_fullwidth(ch: char) -> bool {
+        let cp = ch as u32;
+        (0xAC00..=0xD7AF).contains(&cp)
+            || (0x1100..=0x11FF).contains(&cp)
+            || (0x3130..=0x318F).contains(&cp)
+            || (0x4E00..=0x9FFF).contains(&cp)
+            || (0x3000..=0x303F).contains(&cp)
+            || (0xFF01..=0xFF60).contains(&cp)
+            || (0xFFE0..=0xFFE6).contains(&cp)
+    }
+
     pub fn compute_text_contents_size(&mut self, font_data: &FontData, dpi_scale: f32) -> Vector2<f32> {
         self._text_counts.clear();
 
@@ -1465,9 +1476,24 @@ impl<'a> UIComponentInstance<'a> {
             };
             let font_size_ratio = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
             let font_size = &font_data._font_size * font_size_ratio;
-            let char_width = font_size.x * UI_RENDER_FONT_PADDING_RATIO;
+            let is_cjk_font = (font_data._font_size.x / font_data._font_size.y) >= 0.7;
+            let char_step_x = if is_cjk_font {
+                font_size.x * 0.5 * UI_RENDER_FONT_PADDING_RATIO
+            } else {
+                font_size.x * UI_RENDER_FONT_PADDING_RATIO
+            };
 
-            if self.get_wrap() && self.has_parent() && char_width > 0.0 {
+            let get_char_cols = |ch: char| -> usize {
+                if ch == '\t' {
+                    4
+                } else if is_cjk_font && Self::is_fullwidth(ch) {
+                    2
+                } else {
+                    1
+                }
+            };
+
+            if self.get_wrap() && self.has_parent() && char_step_x > 0.0 {
                 let parent = self.get_parent();
                 if !parent.get_expandable_x() {
                     let parent_real_width = parent._contents_area.z - parent._contents_area.x;
@@ -1500,17 +1526,13 @@ impl<'a> UIComponentInstance<'a> {
 
                     let max_width = available_width.max(0.0);
                     if max_width > 0.0 {
-                        let max_columns = (max_width / char_width).floor() as usize;
+                        let max_columns = (max_width / char_step_x).floor() as usize;
                         if max_columns > 0 {
                             let mut needs_wrap = false;
                             for line in source_text.split('\n') {
                                 let mut line_cols: usize = 0;
                                 for ch in line.chars() {
-                                    if ch == '\t' {
-                                        line_cols += 4;
-                                    } else {
-                                        line_cols += 1;
-                                    }
+                                    line_cols += get_char_cols(ch);
                                 }
                                 if line_cols > max_columns {
                                     needs_wrap = true;
@@ -1534,8 +1556,7 @@ impl<'a> UIComponentInstance<'a> {
                                             continue;
                                         }
 
-                                        let word_cols: usize =
-                                            word.chars().map(|c| if c == '\t' { 4 } else { 1 }).sum();
+                                        let word_cols: usize = word.chars().map(get_char_cols).sum();
                                         let space_cols = if cur_line.is_empty() { 0 } else { 1 };
 
                                         if cur_cols + space_cols + word_cols <= max_columns {
@@ -1554,7 +1575,7 @@ impl<'a> UIComponentInstance<'a> {
 
                                             if word_cols > max_columns {
                                                 for ch in word.chars() {
-                                                    let ch_cols = if ch == '\t' { 4 } else { 1 };
+                                                    let ch_cols = get_char_cols(ch);
                                                     if cur_cols + ch_cols > max_columns && !cur_line.is_empty() {
                                                         new_lines.push(cur_line);
                                                         cur_line = String::new();
@@ -1598,6 +1619,8 @@ impl<'a> UIComponentInstance<'a> {
                     column_count += 4;
                 } else if ' ' == ch {
                     column_count += 1;
+                } else if is_cjk_font && Self::is_fullwidth(ch) {
+                    column_count += 2;
                 } else {
                     column_count += 1;
                 }
@@ -1608,7 +1631,7 @@ impl<'a> UIComponentInstance<'a> {
             row_count += 1;
 
             let text_size = Vector2::new(
-                max_column_count as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO,
+                max_column_count as f32 * char_step_x,
                 row_count as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO,
             );
             return text_size;
@@ -1645,6 +1668,12 @@ impl<'a> UIComponentInstance<'a> {
         };
         let font_size_ratio: f32 = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
         let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
+        let is_cjk_font = (font_data._font_size.x / font_data._font_size.y) >= 0.7;
+        let char_step_x = if is_cjk_font {
+            font_size.x * 0.5
+        } else {
+            font_size.x
+        };
         let mut column: i32 = 0;
         let mut row: i32 = 0;
         self._render_text_count = 0;
@@ -1659,7 +1688,7 @@ impl<'a> UIComponentInstance<'a> {
         // text_render_size_x
         let get_text_render_area_x =
             |halign: HorizontalAlign, contents_area_size_x: f32, contents_area_x: f32, column_count: usize| -> f32 {
-                let text_render_size_x = column_count as f32 * font_size.x;
+                let text_render_size_x = column_count as f32 * char_step_x;
                 match halign {
                     HorizontalAlign::LEFT => contents_area_x,
                     HorizontalAlign::CENTER => contents_area_x + (contents_area_size_x - text_render_size_x) * 0.5,
@@ -1698,53 +1727,69 @@ impl<'a> UIComponentInstance<'a> {
             } else if ' ' == ch {
                 column += 1;
             } else {
-                let index: u32 = 0i32.max(ch as i32 - font_data._range_min as i32) as u32;
-                let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
-                let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
+                let char_is_full = is_cjk_font && Self::is_fullwidth(ch);
+                let char_width = if char_is_full {
+                    char_step_x * 2.0
+                } else {
+                    char_step_x
+                };
 
-                ui_render_area.x = text_render_area_x + column as f32 * font_size.x;
-                ui_render_area.y = text_render_area_y + row as f32 * font_size.y;
-                ui_render_area.z = ui_render_area.x + font_size.x;
-                ui_render_area.w = ui_render_area.y + font_size.y;
+                if let Some(index) = font_data.get_glyph_index(ch) {
+                    let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
+                    let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
 
-                if self._contents_area.x < ui_render_area.z
-                    && self._contents_area.y < ui_render_area.w
-                    && ui_render_area.x < self._contents_area.z
-                    && ui_render_area.y < self._contents_area.w
-                {
-                    let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
-                    render_ui_instance_data._ui_texcoord.x = texcoord_x;
-                    render_ui_instance_data._ui_texcoord.y = texcoord_y;
-                    render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
-                    render_ui_instance_data._ui_texcoord.w = texcoord_y + inv_count_of_side;
-                    render_ui_instance_data._ui_render_area = ui_render_area.clone() as Vector4<f32>;
-                    render_ui_instance_data._ui_renderable_area.clone_from(&text_renderable_area);
-                    render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
-                    render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
-                    render_ui_instance_data._ui_color = self.get_font_color();
-                    render_ui_instance_data._ui_touched_over_color = self.get_font_color();
-                    render_ui_instance_data._ui_touched_color = self.get_font_color();
-                    render_ui_instance_data._ui_round = 0.0;
-                    render_ui_instance_data._ui_border = 0.0;
-                    render_ui_instance_data._ui_border_color = 0;
-                    render_ui_instance_data._ui_touched_over_border_color = 0;
-                    render_ui_instance_data._ui_touched_border_color = 0;
-                    render_ui_instance_data._ui_opacity = opacity;
-                    render_ui_instance_data._ui_rotation = 0.0;
-                    render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
-                    if self._touched {
-                        render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
-                    } else if self._touched_over {
-                        render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
+                    ui_render_area.x = text_render_area_x + column as f32 * char_step_x;
+                    ui_render_area.y = text_render_area_y + row as f32 * font_size.y;
+                    ui_render_area.z = ui_render_area.x + char_width;
+                    ui_render_area.w = ui_render_area.y + font_size.y;
+
+                    if self._contents_area.x < ui_render_area.z
+                        && self._contents_area.y < ui_render_area.w
+                        && ui_render_area.x < self._contents_area.z
+                        && ui_render_area.y < self._contents_area.w
+                    {
+                        let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
+                        if is_cjk_font && !char_is_full {
+                            let half_u = inv_count_of_side * 0.25;
+                            render_ui_instance_data._ui_texcoord.x = texcoord_x + half_u;
+                            render_ui_instance_data._ui_texcoord.y = texcoord_y;
+                            render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side - half_u;
+                            render_ui_instance_data._ui_texcoord.w = texcoord_y + inv_count_of_side;
+                        } else {
+                            render_ui_instance_data._ui_texcoord.x = texcoord_x;
+                            render_ui_instance_data._ui_texcoord.y = texcoord_y;
+                            render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
+                            render_ui_instance_data._ui_texcoord.w = texcoord_y + inv_count_of_side;
+                        }
+                        render_ui_instance_data._ui_render_area = ui_render_area.clone() as Vector4<f32>;
+                        render_ui_instance_data._ui_renderable_area.clone_from(&text_renderable_area);
+                        render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
+                        render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
+                        render_ui_instance_data._ui_color = self.get_font_color();
+                        render_ui_instance_data._ui_touched_over_color = self.get_font_color();
+                        render_ui_instance_data._ui_touched_color = self.get_font_color();
+                        render_ui_instance_data._ui_round = 0.0;
+                        render_ui_instance_data._ui_border = 0.0;
+                        render_ui_instance_data._ui_border_color = 0;
+                        render_ui_instance_data._ui_touched_over_border_color = 0;
+                        render_ui_instance_data._ui_touched_border_color = 0;
+                        render_ui_instance_data._ui_opacity = opacity;
+                        render_ui_instance_data._ui_rotation = 0.0;
+                        render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
+                        if self._touched {
+                            render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                        } else if self._touched_over {
+                            render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
+                        }
+                        if restrict_renderable_area {
+                            render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
+                        }
+
+                        render_ui_index += 1;
+                        self._render_text_count += 1;
                     }
-                    if restrict_renderable_area {
-                        render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
-                    }
-
-                    render_ui_index += 1;
-                    self._render_text_count += 1;
                 }
-                column += 1;
+                column += if char_is_full { 2 } else { 1 };
             }
         }
     }
@@ -3494,5 +3539,100 @@ mod tests {
         // Reset globals
         set_global_ui_scale(1.0);
         set_global_dpi_scale(1.0);
+    }
+
+    #[test]
+    fn test_is_fullwidth() {
+        // Hangul syllables
+        assert!(UIComponentInstance::is_fullwidth('가'));
+        assert!(UIComponentInstance::is_fullwidth('힣'));
+        assert!(UIComponentInstance::is_fullwidth('한'));
+        assert!(UIComponentInstance::is_fullwidth('글'));
+
+        // Hangul jamo
+        assert!(UIComponentInstance::is_fullwidth('ㄱ'));
+        assert!(UIComponentInstance::is_fullwidth('ㅏ'));
+
+        // Halfwidth ASCII
+        assert!(!UIComponentInstance::is_fullwidth('A'));
+        assert!(!UIComponentInstance::is_fullwidth('z'));
+        assert!(!UIComponentInstance::is_fullwidth('0'));
+        assert!(!UIComponentInstance::is_fullwidth('9'));
+        assert!(!UIComponentInstance::is_fullwidth('!'));
+        assert!(!UIComponentInstance::is_fullwidth(' '));
+    }
+
+    #[test]
+    fn test_font_glyph_indexing() {
+        // Test font data with _chars mapping
+        let chars_str = " ABC가나다";
+        let mut char_to_index = Vec::new();
+        let mut max_cp = 0;
+        for ch in chars_str.chars() {
+            max_cp = max_cp.max(ch as usize);
+        }
+        char_to_index.resize(max_cp + 1, -1);
+        for (idx, ch) in chars_str.chars().enumerate() {
+            char_to_index[ch as usize] = idx as i32;
+        }
+
+        let font_data = FontData {
+            _font_data_name: String::from("TestKoreanFont"),
+            _font_size: Vector2::new(32.0, 32.0),
+            _char_to_index: char_to_index,
+            ..Default::default()
+        };
+
+        assert_eq!(font_data.get_glyph_index(' '), Some(0));
+        assert_eq!(font_data.get_glyph_index('A'), Some(1));
+        assert_eq!(font_data.get_glyph_index('B'), Some(2));
+        assert_eq!(font_data.get_glyph_index('C'), Some(3));
+        assert_eq!(font_data.get_glyph_index('가'), Some(4));
+        assert_eq!(font_data.get_glyph_index('나'), Some(5));
+        assert_eq!(font_data.get_glyph_index('다'), Some(6));
+        assert_eq!(font_data.get_glyph_index('힣'), None); // Not in chars
+
+        // Test fallback to range_min..range_max when _char_to_index is empty
+        let ascii_font_data = FontData {
+            _font_data_name: String::from("TestAsciiFont"),
+            _range_min: 32,
+            _range_max: 126,
+            _font_size: Vector2::new(39.0, 83.0),
+            ..Default::default()
+        };
+        assert_eq!(ascii_font_data.get_glyph_index(' '), Some(0));
+        assert_eq!(ascii_font_data.get_glyph_index('!'), Some(1));
+        assert_eq!(ascii_font_data.get_glyph_index('A'), Some(65 - 32));
+        assert_eq!(ascii_font_data.get_glyph_index('가'), None);
+    }
+
+    #[test]
+    fn test_korean_text_contents_size_calculation() {
+        let cjk_font = FontData {
+            _font_data_name: String::from("CJKFont"),
+            _font_size: Vector2::new(32.0, 32.0),
+            ..Default::default()
+        };
+
+        let mut comp = UIComponentInstance::default();
+        comp.set_font_size(32.0);
+
+        // "안녕" -> 2 fullwidth chars = 4 half-columns
+        comp.set_text("안녕");
+        let size_ko = comp.compute_text_contents_size(&cjk_font, 1.0);
+        assert_eq!(comp._text_counts, vec![4]);
+
+        // "Hi" -> 2 halfwidth chars = 2 half-columns
+        comp.set_text("Hi");
+        let size_en = comp.compute_text_contents_size(&cjk_font, 1.0);
+        assert_eq!(comp._text_counts, vec![2]);
+
+        // Fullwidth width must be exactly 2x halfwidth
+        assert!((size_ko.x - size_en.x * 2.0).abs() < 1e-4);
+
+        // "안녕 Hi!" -> 2 fullwidth (4) + space (1) + 'H'(1) + 'i'(1) + '!'(1) = 8 half-columns
+        comp.set_text("안녕 Hi!");
+        comp.compute_text_contents_size(&cjk_font, 1.0);
+        assert_eq!(comp._text_counts, vec![8]);
     }
 }

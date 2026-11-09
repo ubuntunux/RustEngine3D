@@ -95,7 +95,7 @@ pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
 pub const DEFAULT_EFFECT_NAME: &str = "default";
 pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "effect/render_particle";
-pub const DEFAULT_FONT_NAME: &str = "UbuntuSansMono-Regular_Basic_Latin";
+pub const DEFAULT_FONT_NAME: &str = "UbuntuSansMono-Regular_Basic_Latin";//"D2Coding-Regular_Korean";
 pub const DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME: &str = "ui/render_font";
 pub const DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME: &str = "ui/render_ui";
 pub const TEXTURE_FONT_MATERIAL_PARAMETER_NAME: &str = "texture_font";
@@ -1984,6 +1984,41 @@ impl<'a> EngineResources<'a> {
         font_data_create_info
     }
 
+    pub fn get_korean_font_data_create_info(
+        &self,
+        resource_root_path: &PathBuf,
+        font_directory: &PathBuf,
+        font_texture_directory: &PathBuf,
+        font_data_name: &String,
+        font_source_file: &PathBuf,
+    ) -> FontDataCreateInfo {
+        let mut font_file_path: PathBuf = resource_root_path.clone();
+        font_file_path.push(font_directory);
+        font_file_path.push(font_data_name);
+        font_file_path.set_extension(EXT_FONT);
+        fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
+
+        let mut font_texture_file_path: PathBuf = resource_root_path.clone();
+        font_texture_file_path.push(font_texture_directory);
+        font_texture_file_path.push(&font_data_name);
+        font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
+        fs::create_dir_all(font_texture_file_path.parent().unwrap()).expect("Failed to create directories.");
+
+        let mut write_file = File::create(&font_file_path).expect("Failed to create file");
+        let chars = font_loader::build_korean_character_set();
+        let font_data_create_info = font_loader::get_font_data_create_info_from_chars(
+            &font_source_file,
+            32,
+            24.0,
+            &font_data_name,
+            &font_texture_file_path,
+            &chars,
+        );
+        let write_contents: String = serde_json::to_string(&font_data_create_info).expect("Failed to serialize.");
+        write_file.write_all(write_contents.as_bytes()).expect("Failed to write");
+        font_data_create_info
+    }
+
     pub fn load_font_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
@@ -2011,29 +2046,52 @@ impl<'a> EngineResources<'a> {
             } else {
                 resource_root_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
             }
-            for (unicode_block_key, (range_min, range_max)) in unicode_blocks.iter() {
+            let is_korean_source = font_source_file.to_string_lossy().contains("Coding")
+                || font_source_file.to_string_lossy().contains("Nanum")
+                || font_source_file.to_string_lossy().contains("D2");
+
+            let block_keys = if is_korean_source {
+                vec!["Korean"]
+            } else {
+                vec!["Basic_Latin"]
+            };
+
+            for block_key in block_keys {
                 let font_name =
                     get_unique_resource_name(&self._font_data_map, &font_source_directory, &font_source_file);
-                let font_data_name = format!("{}_{}", font_name, unicode_block_key);
-                let font_texture_name = format!("fonts/{}_{}", font_name, unicode_block_key);
+                let font_data_name = format!("{}_{}", font_name, block_key);
+                let font_texture_name = format!("fonts/{}_{}", font_name, block_key);
 
                 // Gets FontDataCreateInfo and also creates font texture files if needed.
                 let maybe_font_file = font_file_map.get(&font_data_name);
                 let font_data_create_info: FontDataCreateInfo = if unsafe { DEVELOPMENT }
                     && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name))
                 {
-                    self.get_font_data_create_info(
-                        &resource_root_path,
-                        &font_directory,
-                        &font_texture_directory,
-                        &font_data_name,
-                        &font_source_file,
-                        *range_min,
-                        *range_max,
-                    )
-                } else {
-                    let loaded_contents = system::load(maybe_font_file.unwrap());
+                    if is_korean_source {
+                        self.get_korean_font_data_create_info(
+                            &resource_root_path,
+                            &font_directory,
+                            &font_texture_directory,
+                            &font_data_name,
+                            &font_source_file,
+                        )
+                    } else {
+                        let (range_min, range_max) = unicode_blocks.get(block_key).unwrap_or(&(32, 127));
+                        self.get_font_data_create_info(
+                            &resource_root_path,
+                            &font_directory,
+                            &font_texture_directory,
+                            &font_data_name,
+                            &font_source_file,
+                            *range_min,
+                            *range_max,
+                        )
+                    }
+                } else if let Some(font_file) = maybe_font_file {
+                    let loaded_contents = system::load(font_file);
                     serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
+                } else {
+                    continue;
                 };
 
                 // regist font texture
@@ -2069,6 +2127,18 @@ impl<'a> EngineResources<'a> {
                 };
                 let texture_data = self.get_texture_data(&font_texture_name);
 
+                let mut char_to_index = Vec::new();
+                if !font_data_create_info._chars.is_empty() {
+                    let mut max_codepoint: usize = 0;
+                    for ch in font_data_create_info._chars.chars() {
+                        max_codepoint = max_codepoint.max(ch as usize);
+                    }
+                    char_to_index.resize(max_codepoint + 1, -1);
+                    for (idx, ch) in font_data_create_info._chars.chars().enumerate() {
+                        char_to_index[ch as usize] = idx as i32;
+                    }
+                }
+
                 // regist font data
                 let font_data = newRcRefCell(FontData {
                     _font_data_name: font_data_create_info._font_data_name.clone(),
@@ -2081,8 +2151,81 @@ impl<'a> EngineResources<'a> {
                         (texture_data.borrow()._image_height / font_data_create_info._count_of_side) as f32,
                     ),
                     _texture: texture_data.clone(),
+                    _char_to_index: char_to_index,
                 });
                 self._font_data_map.insert(font_data_name, font_data);
+            }
+        }
+
+        // Load any pre-generated font files in font_file_map
+        for (font_data_name, font_file_path) in font_file_map.iter() {
+            if !self.has_font_data(font_data_name) {
+                let loaded_contents = system::load(font_file_path);
+                let font_data_create_info: FontDataCreateInfo =
+                    serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+
+                let font_texture_name = format!("fonts/{}", font_data_name);
+                if !self.has_texture_data(&font_texture_name) {
+                    let is_engine_resource = font_file_path.starts_with(ENGINE_RESOURCE_PATH);
+                    let mut font_texture_file_path = if is_engine_resource {
+                        PathBuf::from(ENGINE_RESOURCE_PATH)
+                    } else {
+                        PathBuf::from(APPLICATION_RESOURCE_PATH)
+                    };
+                    font_texture_file_path.push(&font_texture_directory);
+                    font_texture_file_path.push(font_data_name);
+                    font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
+
+                    let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType =
+                        EngineResources::load_image_data(&font_texture_file_path);
+
+                    if vk::Format::UNDEFINED != image_format {
+                        let texture_create_info = TextureCreateInfo {
+                            _texture_name: font_texture_name.clone(),
+                            _texture_width: image_width,
+                            _texture_height: image_height,
+                            _texture_layers: image_layers,
+                            _texture_format: image_format,
+                            _texture_view_type: vk::ImageViewType::TYPE_2D,
+                            _texture_initial_data_list: image_data,
+                            _enable_mipmap: false,
+                            _enable_anisotropy: false,
+                            ..Default::default()
+                        };
+                        let texture_data = newRcRefCell(renderer_context.create_texture(&texture_create_info));
+                        self.register_texture_data(font_texture_name.clone(), texture_data);
+                    }
+                }
+
+                if self.has_texture_data(&font_texture_name) {
+                    let texture_data = self.get_texture_data(&font_texture_name);
+                    let mut char_to_index = Vec::new();
+                    if !font_data_create_info._chars.is_empty() {
+                        let mut max_codepoint: usize = 0;
+                        for ch in font_data_create_info._chars.chars() {
+                            max_codepoint = max_codepoint.max(ch as usize);
+                        }
+                        char_to_index.resize(max_codepoint + 1, -1);
+                        for (idx, ch) in font_data_create_info._chars.chars().enumerate() {
+                            char_to_index[ch as usize] = idx as i32;
+                        }
+                    }
+
+                    let font_data = newRcRefCell(FontData {
+                        _font_data_name: font_data_create_info._font_data_name.clone(),
+                        _range_min: font_data_create_info._range_min,
+                        _range_max: font_data_create_info._range_max,
+                        _text_count: font_data_create_info._text_count,
+                        _count_of_side: font_data_create_info._count_of_side,
+                        _font_size: Vector2::new(
+                            (texture_data.borrow()._image_width / font_data_create_info._count_of_side) as f32,
+                            (texture_data.borrow()._image_height / font_data_create_info._count_of_side) as f32,
+                        ),
+                        _texture: texture_data.clone(),
+                        _char_to_index: char_to_index,
+                    });
+                    self._font_data_map.insert(font_data_name.clone(), font_data);
+                }
             }
         }
     }
@@ -2096,7 +2239,15 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_default_font_data(&self) -> &RcRefCell<FontData> {
-        get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
+        if self._font_data_map.contains_key(DEFAULT_FONT_NAME) {
+            get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
+        } else if self._font_data_map.contains_key("NanumGothicCoding-Regular_Korean") {
+            get_resource_data_must("font_data", &self._font_data_map, "NanumGothicCoding-Regular_Korean")
+        } else if self._font_data_map.contains_key("NanumGothic-Regular_Korean") {
+            get_resource_data_must("font_data", &self._font_data_map, "NanumGothic-Regular_Korean")
+        } else {
+            get_resource_data_must("font_data", &self._font_data_map, "UbuntuSansMono-Regular_Basic_Latin")
+        }
     }
 
     pub fn get_font_data(&self, resource_name: &str) -> &RcRefCell<FontData> {
