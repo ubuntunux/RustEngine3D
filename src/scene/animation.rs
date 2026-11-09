@@ -152,7 +152,9 @@ pub struct AnimationPlayInfoSaveData {
     pub _prev_animation_play_time: f32,
     pub _animation_play_time: f32,
     pub _animation_end_time: Option<f32>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub _animation_transforms: Vec<SimpleTransform>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub _last_animation_transforms: Vec<SimpleTransform>,
     pub _animation_index: usize,
 }
@@ -692,8 +694,8 @@ impl AnimationPlayInfo {
             _prev_animation_play_time: self._prev_animation_play_time,
             _animation_play_time: self._animation_play_time,
             _animation_end_time: self._animation_end_time,
-            _animation_transforms: self._animation_transforms.clone(),
-            _last_animation_transforms: self._last_animation_transforms.clone(),
+            _animation_transforms: Vec::new(),
+            _last_animation_transforms: Vec::new(),
             _animation_index: self._animation_index,
         }
     }
@@ -715,8 +717,12 @@ impl AnimationPlayInfo {
         self._prev_animation_play_time = save_data._prev_animation_play_time;
         self._animation_play_time = save_data._animation_play_time;
         self._animation_end_time = save_data._animation_end_time;
-        self._animation_transforms.clone_from(&save_data._animation_transforms);
-        self._last_animation_transforms.clone_from(&save_data._last_animation_transforms);
+        if !save_data._animation_transforms.is_empty() {
+            self._animation_transforms.clone_from(&save_data._animation_transforms);
+        }
+        if !save_data._last_animation_transforms.is_empty() {
+            self._last_animation_transforms.clone_from(&save_data._last_animation_transforms);
+        }
         self._animation_index = save_data._animation_index;
     }
 }

@@ -124,6 +124,17 @@ pub struct SceneManager<'a> {
 }
 
 // Implementation
+impl SceneDataCreateInfo {
+    pub fn is_empty(&self) -> bool {
+        self._cameras.is_empty()
+            && self._directional_lights.is_empty()
+            && self._point_lights.is_empty()
+            && self._effects.is_empty()
+            && self._static_objects.is_empty()
+            && self._skeletal_objects.is_empty()
+    }
+}
+
 impl Default for SceneDataCreateInfo {
     fn default() -> SceneDataCreateInfo {
         SceneDataCreateInfo {

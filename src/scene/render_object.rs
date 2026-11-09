@@ -81,6 +81,7 @@ impl Default for RenderObjectCreateInfo {
 pub struct RenderObjectSaveData {
     pub _render_object_name: String,
     pub _animation_play_infos: Vec<AnimationPlayInfoSaveData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub _animation_buffer: Option<AnimationBuffer>,
 }
 
@@ -899,6 +900,11 @@ impl<'a> RenderObjectData<'a> {
         if let Some(ref pending) = self._pending_save_data {
             let mut cloned = pending.clone();
             cloned._render_object_name = self._render_object_name.clone();
+            cloned._animation_buffer = None;
+            for info in cloned._animation_play_infos.iter_mut() {
+                info._animation_transforms.clear();
+                info._last_animation_transforms.clear();
+            }
             return cloned;
         }
         RenderObjectSaveData {
@@ -908,7 +914,7 @@ impl<'a> RenderObjectData<'a> {
                 .iter()
                 .map(|info| info.get_animation_play_info_save_data())
                 .collect(),
-            _animation_buffer: self._animation_buffer.clone(),
+            _animation_buffer: None,
         }
     }
 
