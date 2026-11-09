@@ -1055,29 +1055,27 @@ impl<'a> EngineResources<'a> {
             // update engine resources
             self.update_engine_resources();
 
-            if !resource_list_file_path.exists() {
-                log::info!("Creating initial resources.txt file");
-                let include_extensions: &[&str] = &[];
-                let ignore_extensions: &[&str] = &["log"];
-                let mut application_resource_files = walk_directory(
-                    &Path::new(APPLICATION_RESOURCE_PATH),
-                    include_extensions,
-                    ignore_extensions,
-                );
-                application_resource_files.sort();
-                let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
-                for file_path in application_resource_files {
-                    if let Some(filename) = file_path.file_name() {
-                        if "empty" == filename {
-                            continue;
-                        }
+            log::info!("Updating resources.txt file");
+            let include_extensions: &[&str] = &[];
+            let ignore_extensions: &[&str] = &["log"];
+            let mut application_resource_files = walk_directory(
+                &Path::new(APPLICATION_RESOURCE_PATH),
+                include_extensions,
+                ignore_extensions,
+            );
+            application_resource_files.sort();
+            let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
+            for file_path in application_resource_files {
+                if let Some(filename) = file_path.file_name() {
+                    if "empty" == filename {
+                        continue;
                     }
+                }
 
-                    if resource_list_file_path != file_path {
-                        write_file
-                            .write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
-                            .expect("Failed to write");
-                    }
+                if resource_list_file_path != file_path {
+                    write_file
+                        .write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
+                        .expect("Failed to write");
                 }
             }
         }
