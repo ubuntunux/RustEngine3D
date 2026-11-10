@@ -22,6 +22,8 @@ use crate::vulkan_context::vulkan_context::SwapchainArray;
 pub const USE_DISTANCE_FIELD: bool = true;
 pub const FONT_SIZE: u32 = 80;
 pub const FONT_PADDING: u32 = 1;
+pub const KOREAN_FONT_CELL_SIZE: u32 = 64;
+pub const KOREAN_FONT_RENDER_SIZE: f32 = 48.0;
 
 #[repr(C)]
 pub struct RenderTextInfo {

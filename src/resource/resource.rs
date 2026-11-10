@@ -25,7 +25,7 @@ use crate::resource::gltf_loader::GLTF;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
 use crate::scene::animation::AnimationLayerData;
-use crate::scene::font::{self, FontData, FontDataCreateInfo};
+use crate::scene::font::{self, FontData, FontDataCreateInfo, KOREAN_FONT_CELL_SIZE, KOREAN_FONT_RENDER_SIZE};
 use crate::scene::material::MaterialData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
 use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
@@ -2010,8 +2010,8 @@ impl<'a> EngineResources<'a> {
         let chars = font_loader::build_korean_character_set();
         let font_data_create_info = font_loader::get_font_data_create_info_from_chars(
             &font_source_file,
-            32,
-            24.0,
+            KOREAN_FONT_CELL_SIZE,
+            KOREAN_FONT_RENDER_SIZE,
             &font_data_name,
             &font_texture_file_path,
             &chars,
@@ -2094,10 +2094,20 @@ impl<'a> EngineResources<'a> {
                 } else {
                     font_loader::build_korean_character_set()
                 };
+                let cell_size = if font_data_create_info._font_size > 0.0 {
+                    font_data_create_info._font_size as u32
+                } else {
+                    KOREAN_FONT_CELL_SIZE
+                };
+                let font_render_size = if cell_size == KOREAN_FONT_CELL_SIZE {
+                    KOREAN_FONT_RENDER_SIZE
+                } else {
+                    (cell_size as f32 * 0.75).round()
+                };
                 font_loader::get_font_data_create_info_from_chars(
                     &font_source_path,
-                    32,
-                    24.0,
+                    cell_size,
+                    font_render_size,
                     &font_data_name.to_string(),
                     font_texture_file_path,
                     &chars,
