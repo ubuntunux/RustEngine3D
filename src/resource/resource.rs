@@ -95,7 +95,7 @@ pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
 pub const DEFAULT_EFFECT_NAME: &str = "default";
 pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "effect/render_particle";
-pub const DEFAULT_FONT_NAME: &str = "Pretendard-Bold_Korean";
+pub const DEFAULT_FONT_NAME: &str = "D2Coding-Regular_Korean";
 pub const DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME: &str = "ui/render_font";
 pub const DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME: &str = "ui/render_ui";
 pub const TEXTURE_FONT_MATERIAL_PARAMETER_NAME: &str = "texture_font";
@@ -2169,8 +2169,7 @@ impl<'a> EngineResources<'a> {
             };
             let is_korean_source = font_source_file.to_string_lossy().contains("Coding")
                 || font_source_file.to_string_lossy().contains("Nanum")
-                || font_source_file.to_string_lossy().contains("D2")
-                || font_source_file.to_string_lossy().contains("Pretendard");
+                || font_source_file.to_string_lossy().contains("D2");
 
             let block_keys = if is_korean_source {
                 vec!["Korean"]
@@ -2375,14 +2374,14 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_default_font_data(&self) -> &RcRefCell<FontData> {
-        if self._font_data_map.contains_key("Pretendard-Bold_Korean") {
-            get_resource_data_must("font_data", &self._font_data_map, "Pretendard-Bold_Korean")
-        } else if self._font_data_map.contains_key("D2Coding-Regular_Korean") {
+        if self._font_data_map.contains_key("D2Coding-Regular_Korean") {
             get_resource_data_must("font_data", &self._font_data_map, "D2Coding-Regular_Korean")
         } else if self._font_data_map.contains_key("NanumGothicCoding-Regular_Korean") {
             get_resource_data_must("font_data", &self._font_data_map, "NanumGothicCoding-Regular_Korean")
         } else if self._font_data_map.contains_key(DEFAULT_FONT_NAME) {
             get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
+        } else if self._font_data_map.contains_key("UbuntuSansMono-Regular_Basic_Latin") {
+            get_resource_data_must("font_data", &self._font_data_map, "UbuntuSansMono-Regular_Basic_Latin")
         } else if let Some((_, first_font)) = self._font_data_map.iter().next() {
             first_font
         } else {

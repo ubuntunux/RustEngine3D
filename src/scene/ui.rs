@@ -39,9 +39,25 @@ pub fn set_global_ui_scale(scale: f32) {
     GLOBAL_UI_SCALE.store(scale.to_bits(), Ordering::Relaxed);
 }
 
+pub fn set_global_font_data_name(font_data_name: &str) {
+    if is_engine_core_valid() {
+        let ui_manager = get_ui_manager_mut();
+        ui_manager.set_font_data(font_data_name);
+        let font_manager = get_font_manager_mut();
+        let engine_resources = get_engine_resources();
+        if engine_resources.has_font_data(font_data_name) {
+            let font_data = engine_resources.get_font_data(font_data_name);
+            font_manager.set_font_data(font_data);
+        }
+    }
+}
+
 use crate::constants;
 use crate::core::engine_core::{EngineCore, TimeData};
-use crate::core::engine_service_locator::{get_debug_line_manager_mut, get_engine_resources, get_renderer_context};
+use crate::core::engine_service_locator::{
+    get_debug_line_manager_mut, get_engine_resources, get_engine_resources_mut, get_font_manager_mut,
+    get_renderer_context, get_ui_manager_mut, is_engine_core_valid,
+};
 use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName, PushConstantParameter};
 use crate::renderer::renderer_context::RendererContext;
@@ -1476,7 +1492,7 @@ impl<'a> UIComponentInstance<'a> {
             };
             let font_size_ratio = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
             let font_size = &font_data._font_size * font_size_ratio;
-            let is_cjk_font = (font_data._font_size.x / font_data._font_size.y) >= 0.7;
+            let is_cjk_font = font_data.is_cjk_font();
             let char_step_x = if is_cjk_font {
                 font_size.x * 0.5 * UI_RENDER_FONT_PADDING_RATIO
             } else {
@@ -1668,7 +1684,7 @@ impl<'a> UIComponentInstance<'a> {
         };
         let font_size_ratio: f32 = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
         let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
-        let is_cjk_font = (font_data._font_size.x / font_data._font_size.y) >= 0.7;
+        let is_cjk_font = font_data.is_cjk_font();
         let char_step_x = if is_cjk_font { font_size.x * 0.5 } else { font_size.x };
         let mut column: i32 = 0;
         let mut row: i32 = 0;
@@ -3049,6 +3065,58 @@ impl<'a> UIManager<'a> {
 
     pub fn destroy_ui_graphics_data(&mut self) {
         self._default_render_ui_material = None;
+    }
+
+    pub fn set_font_data(&mut self, font_data_name: &str) {
+        let engine_resources = get_engine_resources_mut();
+        if !engine_resources.has_font_data(font_data_name) {
+            log::warn!("Font data not found: {}", font_data_name);
+            return;
+        }
+
+        let font_data = engine_resources.get_font_data(font_data_name).clone();
+        self._font_data = font_data;
+
+        let font_texture_name = format!("fonts/{}", font_data_name);
+        if let Some(material_instance) = self._default_render_ui_material.as_ref() {
+            let renderer_context = get_renderer_context();
+            let mut mat_mut = material_instance.borrow_mut();
+            mat_mut.set_material_parameter(
+                crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,
+                serde_json::Value::String(font_texture_name.clone()),
+            );
+            if engine_resources.has_texture_data(&font_texture_name) {
+                let texture_data = engine_resources.get_texture_data(&font_texture_name).borrow();
+                mat_mut.update_texture_descriptor_sets(
+                    renderer_context.get_device(),
+                    &font_texture_name,
+                    &texture_data,
+                );
+            }
+        }
+
+        if engine_resources.has_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME) {
+            let renderer_context = get_renderer_context();
+            let render_font_mat = engine_resources.get_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME);
+            let mut mat_mut = render_font_mat.borrow_mut();
+            mat_mut.set_material_parameter(
+                crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,
+                serde_json::Value::String(font_texture_name.clone()),
+            );
+            if engine_resources.has_texture_data(&font_texture_name) {
+                let texture_data = engine_resources.get_texture_data(&font_texture_name).borrow();
+                mat_mut.update_texture_descriptor_sets(
+                    renderer_context.get_device(),
+                    &font_texture_name,
+                    &texture_data,
+                );
+            }
+        }
+
+        let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
+        root_ui_component.recursive_mark_text_changed();
+        root_ui_component.set_changed_layout(true);
+        root_ui_component.set_changed_deep_child_layout(true);
     }
 
     #[allow(dropping_references)]

@@ -479,8 +479,6 @@ mod tests {
             PathBuf::from("..")
         };
         let fonts = [
-            ("Pretendard-Bold", "Pretendard-Bold_Korean"),
-            ("Pretendard-Regular", "Pretendard-Regular_Korean"),
             ("D2Coding-Regular", "D2Coding-Regular_Korean"),
             ("NanumGothicCoding-Regular", "NanumGothicCoding-Regular_Korean"),
         ];
@@ -527,10 +525,10 @@ mod tests {
         let found = EngineResources::find_font_source_file(font_data_name);
         assert!(found.is_some(), "Must locate font source for UbuntuSansMono-Regular");
 
-        let pretendard_found = EngineResources::find_font_source_file("Pretendard-Bold_Korean");
+        let d2_found = EngineResources::find_font_source_file("D2Coding-Regular_Korean");
         assert!(
-            pretendard_found.is_some(),
-            "Must locate font source for Pretendard-Bold"
+            d2_found.is_some(),
+            "Must locate font source for D2Coding-Regular"
         );
 
         let test_texture_path = PathBuf::from("/tmp/test_auto_gen_font_texture.png");
@@ -560,7 +558,7 @@ mod tests {
             let _ = std::fs::remove_file(&test_korean_path);
         }
         let korean_info = FontDataCreateInfo {
-            _font_data_name: "Pretendard-Bold_Korean".to_string(),
+            _font_data_name: "D2Coding-Regular_Korean".to_string(),
             _range_min: 0,
             _range_max: 0,
             _text_count: 5,
@@ -568,7 +566,7 @@ mod tests {
             _font_size: 24.0,
             _chars: " 가나다".to_string(),
         };
-        EngineResources::ensure_font_texture("Pretendard-Bold_Korean", &korean_info, &test_korean_path);
+        EngineResources::ensure_font_texture("D2Coding-Regular_Korean", &korean_info, &test_korean_path);
         assert!(
             test_korean_path.exists(),
             "ensure_font_texture must auto-generate missing Korean png"

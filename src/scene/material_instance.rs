@@ -169,6 +169,10 @@ impl<'a> MaterialInstanceData<'a> {
         true
     }
 
+    pub fn set_material_parameter(&mut self, parameter_name: &str, value: serde_json::Value) {
+        self._material_parameters.insert(String::from(parameter_name), value);
+    }
+
     pub fn update_texture_descriptor_sets(
         &mut self,
         device: &Device,

@@ -116,6 +116,12 @@ impl Default for FontData {
 }
 
 impl FontData {
+    pub fn is_cjk_font(&self) -> bool {
+        self._font_data_name.contains("Korean")
+            || self._font_data_name.contains("CJK")
+            || (self._font_size.y > 0.0 && (self._font_size.x / self._font_size.y) >= 0.7 && !self._char_to_index.is_empty())
+    }
+
     pub fn get_glyph_index(&self, ch: char) -> Option<u32> {
         let code = ch as usize;
         if !self._char_to_index.is_empty() {
@@ -391,6 +397,17 @@ impl FontManager {
 
     pub fn destroy_font_descriptor_sets(&mut self) {
         self._text_render_data.destroy_text_render_data_descriptor_sets();
+    }
+
+    pub fn set_font_data(&mut self, font_data: &RcRefCell<FontData>) {
+        self._ascii = font_data.clone();
+        let renderer_context = get_renderer_context();
+        self._text_render_data.destroy_text_render_data_descriptor_sets();
+        self._text_render_data._font_data = font_data.clone();
+        self._text_render_data.create_texture_render_data_descriptor_sets(
+            renderer_context.get_device(),
+            renderer_context.get_debug_utils(),
+        );
     }
 
     pub fn destroy_font_manager(&mut self, device: &Device) {
