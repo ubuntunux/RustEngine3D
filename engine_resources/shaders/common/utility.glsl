@@ -248,11 +248,17 @@ vec4 safe_normalize(vec4 vector)
     return vector / (dist == 0.0 ? 1.0 : dist);
 }
 
-float distance_field_font_opacity(float opacity)
+#if SHADER_STAGE_FLAG == FRAGMENT
+float distance_field_font_opacity(float dist)
 {
-    const float threshold = 0.6;
-    return saturate(smoothstep(threshold, 1.0, opacity * opacity) * 2.0);
+    const float edge = 0.85;
+    const float afwidth = fwidth(dist) * 0.85;
+    return smoothstep(edge - afwidth, edge + afwidth, dist);
+
+//    const float threshold = 0.6;
+//    return saturate(smoothstep(threshold, 1.0, dist * dist) * 2.0);
 }
+#endif
 
 float encode_emissive_intensity(float emissive_intensity)
 {
