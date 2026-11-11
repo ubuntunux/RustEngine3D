@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use ash::ext;
 use ash::{Device, vk};
-use nalgebra::{Vector2, Vector3};
+use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
@@ -19,6 +19,7 @@ use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase}
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
+pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
 pub const USE_DISTANCE_FIELD: bool = true;
 pub const FONT_SIZE: u32 = 80;
 pub const FONT_PADDING: u32 = 1;
@@ -119,7 +120,20 @@ impl FontData {
     pub fn is_cjk_font(&self) -> bool {
         self._font_data_name.contains("Korean")
             || self._font_data_name.contains("CJK")
-            || (self._font_size.y > 0.0 && (self._font_size.x / self._font_size.y) >= 0.7 && !self._char_to_index.is_empty())
+            || (self._font_size.y > 0.0
+                && (self._font_size.x / self._font_size.y) >= 0.7
+                && !self._char_to_index.is_empty())
+    }
+
+    pub fn is_fullwidth(ch: char) -> bool {
+        let cp = ch as u32;
+        (0xAC00..=0xD7AF).contains(&cp)
+            || (0x1100..=0x11FF).contains(&cp)
+            || (0x3130..=0x318F).contains(&cp)
+            || (0x4E00..=0x9FFF).contains(&cp)
+            || (0x3000..=0x303F).contains(&cp)
+            || (0xFF01..=0xFF60).contains(&cp)
+            || (0xFFE0..=0xFFE6).contains(&cp)
     }
 
     pub fn get_glyph_index(&self, ch: char) -> Option<u32> {
@@ -158,17 +172,15 @@ impl Default for FontVertexData {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct FontInstanceData {
-    pub _font_texcoord: Vector2<f32>,
-    pub _font_column: f32,
-    pub _font_row: f32,
+    pub _font_render_area: Vector4<f32>,
+    pub _font_texcoord: Vector4<f32>,
 }
 
 impl Default for FontInstanceData {
     fn default() -> FontInstanceData {
         FontInstanceData {
-            _font_texcoord: Vector2::zeros(),
-            _font_column: 0.0,
-            _font_row: 0.0,
+            _font_render_area: Vector4::zeros(),
+            _font_texcoord: Vector4::zeros(),
         }
     }
 }
@@ -294,9 +306,13 @@ impl TextRenderData {
     pub fn set_text_inner(&mut self, text: String) {
         self._text = text;
 
-        let font_data = &self._font_data.borrow();
-        let count_of_side = font_data._count_of_side;
-        let ratio = 1.0 / font_data._count_of_side as f32;
+        let font_data = self._font_data.borrow();
+        let count_of_side = font_data._count_of_side as f32;
+        let inv_count_of_side = 1.0 / count_of_side;
+        let font_size_ratio = self._font_size as f32 / font_data._font_size.y;
+        let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
+        let is_cjk_font = font_data.is_cjk_font();
+        let char_step_x = if is_cjk_font { font_size.x * 0.5 } else { font_size.x };
         let mut render_index: u32 = 0;
         let mut max_column: i32 = self._initial_column;
         let mut column: i32 = self._initial_column;
@@ -304,25 +320,43 @@ impl TextRenderData {
         for ch in self._text.chars() {
             if '\n' == ch {
                 column = self._initial_column;
-                row -= 1;
+                row += 1;
             } else if '\t' == ch {
                 column += 4;
             } else if ' ' == ch {
                 column += 1;
-            } else if let Some(index) = font_data.get_glyph_index(ch) {
-                let texcoord_x = (index % count_of_side) as f32 * ratio;
-                let texcoord_y = (index / count_of_side) as f32 * ratio;
-                if (render_index as usize) < self._font_instance_data_list.len() {
-                    let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
-                    font_instance_data._font_column = column as f32;
-                    font_instance_data._font_row = row as f32;
-                    font_instance_data._font_texcoord.x = texcoord_x;
-                    font_instance_data._font_texcoord.y = texcoord_y;
-                    render_index += 1;
-                }
-                column += 1;
             } else {
-                column += 1;
+                let char_is_full = is_cjk_font && FontData::is_fullwidth(ch);
+                let char_width = if char_is_full { char_step_x * 2.0 } else { char_step_x };
+
+                if let Some(index) = font_data.get_glyph_index(ch) {
+                    let texcoord_x = (index % font_data._count_of_side) as f32 * inv_count_of_side;
+                    let texcoord_y = (index / font_data._count_of_side) as f32 * inv_count_of_side;
+
+                    let x1 = column as f32 * char_step_x;
+                    let y1 = row as f32 * font_size.y;
+                    let x2 = x1 + char_width;
+                    let y2 = y1 + font_size.y;
+
+                    if (render_index as usize) < self._font_instance_data_list.len() {
+                        let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
+                        font_instance_data._font_render_area = Vector4::new(x1, y1, x2, y2);
+                        if is_cjk_font && !char_is_full {
+                            let half_u = inv_count_of_side * 0.25;
+                            font_instance_data._font_texcoord.x = texcoord_x + half_u;
+                            font_instance_data._font_texcoord.y = texcoord_y;
+                            font_instance_data._font_texcoord.z = texcoord_x + inv_count_of_side - half_u;
+                            font_instance_data._font_texcoord.w = texcoord_y + inv_count_of_side;
+                        } else {
+                            font_instance_data._font_texcoord.x = texcoord_x;
+                            font_instance_data._font_texcoord.y = texcoord_y;
+                            font_instance_data._font_texcoord.z = texcoord_x + inv_count_of_side;
+                            font_instance_data._font_texcoord.w = texcoord_y + inv_count_of_side;
+                        }
+                        render_index += 1;
+                    }
+                }
+                column += if char_is_full { 2 } else { 1 };
             }
             max_column = max(max_column, column);
         }
@@ -330,8 +364,8 @@ impl TextRenderData {
 
         self._column = max_column - self._initial_column;
         self._row = row - self._initial_row;
-        self._width = self._column as f32 * font_data._font_size.x;
-        self._height = self._row as f32 * font_data._font_size.y;
+        self._width = self._column as f32 * char_step_x;
+        self._height = self._row as f32 * font_size.y;
         self._render_count = render_index;
     }
 
@@ -402,6 +436,7 @@ impl FontManager {
     pub fn set_font_data(&mut self, font_data: &RcRefCell<FontData>) {
         self._ascii = font_data.clone();
         let renderer_context = get_renderer_context();
+        renderer_context.device_wait_idle();
         self._text_render_data.destroy_text_render_data_descriptor_sets();
         self._text_render_data._font_data = font_data.clone();
         self._text_render_data.create_texture_render_data_descriptor_sets(
@@ -427,10 +462,10 @@ impl FontManager {
         log::debug!("create_font_vertex_data");
 
         let positions: Vec<Vector3<f32>> = vec![
-            Vector3::new(-0.5, -0.5, 0.0),
-            Vector3::new(0.5, -0.5, 0.0),
-            Vector3::new(0.5, 0.5, 0.0),
-            Vector3::new(-0.5, 0.5, 0.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(1.0, 1.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
         ];
 
         let vertex_data_list = positions
@@ -555,4 +590,71 @@ impl FontManager {
     }
 
     pub fn update_font_manager(&self) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_text_render_data_cjk_spacing_and_uv_crop() {
+        let chars_str = " A가";
+        let mut char_to_index = Vec::new();
+        let mut max_cp = 0;
+        for ch in chars_str.chars() {
+            max_cp = max_cp.max(ch as usize);
+        }
+        char_to_index.resize(max_cp + 1, -1);
+        for (idx, ch) in chars_str.chars().enumerate() {
+            char_to_index[ch as usize] = idx as i32;
+        }
+
+        let font_data = newRcRefCell(FontData {
+            _font_data_name: String::from("D2Coding-Regular_Korean"),
+            _font_size: Vector2::new(64.0, 64.0),
+            _count_of_side: 10,
+            _char_to_index: char_to_index,
+            ..Default::default()
+        });
+
+        let mut text_render_data = TextRenderData {
+            _font_data: font_data.clone(),
+            _font_instance_data_list: vec![FontInstanceData::default(); 10],
+            ..Default::default()
+        };
+
+        let font_size = 20u32;
+        text_render_data.set_text_render_data("A가".to_string(), &font_data, font_size, 0, 0, true);
+
+        assert_eq!(text_render_data._render_count, 2);
+
+        let inv_count_of_side = 1.0 / 10.0;
+        let expected_font_size = 20.0 * UI_RENDER_FONT_PADDING_RATIO;
+        let char_step_x = expected_font_size * 0.5;
+
+        // 'A' is halfwidth
+        let a_inst = &text_render_data._font_instance_data_list[0];
+        assert_eq!(a_inst._font_render_area.x, 0.0);
+        assert_eq!(a_inst._font_render_area.z, char_step_x);
+        assert_eq!(
+            a_inst._font_render_area.w - a_inst._font_render_area.y,
+            expected_font_size
+        );
+
+        // UV crop for 'A': index 1 in 10-count atlas
+        let texcoord_x = 1.0 * inv_count_of_side;
+        let half_u = inv_count_of_side * 0.25;
+        assert_eq!(a_inst._font_texcoord.x, texcoord_x + half_u);
+        assert_eq!(a_inst._font_texcoord.z, texcoord_x + inv_count_of_side - half_u);
+
+        // '가' is fullwidth, placed after 'A' (column 1 -> x = 1 * char_step_x)
+        let ga_inst = &text_render_data._font_instance_data_list[1];
+        assert_eq!(ga_inst._font_render_area.x, char_step_x);
+        assert_eq!(ga_inst._font_render_area.z, char_step_x + char_step_x * 2.0);
+
+        // UV for '가': index 2 in 10-count atlas, no crop
+        let ga_texcoord_x = 2.0 * inv_count_of_side;
+        assert_eq!(ga_inst._font_texcoord.x, ga_texcoord_x);
+        assert_eq!(ga_inst._font_texcoord.z, ga_texcoord_x + inv_count_of_side);
+    }
 }

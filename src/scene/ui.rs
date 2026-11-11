@@ -41,6 +41,8 @@ pub fn set_global_ui_scale(scale: f32) {
 
 pub fn set_global_font_data_name(font_data_name: &str) {
     if is_engine_core_valid() {
+        let renderer_context = get_renderer_context();
+        renderer_context.device_wait_idle();
         let ui_manager = get_ui_manager_mut();
         ui_manager.set_font_data(font_data_name);
         let font_manager = get_font_manager_mut();
@@ -78,7 +80,7 @@ use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 pub type CallbackTouchEvent<'a> =
     fn(ui_component: &UIComponentInstance<'a>, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) -> bool;
 
-pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
+pub use crate::scene::font::UI_RENDER_FONT_PADDING_RATIO;
 
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
@@ -1465,14 +1467,7 @@ impl<'a> UIComponentInstance<'a> {
     }
 
     pub fn is_fullwidth(ch: char) -> bool {
-        let cp = ch as u32;
-        (0xAC00..=0xD7AF).contains(&cp)
-            || (0x1100..=0x11FF).contains(&cp)
-            || (0x3130..=0x318F).contains(&cp)
-            || (0x4E00..=0x9FFF).contains(&cp)
-            || (0x3000..=0x303F).contains(&cp)
-            || (0xFF01..=0xFF60).contains(&cp)
-            || (0xFFE0..=0xFFE6).contains(&cp)
+        FontData::is_fullwidth(ch)
     }
 
     pub fn compute_text_contents_size(&mut self, font_data: &FontData, dpi_scale: f32) -> Vector2<f32> {
@@ -3074,6 +3069,9 @@ impl<'a> UIManager<'a> {
             return;
         }
 
+        let renderer_context = get_renderer_context();
+        renderer_context.device_wait_idle();
+
         let font_data = engine_resources.get_font_data(font_data_name).clone();
         self._font_data = font_data;
 
@@ -3095,9 +3093,12 @@ impl<'a> UIManager<'a> {
             }
         }
 
-        if engine_resources.has_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME) {
+        if engine_resources
+            .has_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME)
+        {
             let renderer_context = get_renderer_context();
-            let render_font_mat = engine_resources.get_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME);
+            let render_font_mat = engine_resources
+                .get_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME);
             let mut mat_mut = render_font_mat.borrow_mut();
             mat_mut.set_material_parameter(
                 crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,

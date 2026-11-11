@@ -4,18 +4,19 @@ use std::path::PathBuf;
 use image::{DynamicImage, Rgba};
 use rusttype::{Font, PositionedGlyph, Scale, point};
 
-pub use crate::scene::font::{KOREAN_FONT_CELL_SIZE, KOREAN_FONT_RENDER_SIZE};
 use crate::scene::font::{self, FontDataCreateInfo};
+pub use crate::scene::font::{KOREAN_FONT_CELL_SIZE, KOREAN_FONT_RENDER_SIZE};
 use crate::utilities::system;
 
 /// Standard special symbols useful in game and UI contexts (29 symbols, excluding '~' which is in ASCII 33..=126)
 pub const SPECIAL_SYMBOLS: [char; 29] = [
-    '·', '…', '‘', '’', '“', '”', '₩', '★', '☆', '▶', '◀', '▲', '▼', '※', '℃', '±', '×', '÷', '°', '○', '●', '◇',
-    '◆', '□', '■', '♪', '♬', '♥', '♡',
+    '·', '…', '‘', '’', '“', '”', '₩', '★', '☆', '▶', '◀', '▲', '▼', '※', '℃', '±', '×', '÷', '°', '○', '●', '◇', '◆',
+    '□', '■', '♪', '♬', '♥', '♡',
 ];
 
 /// Common modern Korean loanwords, interjections, and game terms not in KS X 1001 (45 syllables)
-pub const EXTRA_HANGUL_SYLLABLES: &str = "똠뷐븨샾솦숔숖쉪슾싴쌒쎠쎅쎼쏫쓔씅옝왭읻쬬쿜퀰퀱퀲퀳킈킦킧턔팦퍠퍤퍨퍰퍱퍳퍵퍾퍿펲퐆픠핰힣";
+pub const EXTRA_HANGUL_SYLLABLES: &str =
+    "똠뷐븨샾솦숔숖쉪슾싴쌒쎠쎅쎼쏫쓔씅옝왭읻쬬쿜퀰퀱퀲퀳킈킦킧턔팦퍠퍤퍨퍰퍱퍳퍵퍾퍿펲퐆픠핰힣";
 
 /// Standard KS X 1001 Modern Hangul Syllables (2,350 syllables)
 pub const KS_X_1001_HANGUL: &str = concat!(
@@ -510,7 +511,8 @@ mod tests {
                 let write_contents = serde_json::to_string(&create_info).expect("Failed to serialize.");
                 std::fs::write(&font_file_path, &write_contents).expect("Failed to write font file");
 
-                let engine_font_path = root.join(format!("RustEngine3D/engine_resources/fonts/{}.font", font_data_name));
+                let engine_font_path =
+                    root.join(format!("RustEngine3D/engine_resources/fonts/{}.font", font_data_name));
                 if engine_font_path.parent().map_or(false, |p| p.exists()) {
                     let _ = std::fs::write(&engine_font_path, &write_contents);
                 }
@@ -526,10 +528,7 @@ mod tests {
         assert!(found.is_some(), "Must locate font source for UbuntuSansMono-Regular");
 
         let d2_found = EngineResources::find_font_source_file("D2Coding-Regular_Korean");
-        assert!(
-            d2_found.is_some(),
-            "Must locate font source for D2Coding-Regular"
-        );
+        assert!(d2_found.is_some(), "Must locate font source for D2Coding-Regular");
 
         let test_texture_path = PathBuf::from("/tmp/test_auto_gen_font_texture.png");
         if test_texture_path.exists() {

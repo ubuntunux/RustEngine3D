@@ -232,6 +232,9 @@ impl<'a> MaterialInstanceData<'a> {
             }
 
             if updated_any_binding {
+                unsafe {
+                    device.device_wait_idle().expect("vkDeviceWaitIdle failed!");
+                }
                 let descriptor_binding_indices: Vec<u32> = descriptor_data
                     ._descriptor_data_create_infos
                     .iter()

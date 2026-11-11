@@ -1,9 +1,8 @@
 #include "../common/scene_constants.glsl"
 
 struct FontInstanceData {
-    vec2 _font_texcoord;
-    float _font_column;
-    float _font_row;
+    vec4 _font_render_area;
+    vec4 _font_texcoord;
 };
 
 layout( push_constant ) uniform PushConstant_RenderFont
