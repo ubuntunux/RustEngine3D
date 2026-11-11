@@ -2152,6 +2152,9 @@ impl<'a> EngineResources<'a> {
         let font_files = self.collect_resources(font_directory.as_path(), &[EXT_FONT]);
         let mut font_file_map: HashMap<String, PathBuf> = HashMap::new();
         for font_file in font_files.iter() {
+            if font_file.to_string_lossy().contains("Bold") {
+                continue;
+            }
             let font_name = get_resource_name_from_file_path(&font_directory, &font_file);
             font_file_map.insert(font_name, font_file.clone());
         }
@@ -2161,6 +2164,9 @@ impl<'a> EngineResources<'a> {
         let font_source_directory = PathBuf::from(FONT_SOURCE_DIRECTORY);
         let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
         for font_source_file in font_source_files {
+            if font_source_file.to_string_lossy().contains("Bold") {
+                continue;
+            }
             let is_engine_resource = font_source_file.starts_with(ENGINE_RESOURCE_PATH);
             let resource_root_path: PathBuf = if is_engine_resource {
                 PathBuf::from(ENGINE_RESOURCE_PATH)
@@ -2169,7 +2175,8 @@ impl<'a> EngineResources<'a> {
             };
             let is_korean_source = font_source_file.to_string_lossy().contains("Coding")
                 || font_source_file.to_string_lossy().contains("Nanum")
-                || font_source_file.to_string_lossy().contains("D2");
+                || font_source_file.to_string_lossy().contains("D2")
+                || font_source_file.to_string_lossy().contains("Pretendard");
 
             let block_keys = if is_korean_source {
                 vec!["Korean"]
@@ -2380,6 +2387,8 @@ impl<'a> EngineResources<'a> {
             get_resource_data_must("font_data", &self._font_data_map, "D2Coding-Regular_Korean")
         } else if self._font_data_map.contains_key("NanumGothicCoding-Regular_Korean") {
             get_resource_data_must("font_data", &self._font_data_map, "NanumGothicCoding-Regular_Korean")
+        } else if self._font_data_map.contains_key("Pretendard-Regular_Korean") {
+            get_resource_data_must("font_data", &self._font_data_map, "Pretendard-Regular_Korean")
         } else if self._font_data_map.contains_key(DEFAULT_FONT_NAME) {
             get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
         } else if self._font_data_map.contains_key("UbuntuSansMono-Regular_Basic_Latin") {

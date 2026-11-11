@@ -559,7 +559,6 @@ mod tests {
             PathBuf::from("..")
         };
         let fonts = [
-            ("UbuntuSansMono-Bold", "UbuntuSansMono-Bold_Basic_Latin"),
             ("UbuntuSansMono-Regular", "UbuntuSansMono-Regular_Basic_Latin"),
         ];
 
@@ -608,6 +607,7 @@ mod tests {
         let fonts = [
             ("D2Coding-Regular", "D2Coding-Regular_Korean"),
             ("NanumGothicCoding-Regular", "NanumGothicCoding-Regular_Korean"),
+            ("Pretendard-Regular", "Pretendard-Regular_Korean"),
         ];
 
         let chars = build_korean_character_set();
