@@ -2281,6 +2281,7 @@ impl<'a> EngineResources<'a> {
                     ),
                     _texture: texture_data.clone(),
                     _char_to_index: char_to_index,
+                    _glyphs: font_data_create_info._glyphs,
                 });
                 self._font_data_map.insert(font_data_name, font_data);
             }
@@ -2359,6 +2360,7 @@ impl<'a> EngineResources<'a> {
                     ),
                     _texture: texture_data.clone(),
                     _char_to_index: char_to_index,
+                    _glyphs: font_data_create_info._glyphs,
                 });
                 self._font_data_map.insert(font_data_name.clone(), font_data);
             }

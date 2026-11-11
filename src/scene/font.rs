@@ -64,6 +64,16 @@ impl PushConstantName for PushConstant_RenderFont {
 
 impl PushConstant for PushConstant_RenderFont {}
 
+#[repr(C)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct GlyphMetric {
+    pub _uv_min: Vector2<f32>,
+    pub _uv_max: Vector2<f32>,
+    pub _plane_bounds: Vector4<f32>,
+    pub _advance_x: f32,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct FontDataCreateInfo {
@@ -74,6 +84,7 @@ pub struct FontDataCreateInfo {
     pub _count_of_side: u32,
     pub _font_size: f32,
     pub _chars: String,
+    pub _glyphs: Vec<GlyphMetric>,
 }
 
 impl Default for FontDataCreateInfo {
@@ -86,6 +97,7 @@ impl Default for FontDataCreateInfo {
             _count_of_side: 0,
             _font_size: 10.0,
             _chars: String::new(),
+            _glyphs: Vec::new(),
         }
     }
 }
@@ -99,6 +111,7 @@ pub struct FontData {
     pub _font_size: Vector2<f32>,
     pub _texture: RcRefCell<TextureData>,
     pub _char_to_index: Vec<i32>,
+    pub _glyphs: Vec<GlyphMetric>,
 }
 
 impl Default for FontData {
@@ -112,6 +125,7 @@ impl Default for FontData {
             _font_size: Vector2::zeros(),
             _texture: newRcRefCell(TextureData::default()),
             _char_to_index: Vec::new(),
+            _glyphs: Vec::new(),
         }
     }
 }
@@ -151,6 +165,15 @@ impl FontData {
         } else {
             None
         }
+    }
+
+    pub fn get_glyph_metric(&self, ch: char) -> Option<&GlyphMetric> {
+        let index = self.get_glyph_index(ch)? as usize;
+        self._glyphs.get(index)
+    }
+
+    pub fn has_glyph_metrics(&self) -> bool {
+        !self._glyphs.is_empty()
     }
 }
 
@@ -307,6 +330,73 @@ impl TextRenderData {
         self._text = text;
 
         let font_data = self._font_data.borrow();
+
+        // Path A: Standard Typography Glyph Metrics Pipeline
+        if font_data.has_glyph_metrics() {
+            let em_scale = self._font_size as f32 * UI_RENDER_FONT_PADDING_RATIO;
+            let default_advance = 0.5 * em_scale;
+            let initial_x = self._initial_column as f32 * default_advance;
+            let initial_y = self._initial_row as f32 * em_scale;
+            let mut cursor_x = initial_x;
+            let mut cursor_y = initial_y;
+            let mut max_width = 0.0f32;
+            let mut render_index: u32 = 0;
+            let mut row: i32 = self._initial_row;
+
+            for ch in self._text.chars() {
+                if '\n' == ch {
+                    max_width = max_width.max(cursor_x - initial_x);
+                    cursor_x = initial_x;
+                    cursor_y += em_scale;
+                    row += 1;
+                } else if '\t' == ch {
+                    cursor_x += default_advance * 4.0;
+                } else if ' ' == ch {
+                    let adv = font_data
+                        .get_glyph_metric(' ')
+                        .map(|m| m._advance_x * em_scale)
+                        .unwrap_or(default_advance);
+                    cursor_x += adv;
+                } else {
+                    if let Some(metric) = font_data.get_glyph_metric(ch) {
+                        let x1 = cursor_x + metric._plane_bounds.x * em_scale;
+                        let y1 = cursor_y + metric._plane_bounds.y * em_scale;
+                        let x2 = cursor_x + metric._plane_bounds.z * em_scale;
+                        let y2 = cursor_y + metric._plane_bounds.w * em_scale;
+
+                        if (render_index as usize) < self._font_instance_data_list.len() {
+                            let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
+                            font_instance_data._font_render_area = Vector4::new(x1, y1, x2, y2);
+                            font_instance_data._font_texcoord = Vector4::new(
+                                metric._uv_min.x,
+                                metric._uv_min.y,
+                                metric._uv_max.x,
+                                metric._uv_max.y,
+                            );
+                            render_index += 1;
+                        }
+                        cursor_x += metric._advance_x * em_scale;
+                    } else {
+                        cursor_x += default_advance;
+                    }
+                }
+                max_width = max_width.max(cursor_x - initial_x);
+            }
+            row += 1;
+
+            self._width = max_width;
+            self._height = (row - self._initial_row) as f32 * em_scale;
+            self._column = if default_advance > 0.0 {
+                (self._width / default_advance).round() as i32
+            } else {
+                0
+            };
+            self._row = row - self._initial_row;
+            self._render_count = render_index;
+            return;
+        }
+
+        // Fallback: Uniform Grid-based calculation
         let count_of_side = font_data._count_of_side as f32;
         let inv_count_of_side = 1.0 / count_of_side;
         let font_size_ratio = self._font_size as f32 / font_data._font_size.y;
@@ -656,5 +746,80 @@ mod tests {
         let ga_texcoord_x = 2.0 * inv_count_of_side;
         assert_eq!(ga_inst._font_texcoord.x, ga_texcoord_x);
         assert_eq!(ga_inst._font_texcoord.z, ga_texcoord_x + inv_count_of_side);
+    }
+
+    #[test]
+    fn test_text_render_data_glyph_metrics_pipeline() {
+        let chars_str = " A가";
+        let mut char_to_index = Vec::new();
+        let mut max_cp = 0;
+        for ch in chars_str.chars() {
+            max_cp = max_cp.max(ch as usize);
+        }
+        char_to_index.resize(max_cp + 1, -1);
+        for (idx, ch) in chars_str.chars().enumerate() {
+            char_to_index[ch as usize] = idx as i32;
+        }
+
+        let glyphs = vec![
+            GlyphMetric {
+                _uv_min: Vector2::new(0.0, 0.0),
+                _uv_max: Vector2::new(0.1, 0.1),
+                _plane_bounds: Vector4::new(0.0, 0.0, 0.0, 1.0),
+                _advance_x: 0.5,
+            },
+            GlyphMetric {
+                _uv_min: Vector2::new(0.125, 0.0),
+                _uv_max: Vector2::new(0.175, 0.1),
+                _plane_bounds: Vector4::new(-0.0833, -0.1667, 0.5833, 1.1667),
+                _advance_x: 0.5,
+            },
+            GlyphMetric {
+                _uv_min: Vector2::new(0.2, 0.0),
+                _uv_max: Vector2::new(0.3, 0.1),
+                _plane_bounds: Vector4::new(-0.1667, -0.1667, 1.1667, 1.1667),
+                _advance_x: 1.0,
+            },
+        ];
+
+        let font_data = newRcRefCell(FontData {
+            _font_data_name: String::from("D2Coding-Regular_Korean"),
+            _font_size: Vector2::new(64.0, 64.0),
+            _count_of_side: 10,
+            _char_to_index: char_to_index,
+            _glyphs: glyphs,
+            ..Default::default()
+        });
+
+        let mut text_render_data = TextRenderData {
+            _font_data: font_data.clone(),
+            _font_instance_data_list: vec![FontInstanceData::default(); 10],
+            ..Default::default()
+        };
+
+        let font_size = 20u32;
+        text_render_data.set_text_render_data("A가".to_string(), &font_data, font_size, 0, 0, true);
+
+        assert_eq!(text_render_data._render_count, 2);
+
+        let em_scale = 20.0 * UI_RENDER_FONT_PADDING_RATIO;
+        let a_inst = &text_render_data._font_instance_data_list[0];
+        let ga_inst = &text_render_data._font_instance_data_list[1];
+
+        // 'A' cursor starts at 0.0, advance is 0.5 * em_scale
+        assert!((a_inst._font_render_area.x - (-0.0833 * em_scale)).abs() < 1e-4);
+        assert!((a_inst._font_render_area.z - (0.5833 * em_scale)).abs() < 1e-4);
+        assert!((a_inst._font_texcoord.x - 0.125).abs() < 1e-4);
+        assert!((a_inst._font_texcoord.z - 0.175).abs() < 1e-4);
+
+        // '가' cursor starts at advance of 'A' = 0.5 * em_scale
+        let cursor_ga = 0.5 * em_scale;
+        assert!((ga_inst._font_render_area.x - (cursor_ga + -0.1667 * em_scale)).abs() < 1e-4);
+        assert!((ga_inst._font_render_area.z - (cursor_ga + 1.1667 * em_scale)).abs() < 1e-4);
+        assert!((ga_inst._font_texcoord.x - 0.2).abs() < 1e-4);
+        assert!((ga_inst._font_texcoord.z - 0.3).abs() < 1e-4);
+
+        // Total width = 0.5 (A) + 1.0 (가) = 1.5 * em_scale
+        assert!((text_render_data._width - 1.5 * em_scale).abs() < 1e-4);
     }
 }

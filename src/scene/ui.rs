@@ -1485,13 +1485,28 @@ impl<'a> UIComponentInstance<'a> {
             } else {
                 1.0
             };
-            let font_size_ratio = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
-            let font_size = &font_data._font_size * font_size_ratio;
             let is_cjk_font = font_data.is_cjk_font();
-            let char_step_x = if is_cjk_font {
-                font_size.x * 0.5 * UI_RENDER_FONT_PADDING_RATIO
+            let (char_step_x, font_size_y) = if font_data.has_glyph_metrics() {
+                let em_scale = self.get_font_size() * dpi_scale * font_scale * UI_RENDER_FONT_PADDING_RATIO;
+                let step_x = if is_cjk_font {
+                    0.5 * em_scale
+                } else {
+                    // For latin fonts like UbuntuSansMono with ~0.56 advance, scale accordingly
+                    font_data
+                        .get_glyph_metric('A')
+                        .map(|m| m._advance_x * em_scale)
+                        .unwrap_or(0.56 * em_scale)
+                };
+                (step_x, em_scale)
             } else {
-                font_size.x * UI_RENDER_FONT_PADDING_RATIO
+                let font_size_ratio = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
+                let fs = &font_data._font_size * font_size_ratio;
+                let step = if is_cjk_font {
+                    fs.x * 0.5 * UI_RENDER_FONT_PADDING_RATIO
+                } else {
+                    fs.x * UI_RENDER_FONT_PADDING_RATIO
+                };
+                (step, fs.y * UI_RENDER_FONT_PADDING_RATIO)
             };
 
             let get_char_cols = |ch: char| -> usize {
@@ -1643,7 +1658,7 @@ impl<'a> UIComponentInstance<'a> {
 
             let text_size = Vector2::new(
                 max_column_count as f32 * char_step_x,
-                row_count as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO,
+                row_count as f32 * font_size_y,
             );
             return text_size;
         }
@@ -1677,10 +1692,25 @@ impl<'a> UIComponentInstance<'a> {
         } else {
             1.0
         };
-        let font_size_ratio: f32 = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
-        let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
         let is_cjk_font = font_data.is_cjk_font();
-        let char_step_x = if is_cjk_font { font_size.x * 0.5 } else { font_size.x };
+        let has_metrics = font_data.has_glyph_metrics();
+        let (char_step_x, font_size_y) = if has_metrics {
+            let em_scale = self.get_font_size() * dpi_scale * font_scale * UI_RENDER_FONT_PADDING_RATIO;
+            let step_x = if is_cjk_font {
+                0.5 * em_scale
+            } else {
+                font_data
+                    .get_glyph_metric('A')
+                    .map(|m| m._advance_x * em_scale)
+                    .unwrap_or(0.56 * em_scale)
+            };
+            (step_x, em_scale)
+        } else {
+            let font_size_ratio: f32 = (self.get_font_size() * dpi_scale * font_scale) / font_data._font_size.y;
+            let fs: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
+            let step = if is_cjk_font { fs.x * 0.5 } else { fs.x };
+            (step, fs.y)
+        };
         let mut column: i32 = 0;
         let mut row: i32 = 0;
         self._render_text_count = 0;
@@ -1711,7 +1741,7 @@ impl<'a> UIComponentInstance<'a> {
 
         // text_render_area_y
         let row_count = self._text_counts.len();
-        let text_render_size_y = row_count as f32 * font_size.y;
+        let text_render_size_y = row_count as f32 * font_size_y;
         let text_render_area_y: f32 = match self.get_valign() {
             VerticalAlign::TOP => self._contents_area.y,
             VerticalAlign::CENTER => self._contents_area.y + (self._contents_area_size.y - text_render_size_y) * 0.5,
@@ -1737,14 +1767,61 @@ impl<'a> UIComponentInstance<'a> {
                 let char_is_full = is_cjk_font && Self::is_fullwidth(ch);
                 let char_width = if char_is_full { char_step_x * 2.0 } else { char_step_x };
 
-                if let Some(index) = font_data.get_glyph_index(ch) {
+                if has_metrics {
+                    if let Some(metric) = font_data.get_glyph_metric(ch) {
+                        let cursor_x = text_render_area_x + column as f32 * char_step_x;
+                        let cursor_y = text_render_area_y + row as f32 * font_size_y;
+                        ui_render_area.x = cursor_x + metric._plane_bounds.x * font_size_y;
+                        ui_render_area.y = cursor_y + metric._plane_bounds.y * font_size_y;
+                        ui_render_area.z = cursor_x + metric._plane_bounds.z * font_size_y;
+                        ui_render_area.w = cursor_y + metric._plane_bounds.w * font_size_y;
+
+                        if self._contents_area.x < ui_render_area.z
+                            && self._contents_area.y < ui_render_area.w
+                            && ui_render_area.x < self._contents_area.z
+                            && ui_render_area.y < self._contents_area.w
+                        {
+                            let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
+                            render_ui_instance_data._ui_texcoord.x = metric._uv_min.x;
+                            render_ui_instance_data._ui_texcoord.y = metric._uv_min.y;
+                            render_ui_instance_data._ui_texcoord.z = metric._uv_max.x;
+                            render_ui_instance_data._ui_texcoord.w = metric._uv_max.y;
+                            render_ui_instance_data._ui_render_area = ui_render_area.clone() as Vector4<f32>;
+                            render_ui_instance_data._ui_renderable_area.clone_from(&text_renderable_area);
+                            render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
+                            render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
+                            render_ui_instance_data._ui_color = self.get_font_color();
+                            render_ui_instance_data._ui_touched_over_color = self.get_font_color();
+                            render_ui_instance_data._ui_touched_color = self.get_font_color();
+                            render_ui_instance_data._ui_round = 0.0;
+                            render_ui_instance_data._ui_border = 0.0;
+                            render_ui_instance_data._ui_border_color = 0;
+                            render_ui_instance_data._ui_touched_over_border_color = 0;
+                            render_ui_instance_data._ui_touched_border_color = 0;
+                            render_ui_instance_data._ui_opacity = opacity;
+                            render_ui_instance_data._ui_rotation = 0.0;
+                            render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
+                            if self._touched {
+                                render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                            } else if self._touched_over {
+                                render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
+                            }
+                            if restrict_renderable_area {
+                                render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
+                            }
+
+                            render_ui_index += 1;
+                            self._render_text_count += 1;
+                        }
+                    }
+                } else if let Some(index) = font_data.get_glyph_index(ch) {
                     let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
                     let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
 
                     ui_render_area.x = text_render_area_x + column as f32 * char_step_x;
-                    ui_render_area.y = text_render_area_y + row as f32 * font_size.y;
+                    ui_render_area.y = text_render_area_y + row as f32 * font_size_y;
                     ui_render_area.z = ui_render_area.x + char_width;
-                    ui_render_area.w = ui_render_area.y + font_size.y;
+                    ui_render_area.w = ui_render_area.y + font_size_y;
 
                     if self._contents_area.x < ui_render_area.z
                         && self._contents_area.y < ui_render_area.w

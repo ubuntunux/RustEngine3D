@@ -2,6 +2,7 @@ use std::cmp::max;
 use std::path::PathBuf;
 
 use image::{DynamicImage, Rgba};
+use nalgebra::{Vector2, Vector4};
 use rusttype::{Font, PositionedGlyph, Scale, point};
 
 use crate::scene::font::{self, FontDataCreateInfo};
@@ -233,15 +234,27 @@ pub fn get_font_data_create_info_from_chars(
 
     let mut raw_image = DynamicImage::new_rgba8(atlas_w, atlas_h).to_rgba8();
 
-    for (idx, &ch) in char_vec.iter().enumerate() {
-        if ch == ' ' {
-            continue;
-        }
+    let inv_atlas_w = 1.0 / atlas_w as f32;
+    let inv_atlas_h = 1.0 / atlas_h as f32;
+    let em_size = font_render_size;
+    let mut glyphs: Vec<font::GlyphMetric> = Vec::with_capacity(total_count as usize);
 
+    for (idx, &ch) in char_vec.iter().enumerate() {
         let grid_x = (idx as u32) % count_of_side;
         let grid_y = (idx as u32) / count_of_side;
-        let cell_ox = grid_x * cell_w;
-        let cell_oy = grid_y * cell_h;
+        let cell_ox = (grid_x * cell_w) as f32;
+        let cell_oy = (grid_y * cell_h) as f32;
+
+        if ch == ' ' {
+            let half_advance = 0.5f32;
+            glyphs.push(font::GlyphMetric {
+                _uv_min: Vector2::new(cell_ox * inv_atlas_w, cell_oy * inv_atlas_h),
+                _uv_max: Vector2::new((cell_ox + cell_w as f32) * inv_atlas_w, (cell_oy + cell_h as f32) * inv_atlas_h),
+                _plane_bounds: Vector4::new(0.0, 0.0, 0.0, 1.0),
+                _advance_x: half_advance,
+            });
+            continue;
+        }
 
         let glyph = font.glyph(ch).scaled(scale);
         let h_metrics = glyph.h_metrics();
@@ -249,15 +262,72 @@ pub fn get_font_data_create_info_from_chars(
         let is_full = advance_w > font_render_size * 0.7;
 
         let px = if is_full {
-            cell_ox as f32 + (cell_w as f32 - advance_w) * 0.5
+            cell_ox + (cell_w as f32 - advance_w) * 0.5
         } else {
             let half_slot_w = cell_w as f32 * 0.5;
-            cell_ox as f32 + (cell_w as f32 * 0.25) + (half_slot_w - advance_w) * 0.5
+            cell_ox + (cell_w as f32 * 0.25) + (half_slot_w - advance_w) * 0.5
         };
 
         // Align baseline
-        let py = cell_oy as f32 + (cell_h as f32 - font_render_size) * 0.5 + v_metrics.ascent;
+        let py = cell_oy + (cell_h as f32 - font_render_size) * 0.5 + v_metrics.ascent;
         let pos_glyph = glyph.positioned(point(px, py));
+
+        let (uv_min, uv_max, plane_bounds, advance_x) = if is_full {
+            let u1 = cell_ox * inv_atlas_w;
+            let v1 = cell_oy * inv_atlas_h;
+            let u2 = (cell_ox + cell_w as f32) * inv_atlas_w;
+            let v2 = (cell_oy + cell_h as f32) * inv_atlas_h;
+
+            let norm_w = cell_w as f32 / em_size;
+            let norm_h = cell_h as f32 / em_size;
+            let norm_advance = 1.0f32;
+            let center_x = norm_advance * 0.5;
+            let half_norm_w = norm_w * 0.5;
+            let x1 = center_x - half_norm_w;
+            let x2 = center_x + half_norm_w;
+            let y1 = -((cell_h as f32 - font_render_size) * 0.5) / em_size;
+            let y2 = y1 + norm_h;
+
+            (
+                Vector2::new(u1, v1),
+                Vector2::new(u2, v2),
+                Vector4::new(x1, y1, x2, y2),
+                norm_advance,
+            )
+        } else {
+            let half_slot_w = cell_w as f32 * 0.5;
+            let slot_x1 = cell_ox + cell_w as f32 * 0.25;
+            let slot_x2 = slot_x1 + half_slot_w;
+
+            let u1 = slot_x1 * inv_atlas_w;
+            let v1 = cell_oy * inv_atlas_h;
+            let u2 = slot_x2 * inv_atlas_w;
+            let v2 = (cell_oy + cell_h as f32) * inv_atlas_h;
+
+            let norm_w = half_slot_w / em_size;
+            let norm_h = cell_h as f32 / em_size;
+            let norm_advance = 0.5f32;
+            let center_x = norm_advance * 0.5;
+            let half_norm_w = norm_w * 0.5;
+            let x1 = center_x - half_norm_w;
+            let x2 = center_x + half_norm_w;
+            let y1 = -((cell_h as f32 - font_render_size) * 0.5) / em_size;
+            let y2 = y1 + norm_h;
+
+            (
+                Vector2::new(u1, v1),
+                Vector2::new(u2, v2),
+                Vector4::new(x1, y1, x2, y2),
+                norm_advance,
+            )
+        };
+
+        glyphs.push(font::GlyphMetric {
+            _uv_min: uv_min,
+            _uv_max: uv_max,
+            _plane_bounds: plane_bounds,
+            _advance_x: advance_x,
+        });
 
         if let Some(bbox) = pos_glyph.pixel_bounding_box() {
             pos_glyph.draw(|gx, gy, v| {
@@ -319,6 +389,7 @@ pub fn get_font_data_create_info_from_chars(
         _count_of_side: count_of_side,
         _font_size: cell_size as f32,
         _chars: String::from(chars),
+        _glyphs: glyphs,
     }
 }
 
@@ -425,6 +496,45 @@ pub fn get_font_data_create_info(
         image.save(font_texture_file_path).unwrap();
     }
 
+    let inv_image_w = 1.0 / image.width() as f32;
+    let inv_image_h = 1.0 / image.height() as f32;
+    let em_size = font_size;
+    let cell_w_f = glyphs_width as f32;
+    let cell_h_f = glyphs_height as f32;
+    let mut glyphs: Vec<font::GlyphMetric> = Vec::with_capacity(count as usize);
+
+    for (idx, _glyph_group) in glyphs_list.iter().enumerate() {
+        let grid_x = (idx as u32) % count_of_side;
+        let grid_y = (idx as u32) / count_of_side;
+        let cell_ox = (grid_x * glyphs_width) as f32;
+        let cell_oy = (grid_y * glyphs_height) as f32;
+
+        let u1 = cell_ox * inv_image_w;
+        let v1 = cell_oy * inv_image_h;
+        let u2 = (cell_ox + cell_w_f) * inv_image_w;
+        let v2 = (cell_oy + cell_h_f) * inv_image_h;
+
+        let ch = char::from_u32(range_min + idx as u32).unwrap_or('?');
+        let advance_w = font.glyph(ch).scaled(scale).h_metrics().advance_width;
+        let norm_advance = advance_w / em_size;
+
+        let norm_w = cell_w_f / em_size;
+        let norm_h = cell_h_f / em_size;
+        let center_x = norm_advance * 0.5;
+        let half_norm_w = norm_w * 0.5;
+        let x1 = center_x - half_norm_w;
+        let x2 = center_x + half_norm_w;
+        let y1 = -(padding / em_size);
+        let y2 = y1 + norm_h;
+
+        glyphs.push(font::GlyphMetric {
+            _uv_min: Vector2::new(u1, v1),
+            _uv_max: Vector2::new(u2, v2),
+            _plane_bounds: Vector4::new(x1, y1, x2, y2),
+            _advance_x: norm_advance,
+        });
+    }
+
     FontDataCreateInfo {
         _font_data_name: String::from(font_data_name),
         _range_min: range_min,
@@ -433,6 +543,7 @@ pub fn get_font_data_create_info(
         _count_of_side: count_of_side,
         _font_size: font_size,
         _chars: String::new(),
+        _glyphs: glyphs,
     }
 }
 
@@ -442,7 +553,11 @@ mod tests {
 
     #[test]
     fn test_regenerate_ubuntu_sans_mono_textures() {
-        let root = PathBuf::from("..");
+        let root = if PathBuf::from("resources").exists() {
+            PathBuf::from(".")
+        } else {
+            PathBuf::from("..")
+        };
         let fonts = [
             ("UbuntuSansMono-Bold", "UbuntuSansMono-Bold_Basic_Latin"),
             ("UbuntuSansMono-Regular", "UbuntuSansMono-Regular_Basic_Latin"),
@@ -454,6 +569,7 @@ mod tests {
                 "resources/engine_resources/externals/textures/fonts/{}.png",
                 font_data_name
             ));
+            let font_file_path = root.join(format!("resources/engine_resources/fonts/{}.font", font_data_name));
 
             if font_source_path.exists() {
                 let create_info = get_font_data_create_info(
@@ -467,7 +583,17 @@ mod tests {
                 );
                 assert_eq!(create_info._text_count, 96);
                 assert_eq!(create_info._count_of_side, 10);
+                assert_eq!(create_info._glyphs.len(), 96);
                 assert!(font_texture_path.exists());
+
+                let write_contents = serde_json::to_string(&create_info).expect("Failed to serialize.");
+                std::fs::write(&font_file_path, &write_contents).expect("Failed to write font file");
+
+                let engine_font_path =
+                    root.join(format!("RustEngine3D/engine_resources/fonts/{}.font", font_data_name));
+                if engine_font_path.parent().map_or(false, |p| p.exists()) {
+                    let _ = std::fs::write(&engine_font_path, &write_contents);
+                }
             }
         }
     }
@@ -505,6 +631,7 @@ mod tests {
                 assert_eq!(create_info._font_data_name, font_data_name);
                 assert!(create_info._text_count >= 2500);
                 assert_eq!(create_info._count_of_side, 51);
+                assert_eq!(create_info._glyphs.len(), create_info._text_count as usize);
                 assert_eq!(create_info._font_size, KOREAN_FONT_CELL_SIZE as f32);
                 assert!(font_texture_path.exists());
 
@@ -543,6 +670,7 @@ mod tests {
             _count_of_side: 10,
             _font_size: font::FONT_SIZE as f32,
             _chars: String::new(),
+            _glyphs: Vec::new(),
         };
 
         EngineResources::ensure_font_texture(font_data_name, &create_info, &test_texture_path);
@@ -564,6 +692,7 @@ mod tests {
             _count_of_side: 3,
             _font_size: 24.0,
             _chars: " 가나다".to_string(),
+            _glyphs: Vec::new(),
         };
         EngineResources::ensure_font_texture("D2Coding-Regular_Korean", &korean_info, &test_korean_path);
         assert!(
