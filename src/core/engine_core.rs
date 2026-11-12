@@ -1275,7 +1275,7 @@ impl<'a> EngineAppHandler<'a> {
         }
 
         let window = self._window.as_ref().unwrap();
-        let engine_core = EngineCore::create_application(
+        let mut engine_core = EngineCore::create_application(
             self._app_name.as_str(),
             self._app_version,
             window,
@@ -1293,6 +1293,10 @@ impl<'a> EngineAppHandler<'a> {
             "[StartupTimer] Application::initialize_application (total): {:.2}ms",
             app_init_timer.elapsed().as_secs_f64() * 1000.0
         );
+
+        if unsafe { DEVELOPMENT } {
+            engine_core._engine_resources.update_resource_list_file();
+        }
 
         self._maybe_engine_core = Some(engine_core);
         self._run_application = true;

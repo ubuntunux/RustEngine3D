@@ -1049,38 +1049,34 @@ impl<'a> EngineResources<'a> {
         self._model_data_map.insert(model_name, entry);
     }
 
-    pub fn preinitialize_engine_resources(&mut self) {
+    pub fn update_resource_list_file(&mut self) {
+        log::info!("Updating resources.txt file");
         let resource_list_file_path: PathBuf = PathBuf::from(APPLICATION_RESOURCE_PATH).join("resources.txt");
-
-        if unsafe { DEVELOPMENT } {
-            // update engine resources
-            self.update_engine_resources();
-
-            log::info!("Updating resources.txt file");
-            let include_extensions: &[&str] = &[];
-            let ignore_extensions: &[&str] = &["log"];
-            let mut application_resource_files = walk_directory(
-                &Path::new(APPLICATION_RESOURCE_PATH),
-                include_extensions,
-                ignore_extensions,
-            );
-            application_resource_files.sort();
-            let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
-            for file_path in application_resource_files {
-                if let Some(filename) = file_path.file_name() {
-                    if "empty" == filename {
-                        continue;
-                    }
-                }
-
-                if resource_list_file_path != file_path {
-                    write_file
-                        .write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
-                        .expect("Failed to write");
+        let include_extensions: &[&str] = &[];
+        let ignore_extensions: &[&str] = &["log"];
+        let mut application_resource_files = walk_directory(
+            &Path::new(APPLICATION_RESOURCE_PATH),
+            include_extensions,
+            ignore_extensions,
+        );
+        application_resource_files.sort();
+        let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
+        for file_path in application_resource_files {
+            if let Some(filename) = file_path.file_name() {
+                if "empty" == filename {
+                    continue;
                 }
             }
-        }
 
+            if resource_list_file_path != file_path {
+                write_file.write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes()).expect("Failed to write");
+            }
+        }
+        self.load_resource_list();
+    }
+
+    pub fn load_resource_list(&mut self) {
+        let resource_list_file_path: PathBuf = PathBuf::from(APPLICATION_RESOURCE_PATH).join("resources.txt");
         let loaded_resources = system::load(&resource_list_file_path);
         let contents: String = String::from_utf8(loaded_resources.into_inner()).unwrap();
         let resources = contents.split("\n");
@@ -1105,6 +1101,16 @@ impl<'a> EngineResources<'a> {
             {
                 self._relative_resource_file_path_map.insert(relative_resource_file_path.clone(), resource_file_path);
             }
+        }
+    }
+
+    pub fn preinitialize_engine_resources(&mut self) {
+        if unsafe { DEVELOPMENT } {
+            // update engine resources
+            self.update_engine_resources();
+            self.update_resource_list_file();
+        } else {
+            self.load_resource_list();
         }
     }
 
