@@ -1,5 +1,6 @@
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
+use crate::scene::dynamic_font_atlas;
 use crate::scene::fft_ocean;
 use crate::scene::precomputed_atmosphere;
 use crate::vulkan_context::texture::{ImageLayoutTransition, TextureCreateInfo};
@@ -56,6 +57,7 @@ pub enum RenderTargetType {
     PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING,
     PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING,
     PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY,
+    DynamicFontAtlas,
     MaxBound,
 }
 
@@ -468,6 +470,16 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::DynamicFontAtlas.to_string(),
+            _texture_width: dynamic_font_atlas::DYNAMIC_FONT_ATLAS_SIZE,
+            _texture_height: dynamic_font_atlas::DYNAMIC_FONT_ATLAS_SIZE,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },

@@ -249,14 +249,27 @@ vec4 safe_normalize(vec4 vector)
 }
 
 #if SHADER_STAGE_FLAG == FRAGMENT
+float median(float r, float g, float b)
+{
+    return max(min(r, g), min(max(r, g), b));
+}
+
+float distance_field_font_opacity(vec4 font_sample)
+{
+    // MTSDF (Multi-channel True Signed Distance Field)
+    // Reconstruct sharp-cornered signed distance from RGB channels via median filter
+    float dist = median(font_sample.r, font_sample.g, font_sample.b);
+    float afwidth = clamp(fwidth(dist) * 0.85, 0.015, 0.10);
+    const float edge = 0.38;
+    return smoothstep(edge - afwidth, edge + afwidth, dist);
+}
+
 float distance_field_font_opacity(float dist)
 {
-    const float edge = 0.85;
-    const float afwidth = fwidth(dist) * 0.85;
+    // Single-channel True SDF fallback (e.g. from font_sample.a)
+    float afwidth = clamp(fwidth(dist) * 0.85, 0.015, 0.10);
+    const float edge = 0.38;
     return smoothstep(edge - afwidth, edge + afwidth, dist);
-
-//    const float threshold = 0.6;
-//    return saturate(smoothstep(threshold, 1.0, dist * dist) * 2.0);
 }
 #endif
 

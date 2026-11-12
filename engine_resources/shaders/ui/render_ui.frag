@@ -77,9 +77,8 @@ void main()
     if(check_flags_any(UI_RENDER_FLAG_RENDER_TEXT, ui_render_data._ui_render_flags))
     {
         vec4 font_texture_color = textureLod(texture_font, vs_output._texcoord, 0.0);
-        font_texture_color.xyz = pow(font_texture_color.xyz, vec3(2.2));
-        font_texture_color.w = distance_field_font_opacity(font_texture_color.w);
-        color *= font_texture_color;
+        float opacity = distance_field_font_opacity(font_texture_color);
+        color.w *= opacity;
     }
     else
     {

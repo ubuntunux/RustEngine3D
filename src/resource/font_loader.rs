@@ -249,7 +249,10 @@ pub fn get_font_data_create_info_from_chars(
             let half_advance = 0.5f32;
             glyphs.push(font::GlyphMetric {
                 _uv_min: Vector2::new(cell_ox * inv_atlas_w, cell_oy * inv_atlas_h),
-                _uv_max: Vector2::new((cell_ox + cell_w as f32) * inv_atlas_w, (cell_oy + cell_h as f32) * inv_atlas_h),
+                _uv_max: Vector2::new(
+                    (cell_ox + cell_w as f32) * inv_atlas_w,
+                    (cell_oy + cell_h as f32) * inv_atlas_h,
+                ),
                 _plane_bounds: Vector4::new(0.0, 0.0, 0.0, 1.0),
                 _advance_x: half_advance,
             });
@@ -552,15 +555,14 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore = "Offline generator for static font files; DynamicFontAtlas is used at runtime"]
     fn test_regenerate_ubuntu_sans_mono_textures() {
         let root = if PathBuf::from("resources").exists() {
             PathBuf::from(".")
         } else {
             PathBuf::from("..")
         };
-        let fonts = [
-            ("UbuntuSansMono-Regular", "UbuntuSansMono-Regular_Basic_Latin"),
-        ];
+        let fonts = [("UbuntuSansMono-Regular", "UbuntuSansMono-Regular_Basic_Latin")];
 
         for (font_file, font_data_name) in fonts {
             let font_source_path = root.join(format!("resources/engine_resources/externals/fonts/{}.ttf", font_file));
@@ -598,6 +600,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "Offline generator for static font files; DynamicFontAtlas is used at runtime"]
     fn test_regenerate_korean_monospace_font_via_font_loader() {
         let root = if PathBuf::from("resources").exists() {
             PathBuf::from(".")

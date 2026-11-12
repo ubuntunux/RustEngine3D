@@ -33,6 +33,9 @@ winit = { version = "0.30.13", features = ["rwh_06"] }
 which = "8.0"
 xml-rs = "1.0"
 uuid = { version = "1.29", features = ["v4", "v7", "fast-rng", "serde"] }
+bymsdfgen-core = "0.1.1"
+bymsdfgen-io = "0.1.1"
+ttf-parser = "0.25.1"
 
 [lib]
 crate-type = ["lib", "cdylib"]

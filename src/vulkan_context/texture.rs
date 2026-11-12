@@ -1361,6 +1361,162 @@ fn create_texture_data_inner<T: Copy>(
     }
 }
 
+pub fn update_texture_data_region(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils_device: &ext::debug_utils::Device,
+    texture_data: &TextureData,
+    offset_x: u32,
+    offset_y: u32,
+    width: u32,
+    height: u32,
+    data: &[Vector4<u8>],
+    row_pitch_pixels: u32,
+) {
+    if width == 0 || height == 0 || data.is_empty() {
+        return;
+    }
+
+    let sub_pixel_count = (width * height) as usize;
+    let buffer_size = (sub_pixel_count * std::mem::size_of::<Vector4<u8>>()) as vk::DeviceSize;
+    let mut packed_pixels: Vec<Vector4<u8>> = Vec::with_capacity(sub_pixel_count);
+    for y in 0..height {
+        let row_start = ((offset_y + y) * row_pitch_pixels + offset_x) as usize;
+        let row_end = row_start + width as usize;
+        if row_end <= data.len() {
+            packed_pixels.extend_from_slice(&data[row_start..row_end]);
+        } else {
+            packed_pixels.resize(packed_pixels.len() + width as usize, Vector4::new(0, 0, 0, 0));
+        }
+    }
+
+    let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
+        device,
+        memory_properties,
+        debug_utils_device,
+        "update_texture_staging_buffer",
+        buffer_size,
+        vk::BufferUsageFlags::TRANSFER_SRC,
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+    );
+
+    unsafe {
+        let staging_buffer_ptr: *mut c_void = device
+            .map_memory(
+                staging_buffer_data._buffer_memory,
+                0,
+                buffer_size,
+                vk::MemoryMapFlags::empty(),
+            )
+            .expect("Failed to map_memory!");
+        let mut staging_buffer_slice = Align::new(
+            staging_buffer_ptr,
+            align_of::<Vector4<u8>>() as u64,
+            staging_buffer_data._buffer_memory_requirements.size,
+        );
+        staging_buffer_slice.copy_from_slice(&packed_pixels);
+        device.unmap_memory(staging_buffer_data._buffer_memory);
+    }
+
+    let image_aspect = get_image_aspect_by_format(texture_data._image_format);
+    run_commands_once(
+        device,
+        command_pool,
+        command_queue,
+        |device: &Device, command_buffer: vk::CommandBuffer| unsafe {
+            let barrier = vk::ImageMemoryBarrier {
+                s_type: vk::StructureType::IMAGE_MEMORY_BARRIER,
+                src_access_mask: vk::AccessFlags::SHADER_READ,
+                dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                old_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                image: texture_data._image,
+                subresource_range: vk::ImageSubresourceRange {
+                    aspect_mask: image_aspect,
+                    base_mip_level: 0,
+                    level_count: 1,
+                    base_array_layer: 0,
+                    layer_count: 1,
+                },
+                ..Default::default()
+            };
+            device.cmd_pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::FRAGMENT_SHADER,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[barrier],
+            );
+
+            let regions: [vk::BufferImageCopy; 1] = [vk::BufferImageCopy {
+                buffer_offset: 0,
+                buffer_row_length: 0,
+                buffer_image_height: 0,
+                image_subresource: vk::ImageSubresourceLayers {
+                    aspect_mask: image_aspect,
+                    mip_level: 0,
+                    base_array_layer: 0,
+                    layer_count: 1,
+                },
+                image_offset: vk::Offset3D {
+                    x: offset_x as i32,
+                    y: offset_y as i32,
+                    z: 0,
+                },
+                image_extent: vk::Extent3D {
+                    width,
+                    height,
+                    depth: 1,
+                },
+            }];
+
+            device.cmd_copy_buffer_to_image(
+                command_buffer,
+                staging_buffer_data._buffer,
+                texture_data._image,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &regions,
+            );
+
+            let barrier_back = vk::ImageMemoryBarrier {
+                s_type: vk::StructureType::IMAGE_MEMORY_BARRIER,
+                src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                dst_access_mask: vk::AccessFlags::SHADER_READ,
+                old_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                new_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                image: texture_data._image,
+                subresource_range: vk::ImageSubresourceRange {
+                    aspect_mask: image_aspect,
+                    base_mip_level: 0,
+                    level_count: 1,
+                    base_array_layer: 0,
+                    layer_count: 1,
+                },
+                ..Default::default()
+            };
+            device.cmd_pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::FRAGMENT_SHADER,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[barrier_back],
+            );
+        },
+    );
+
+    buffer::destroy_buffer_data(device, &staging_buffer_data);
+}
+
 pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
     unsafe {
         log::debug!(

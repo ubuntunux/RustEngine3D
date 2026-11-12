@@ -25,6 +25,7 @@ use crate::resource::gltf_loader::GLTF;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
 use crate::scene::animation::AnimationLayerData;
+use crate::scene::dynamic_font_atlas::DYNAMIC_FONT_ATLAS_SIZE;
 use crate::scene::font::{self, FontData, FontDataCreateInfo, KOREAN_FONT_CELL_SIZE, KOREAN_FONT_RENDER_SIZE};
 use crate::scene::material::MaterialData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
@@ -924,7 +925,7 @@ impl<'a> EngineResources<'a> {
                         let already_loaded =
                             self._texture_data_map.get(&_texture_name).map(|entry| entry.is_loaded()).unwrap_or(false);
                         if !already_loaded {
-                            let texture_create_info = TextureCreateInfo {
+                            let texture_create_info: TextureCreateInfo<u8> = TextureCreateInfo {
                                 _texture_name: texture_data._texture_name.clone(),
                                 _texture_width: texture_data._image_width,
                                 _texture_height: texture_data._image_height,
@@ -2190,6 +2191,38 @@ impl<'a> EngineResources<'a> {
                 let font_data_name = format!("{}_{}", font_name, block_key);
                 let font_texture_name = format!("fonts/{}_{}", font_name, block_key);
 
+                if font_source_file.exists() {
+                    let font_bytes = std::fs::read(&font_source_file)
+                        .unwrap_or_else(|_| system::load(&font_source_file).into_inner());
+
+                    if false == self.has_texture_data(&font_texture_name) {
+                        let texture_create_info: TextureCreateInfo<u8> = TextureCreateInfo {
+                            _texture_name: font_texture_name.clone(),
+                            _texture_width: DYNAMIC_FONT_ATLAS_SIZE,
+                            _texture_height: DYNAMIC_FONT_ATLAS_SIZE,
+                            _texture_layers: 1,
+                            _texture_format: vk::Format::R8G8B8A8_UNORM,
+                            _texture_view_type: vk::ImageViewType::TYPE_2D,
+                            _texture_initial_data_list: Vec::new(),
+                            _enable_mipmap: false,
+                            _enable_anisotropy: false,
+                            ..Default::default()
+                        };
+                        let texture_data = newRcRefCell(renderer_context.create_texture(&texture_create_info));
+                        self.register_texture_data(font_texture_name.clone(), texture_data);
+                    }
+
+                    let texture_data = self.get_texture_data(&font_texture_name);
+                    let font_data = newRcRefCell(FontData::create_dynamic_font_data(
+                        &font_data_name,
+                        font_bytes,
+                        texture_data.clone(),
+                    ));
+                    font_data.borrow().sync_dynamic_font_atlas(renderer_context);
+                    self._font_data_map.insert(font_data_name, font_data);
+                    continue;
+                }
+
                 // Gets FontDataCreateInfo and also creates font texture files if needed.
                 let maybe_font_file = font_file_map.get(&font_data_name);
                 let font_data_create_info: FontDataCreateInfo = if unsafe { DEVELOPMENT }
@@ -2239,7 +2272,7 @@ impl<'a> EngineResources<'a> {
                         EngineResources::load_image_data(&font_texture_file_path);
 
                     let texture_data = if vk::Format::UNDEFINED != image_format {
-                        let texture_create_info = TextureCreateInfo {
+                        let texture_create_info: TextureCreateInfo<u8> = TextureCreateInfo {
                             _texture_name: font_texture_name.clone(),
                             _texture_width: image_width,
                             _texture_height: image_height,
@@ -2289,6 +2322,8 @@ impl<'a> EngineResources<'a> {
                     _texture: texture_data.clone(),
                     _char_to_index: char_to_index,
                     _glyphs: font_data_create_info._glyphs,
+                    _dynamic_atlas: None,
+                    _dynamic_glyphs: Vec::new().into_boxed_slice(),
                 });
                 self._font_data_map.insert(font_data_name, font_data);
             }
@@ -2319,7 +2354,7 @@ impl<'a> EngineResources<'a> {
                         EngineResources::load_image_data(&font_texture_file_path);
 
                     let texture_data = if vk::Format::UNDEFINED != image_format {
-                        let texture_create_info = TextureCreateInfo {
+                        let texture_create_info: TextureCreateInfo<u8> = TextureCreateInfo {
                             _texture_name: font_texture_name.clone(),
                             _texture_width: image_width,
                             _texture_height: image_height,
@@ -2368,6 +2403,8 @@ impl<'a> EngineResources<'a> {
                     _texture: texture_data.clone(),
                     _char_to_index: char_to_index,
                     _glyphs: font_data_create_info._glyphs,
+                    _dynamic_atlas: None,
+                    _dynamic_glyphs: Vec::new().into_boxed_slice(),
                 });
                 self._font_data_map.insert(font_data_name.clone(), font_data);
             }
@@ -2402,6 +2439,12 @@ impl<'a> EngineResources<'a> {
 
     pub fn get_font_data(&self, resource_name: &str) -> &RcRefCell<FontData> {
         get_resource_data_must("font_data", &self._font_data_map, resource_name)
+    }
+
+    pub fn sync_dynamic_font_atlases(&self, renderer_context: &RendererContext) {
+        for font_data in self._font_data_map.values() {
+            font_data.borrow().sync_dynamic_font_atlas(renderer_context);
+        }
     }
 
     // ModelData

@@ -522,6 +522,31 @@ impl<'a> RendererContext<'a> {
     pub fn destroy_texture(&self, texture_data: &TextureData) {
         texture::destroy_texture_data(self.get_device(), texture_data);
     }
+    pub fn update_texture_region(
+        &self,
+        texture_data: &TextureData,
+        offset_x: u32,
+        offset_y: u32,
+        width: u32,
+        height: u32,
+        data: &[nalgebra::Vector4<u8>],
+        row_pitch_pixels: u32,
+    ) {
+        texture::update_texture_data_region(
+            self.get_device(),
+            self.get_command_pool(),
+            self.get_graphics_queue(),
+            self.get_device_memory_properties(),
+            self.get_debug_utils(),
+            texture_data,
+            offset_x,
+            offset_y,
+            width,
+            height,
+            data,
+            row_pitch_pixels,
+        );
+    }
     pub fn create_geometry_buffer(
         &self,
         geometry_name: &String,

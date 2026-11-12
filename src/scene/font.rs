@@ -1,3 +1,4 @@
+use std::cell::{RefCell, UnsafeCell};
 use std::cmp::max;
 
 use ash::ext;
@@ -12,6 +13,9 @@ use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::dynamic_font_atlas::{
+    DYNAMIC_FONT_ATLAS_SIZE, DYNAMIC_FONT_CELL_SIZE, DynamicFontAtlas, MAX_DYNAMIC_GLYPHS,
+};
 use crate::utilities::system::{RcRefCell, newRcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
@@ -112,6 +116,8 @@ pub struct FontData {
     pub _texture: RcRefCell<TextureData>,
     pub _char_to_index: Vec<i32>,
     pub _glyphs: Vec<GlyphMetric>,
+    pub _dynamic_atlas: Option<RefCell<DynamicFontAtlas>>,
+    pub _dynamic_glyphs: Box<[UnsafeCell<GlyphMetric>]>,
 }
 
 impl Default for FontData {
@@ -126,14 +132,54 @@ impl Default for FontData {
             _texture: newRcRefCell(TextureData::default()),
             _char_to_index: Vec::new(),
             _glyphs: Vec::new(),
+            _dynamic_atlas: None,
+            _dynamic_glyphs: Vec::new().into_boxed_slice(),
         }
     }
 }
 
 impl FontData {
+    pub fn create_dynamic_font_data(
+        font_data_name: &str,
+        font_bytes: Vec<u8>,
+        texture: RcRefCell<TextureData>,
+    ) -> FontData {
+        let mut atlas = DynamicFontAtlas::create_dynamic_font_atlas(font_data_name, font_bytes);
+        atlas.prewarm_ascii();
+
+        let dynamic_glyphs: Box<[UnsafeCell<GlyphMetric>]> = (0..MAX_DYNAMIC_GLYPHS)
+            .map(|i| {
+                let m = atlas._glyphs.get(i).copied().unwrap_or_default();
+                UnsafeCell::new(m)
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        FontData {
+            _font_data_name: font_data_name.to_string(),
+            _range_min: 0,
+            _range_max: 0,
+            _text_count: atlas._glyphs.len() as u32,
+            _count_of_side: DYNAMIC_FONT_ATLAS_SIZE / DYNAMIC_FONT_CELL_SIZE,
+            _font_size: Vector2::new(DYNAMIC_FONT_CELL_SIZE as f32, DYNAMIC_FONT_CELL_SIZE as f32),
+            _texture: texture,
+            _char_to_index: Vec::new(),
+            _glyphs: Vec::new(),
+            _dynamic_atlas: Some(RefCell::new(atlas)),
+            _dynamic_glyphs: dynamic_glyphs,
+        }
+    }
+
+    pub fn is_dynamic(&self) -> bool {
+        self._dynamic_atlas.is_some()
+    }
+
     pub fn is_cjk_font(&self) -> bool {
         self._font_data_name.contains("Korean")
             || self._font_data_name.contains("CJK")
+            || self._font_data_name.contains("D2Coding")
+            || self._font_data_name.contains("Nanum")
+            || self._font_data_name.contains("Pretendard")
             || (self._font_size.y > 0.0
                 && (self._font_size.x / self._font_size.y) >= 0.7
                 && !self._char_to_index.is_empty())
@@ -150,7 +196,41 @@ impl FontData {
             || (0xFFE0..=0xFFE6).contains(&cp)
     }
 
+    pub fn ensure_glyphs(&self, text: &str) {
+        if let Some(atlas_cell) = &self._dynamic_atlas {
+            let mut atlas = atlas_cell.borrow_mut();
+            for ch in text.chars() {
+                if ch != '\n' && ch != '\r' && ch != '\t' {
+                    if let Some(idx) = atlas.get_or_create_glyph(ch) {
+                        let idx_usize = idx as usize;
+                        if idx_usize < self._dynamic_glyphs.len() {
+                            let m = atlas._glyphs[idx_usize];
+                            unsafe {
+                                *self._dynamic_glyphs[idx_usize].get() = m;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub fn get_glyph_index(&self, ch: char) -> Option<u32> {
+        if let Some(atlas_cell) = &self._dynamic_atlas {
+            let mut atlas = atlas_cell.borrow_mut();
+            if let Some(idx) = atlas.get_or_create_glyph(ch) {
+                let idx_usize = idx as usize;
+                if idx_usize < self._dynamic_glyphs.len() {
+                    let m = atlas._glyphs[idx_usize];
+                    unsafe {
+                        *self._dynamic_glyphs[idx_usize].get() = m;
+                    }
+                }
+                return Some(idx);
+            }
+            return None;
+        }
+
         let code = ch as usize;
         if !self._char_to_index.is_empty() {
             if code < self._char_to_index.len() {
@@ -168,12 +248,49 @@ impl FontData {
     }
 
     pub fn get_glyph_metric(&self, ch: char) -> Option<&GlyphMetric> {
+        if self._dynamic_atlas.is_some() {
+            let index = self.get_glyph_index(ch)? as usize;
+            if index < self._dynamic_glyphs.len() {
+                unsafe {
+                    return Some(&*self._dynamic_glyphs[index].get());
+                }
+            }
+            return None;
+        }
         let index = self.get_glyph_index(ch)? as usize;
         self._glyphs.get(index)
     }
 
     pub fn has_glyph_metrics(&self) -> bool {
-        !self._glyphs.is_empty()
+        self._dynamic_atlas.is_some() || !self._glyphs.is_empty()
+    }
+
+    pub fn sync_dynamic_font_atlas(&self, renderer_context: &RendererContext) {
+        if let Some(atlas_cell) = &self._dynamic_atlas {
+            let mut atlas = atlas_cell.borrow_mut();
+            if let Some((x, y, w, h)) = atlas.get_dirty_rect() {
+                let texture_data = self._texture.borrow();
+                renderer_context.update_texture_region(&texture_data, x, y, w, h, &atlas._pixels, atlas._atlas_width);
+                let renderer_data = renderer_context.get_renderer_data();
+                if let Some(rt) = renderer_data
+                    ._render_target_data_map
+                    .get(&crate::renderer::render_target::RenderTargetType::DynamicFontAtlas)
+                {
+                    renderer_context.update_texture_region(rt, x, y, w, h, &atlas._pixels, atlas._atlas_width);
+                }
+                atlas.clear_dirty();
+            }
+        }
+    }
+
+    pub fn get_stroke_bias(&self) -> f32 {
+        self._dynamic_atlas.as_ref().map(|atlas| atlas.borrow().get_stroke_bias()).unwrap_or(0.0)
+    }
+
+    pub fn set_stroke_bias(&self, stroke_bias: f32) {
+        if let Some(atlas) = &self._dynamic_atlas {
+            atlas.borrow_mut().set_stroke_bias(stroke_bias);
+        }
     }
 }
 
@@ -330,6 +447,7 @@ impl TextRenderData {
         self._text = text;
 
         let font_data = self._font_data.borrow();
+        font_data.ensure_glyphs(&self._text);
 
         // Path A: Standard Typography Glyph Metrics Pipeline
         if font_data.has_glyph_metrics() {
@@ -352,10 +470,8 @@ impl TextRenderData {
                 } else if '\t' == ch {
                     cursor_x += default_advance * 4.0;
                 } else if ' ' == ch {
-                    let adv = font_data
-                        .get_glyph_metric(' ')
-                        .map(|m| m._advance_x * em_scale)
-                        .unwrap_or(default_advance);
+                    let adv =
+                        font_data.get_glyph_metric(' ').map(|m| m._advance_x * em_scale).unwrap_or(default_advance);
                     cursor_x += adv;
                 } else {
                     if let Some(metric) = font_data.get_glyph_metric(ch) {
@@ -367,12 +483,8 @@ impl TextRenderData {
                         if (render_index as usize) < self._font_instance_data_list.len() {
                             let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
                             font_instance_data._font_render_area = Vector4::new(x1, y1, x2, y2);
-                            font_instance_data._font_texcoord = Vector4::new(
-                                metric._uv_min.x,
-                                metric._uv_min.y,
-                                metric._uv_max.x,
-                                metric._uv_max.y,
-                            );
+                            font_instance_data._font_texcoord =
+                                Vector4::new(metric._uv_min.x, metric._uv_min.y, metric._uv_max.x, metric._uv_max.y);
                             render_index += 1;
                         }
                         cursor_x += metric._advance_x * em_scale;
@@ -679,7 +791,10 @@ impl FontManager {
         }
     }
 
-    pub fn update_font_manager(&self) {}
+    pub fn update_font_manager(&self) {
+        let renderer_context = get_renderer_context();
+        self._ascii.borrow().sync_dynamic_font_atlas(renderer_context);
+    }
 }
 
 #[cfg(test)]

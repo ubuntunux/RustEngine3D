@@ -1480,6 +1480,8 @@ impl<'a> UIComponentInstance<'a> {
                 self._original_text.clone()
             };
 
+            font_data.ensure_glyphs(&source_text);
+
             let font_scale = if self._enable_dpi_scale {
                 get_global_font_scale()
             } else {
@@ -1492,10 +1494,7 @@ impl<'a> UIComponentInstance<'a> {
                     0.5 * em_scale
                 } else {
                     // For latin fonts like UbuntuSansMono with ~0.56 advance, scale accordingly
-                    font_data
-                        .get_glyph_metric('A')
-                        .map(|m| m._advance_x * em_scale)
-                        .unwrap_or(0.56 * em_scale)
+                    font_data.get_glyph_metric('A').map(|m| m._advance_x * em_scale).unwrap_or(0.56 * em_scale)
                 };
                 (step_x, em_scale)
             } else {
@@ -1656,10 +1655,7 @@ impl<'a> UIComponentInstance<'a> {
             max_column_count = max_column_count.max(column_count);
             row_count += 1;
 
-            let text_size = Vector2::new(
-                max_column_count as f32 * char_step_x,
-                row_count as f32 * font_size_y,
-            );
+            let text_size = Vector2::new(max_column_count as f32 * char_step_x, row_count as f32 * font_size_y);
             return text_size;
         }
         Vector2::zeros()
@@ -1685,6 +1681,8 @@ impl<'a> UIComponentInstance<'a> {
             return;
         }
 
+        font_data.ensure_glyphs(&self._text);
+
         let count_of_side: u32 = font_data._count_of_side;
         let inv_count_of_side: f32 = 1.0 / font_data._count_of_side as f32;
         let font_scale = if self._enable_dpi_scale {
@@ -1699,10 +1697,7 @@ impl<'a> UIComponentInstance<'a> {
             let step_x = if is_cjk_font {
                 0.5 * em_scale
             } else {
-                font_data
-                    .get_glyph_metric('A')
-                    .map(|m| m._advance_x * em_scale)
-                    .unwrap_or(0.56 * em_scale)
+                font_data.get_glyph_metric('A').map(|m| m._advance_x * em_scale).unwrap_or(0.56 * em_scale)
             };
             (step_x, em_scale)
         } else {
@@ -3191,6 +3186,11 @@ impl<'a> UIManager<'a> {
             }
         }
 
+        if let Some(atlas) = &self._font_data.borrow()._dynamic_atlas {
+            atlas.borrow_mut().mark_all_dirty();
+        }
+        self._font_data.borrow().sync_dynamic_font_atlas(renderer_context);
+
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         root_ui_component.recursive_mark_text_changed();
         root_ui_component.set_changed_layout(true);
@@ -3273,6 +3273,7 @@ impl<'a> UIManager<'a> {
         swapchain_index: u32,
         renderer_context: &RendererContext,
     ) {
+        self._font_data.borrow().sync_dynamic_font_atlas(renderer_context);
         let engine_resources = get_engine_resources();
         if 0 < self._render_ui_count {
             let framebuffer_data = engine_resources.get_framebuffer_data("render_ui").borrow();

@@ -4,6 +4,7 @@ pub mod camera;
 pub mod capture_height_map;
 pub mod collision;
 pub mod debug_line;
+pub mod dynamic_font_atlas;
 pub mod fft_ocean;
 pub mod font;
 pub mod height_map;
