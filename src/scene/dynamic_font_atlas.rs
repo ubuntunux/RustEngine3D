@@ -558,9 +558,21 @@ mod tests {
         let per_complex_us = elapsed_complex.as_micros() as f64 / complex_samples.len() as f64;
 
         println!("\n=== GLYPH GENERATION BENCHMARK RESULTS ===");
-        println!("  ASCII (Simple)    : {:.2} ms per glyph ({:.1} us)", per_ascii_us / 1000.0, per_ascii_us);
-        println!("  Korean (Standard) : {:.2} ms per glyph ({:.1} us)", per_korean_us / 1000.0, per_korean_us);
-        println!("  Korean (Complex)  : {:.2} ms per glyph ({:.1} us)", per_complex_us / 1000.0, per_complex_us);
+        println!(
+            "  ASCII (Simple)    : {:.2} ms per glyph ({:.1} us)",
+            per_ascii_us / 1000.0,
+            per_ascii_us
+        );
+        println!(
+            "  Korean (Standard) : {:.2} ms per glyph ({:.1} us)",
+            per_korean_us / 1000.0,
+            per_korean_us
+        );
+        println!(
+            "  Korean (Complex)  : {:.2} ms per glyph ({:.1} us)",
+            per_complex_us / 1000.0,
+            per_complex_us
+        );
     }
 
     #[test]

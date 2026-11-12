@@ -1023,6 +1023,9 @@ impl<'a> EngineCore<'a> {
                     || !scene_manager.get_capture_height_map().is_capture_height_map_complete();
                 engine_service_locator::get_engine_resources_mut().update_async_loading_with_mode(is_scene_loading);
                 self.update_application(delta_time);
+                if self.get_application().will_terminate_application() {
+                    return;
+                }
                 scene_manager.update_scene_manager(delta_time);
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
