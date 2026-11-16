@@ -259,7 +259,8 @@ float distance_field_font_opacity(vec4 font_sample)
     // MTSDF (Multi-channel True Signed Distance Field)
     // Reconstruct sharp-cornered signed distance from RGB channels via median filter
     float dist = median(font_sample.r, font_sample.g, font_sample.b);
-    float afwidth = clamp(fwidth(dist) * 0.85, 0.015, 0.10);
+    float grad = (font_sample.a > 0.0) ? min(fwidth(dist), fwidth(font_sample.a)) : fwidth(dist);
+    float afwidth = clamp(grad * 0.85, 0.015, 0.10);
     const float edge = 0.38;
     return smoothstep(edge - afwidth, edge + afwidth, dist);
 }

@@ -14,6 +14,9 @@ pub const DYNAMIC_FONT_ATLAS_SIZE: u32 = 4096;
 pub const DYNAMIC_FONT_CELL_SIZE: u32 = 96;
 pub const DYNAMIC_FONT_RENDER_SIZE: f32 = 72.0;
 pub const DYNAMIC_FONT_SPREAD: f32 = 4.0;
+pub const DYNAMIC_FONT_CELL_BORDER_PADDING: f64 = 2.0;
+pub const DYNAMIC_FONT_EXTERIOR_FADE_THRESHOLD: f32 = 0.20;
+pub const DYNAMIC_FONT_UV_INSET: f32 = 1.0;
 pub const MAX_DYNAMIC_GLYPHS: usize = 4096;
 
 /// 1D Felzenszwalb-Huttenlocher Distance Transform (parabolic envelope)
@@ -238,34 +241,69 @@ impl DynamicFontAtlas {
         let sw = slot_w as usize;
         let sh = slot_h as usize;
         let em_size = self._font_render_size as f64;
+        let px_spread = self._spread as f64;
 
         let advance = glyph_id
             .and_then(|gid| font.advance(gid, FontCoordinateScaling::EmNormalized))
             .unwrap_or(if is_full { 1.0 } else { 0.5 });
-        let adv_px = advance * em_size;
-        let ox = (slot_w as f64 - adv_px) * 0.5;
-        let oy = (slot_h as f64 - em_size) * 0.5 - metrics.descender * em_size;
-
-        let px_spread = self._spread as f64;
-        let spread_em = px_spread / em_size;
-        let bias_em = self._stroke_bias as f64 / em_size;
-
-        let range = Range {
-            lower: -spread_em - bias_em,
-            upper: spread_em - bias_em,
-        };
 
         let mut shape = Shape::new();
         let has_outline =
             glyph_id.map(|gid| font.load_glyph(&mut shape, gid, FontCoordinateScaling::EmNormalized)).unwrap_or(false);
 
         if has_outline && !shape.contours.is_empty() {
+            shape.normalize();
+            shape.orient_contours();
             edge_coloring_simple(&mut shape, 3.0, 0);
+
+            let bounds = shape.get_bounds(0.0);
+            let bounds_w = (bounds.r - bounds.l).max(0.0);
+            let bounds_h = (bounds.t - bounds.b).max(0.0);
+
+            let safe_margin = px_spread + self._stroke_bias as f64 + DYNAMIC_FONT_CELL_BORDER_PADDING;
+            let max_outline_w = (slot_w as f64 - 2.0 * safe_margin).max(1.0);
+            let max_outline_h = (slot_h as f64 - 2.0 * safe_margin).max(1.0);
+
+            let scale_x = if bounds_w * em_size > max_outline_w && bounds_w > 1e-5 {
+                max_outline_w / bounds_w
+            } else {
+                em_size
+            };
+            let scale_y = if bounds_h * em_size > max_outline_h && bounds_h > 1e-5 {
+                max_outline_h / bounds_h
+            } else {
+                em_size
+            };
+
+            let adv_px = advance * scale_x;
+            let mut ox = (slot_w as f64 - adv_px) * 0.5;
+            let mut oy = (slot_h as f64 - em_size) * 0.5 - metrics.descender * em_size;
+
+            if ox + bounds.l * scale_x < safe_margin {
+                ox = safe_margin - bounds.l * scale_x;
+            }
+            if ox + bounds.r * scale_x > slot_w as f64 - safe_margin {
+                ox = (slot_w as f64 - safe_margin) - bounds.r * scale_x;
+            }
+            if oy + bounds.b * scale_y < safe_margin {
+                oy = safe_margin - bounds.b * scale_y;
+            }
+            if oy + bounds.t * scale_y > slot_h as f64 - safe_margin {
+                oy = (slot_h as f64 - safe_margin) - bounds.t * scale_y;
+            }
+
+            let eff_em = scale_x.min(scale_y);
+            let spread_em = px_spread / eff_em;
+            let bias_em = self._stroke_bias as f64 / eff_em;
+            let range = Range {
+                lower: -spread_em - bias_em,
+                upper: spread_em - bias_em,
+            };
 
             let transformation = SdfTransformation {
                 projection: Projection::new(
-                    BVector2::new(em_size, em_size),
-                    BVector2::new(ox / em_size, oy / em_size),
+                    BVector2::new(scale_x, scale_y),
+                    BVector2::new(ox / scale_x, oy / scale_y),
                 ),
                 distance_mapping: DistanceMapping::from_range(range),
             };
@@ -278,13 +316,21 @@ impl DynamicFontAtlas {
             // Channels: RGB = MSDF (Multi-channel Signed Distance Field), A = True SDF (Signed Distance Field)
             for y in 0..sh {
                 let atlas_y = slot_y + (slot_h - 1 - y as u32);
+                let is_border_y = y == 0 || y + 1 == sh;
                 for x in 0..sw {
-                    let p = bitmap.pixel(x, y);
-                    let r = (p[0].clamp(0.0, 1.0) * 255.0).round() as u8;
-                    let g = (p[1].clamp(0.0, 1.0) * 255.0).round() as u8;
-                    let b = (p[2].clamp(0.0, 1.0) * 255.0).round() as u8;
-                    let a = (p[3].clamp(0.0, 1.0) * 255.0).round() as u8;
+                    let is_border_x = x == 0 || x + 1 == sw;
                     let atlas_idx = (atlas_y * self._atlas_width + (slot_x + x as u32)) as usize;
+                    if is_border_x || is_border_y {
+                        self._pixels[atlas_idx] = Vector4::new(0, 0, 0, 0);
+                        continue;
+                    }
+                    let p = bitmap.pixel(x, y);
+                    let true_sdf = p[3].clamp(0.0, 1.0);
+                    let exterior_fade = (true_sdf / DYNAMIC_FONT_EXTERIOR_FADE_THRESHOLD).clamp(0.0, 1.0);
+                    let r = ((p[0].clamp(0.0, 1.0) * exterior_fade) * 255.0).round() as u8;
+                    let g = ((p[1].clamp(0.0, 1.0) * exterior_fade) * 255.0).round() as u8;
+                    let b = ((p[2].clamp(0.0, 1.0) * exterior_fade) * 255.0).round() as u8;
+                    let a = (true_sdf * 255.0).round() as u8;
                     self._pixels[atlas_idx] = Vector4::new(r, g, b, a);
                 }
             }
@@ -312,20 +358,22 @@ impl DynamicFontAtlas {
             self._is_dirty = true;
         }
 
-        // Glyph typography metrics
-        let u1 = slot_x as f32 * inv_atlas_w;
-        let v1 = slot_y as f32 * inv_atlas_h;
-        let u2 = (slot_x + slot_w) as f32 * inv_atlas_w;
-        let v2 = (slot_y + slot_h) as f32 * inv_atlas_h;
+        // Glyph typography metrics (inset by DYNAMIC_FONT_UV_INSET texels to prevent bilinear seam bleeding across slots)
+        let uv_inset = DYNAMIC_FONT_UV_INSET;
+        let u1 = (slot_x as f32 + uv_inset) * inv_atlas_w;
+        let v1 = (slot_y as f32 + uv_inset) * inv_atlas_h;
+        let u2 = ((slot_x + slot_w) as f32 - uv_inset) * inv_atlas_w;
+        let v2 = ((slot_y + slot_h) as f32 - uv_inset) * inv_atlas_h;
 
         let em_size = self._font_render_size;
+        let inset_em = uv_inset / em_size;
         let norm_w = slot_w as f32 / em_size;
         let norm_h = slot_h as f32 / em_size;
         let center_x = norm_advance * 0.5;
-        let x1 = center_x - norm_w * 0.5;
-        let x2 = center_x + norm_w * 0.5;
-        let y1 = -((slot_h as f32 - em_size) * 0.5) / em_size;
-        let y2 = y1 + norm_h;
+        let x1 = center_x - norm_w * 0.5 + inset_em;
+        let x2 = center_x + norm_w * 0.5 - inset_em;
+        let y1 = -((slot_h as f32 - em_size) * 0.5) / em_size + inset_em;
+        let y2 = y1 - inset_em + norm_h - inset_em;
 
         let metric = GlyphMetric {
             _uv_min: Vector2::new(u1, v1),
@@ -599,6 +647,87 @@ mod tests {
                 let m = metric.unwrap();
                 assert!(m._uv_max.x > m._uv_min.x);
                 assert!(m._uv_max.y > m._uv_min.y);
+            }
+        }
+    }
+
+    #[test]
+    fn test_dynamic_font_atlas_no_seam_or_border_artifacts() {
+        let root = if PathBuf::from("resources").exists() {
+            PathBuf::from(".")
+        } else {
+            PathBuf::from("..")
+        };
+        let med = |r: f32, g: f32, b: f32| r.min(g).max(r.max(g).min(b));
+        for font_name in &[
+            "D2Coding-Regular",
+            "UbuntuSansMono-Regular",
+            "NanumGothicCoding-Regular",
+            "Pretendard-Regular",
+        ] {
+            let ttf_path = root.join(format!("resources/engine_resources/externals/fonts/{}.ttf", font_name));
+            if !ttf_path.exists() {
+                continue;
+            }
+            let font_bytes = std::fs::read(&ttf_path).expect("Failed to read font");
+            let mut atlas = DynamicFontAtlas::create_dynamic_font_atlas(font_name, font_bytes);
+            atlas.prewarm_ascii();
+            for ch in ['가', '나', '다', '한', '글', '틈', '똠'] {
+                atlas.get_or_create_glyph(ch);
+            }
+
+            let w = atlas._atlas_width;
+            for cp in (33u32..=126u32).chain([
+                '가' as u32,
+                '나' as u32,
+                '다' as u32,
+                '한' as u32,
+                '글' as u32,
+                '틈' as u32,
+                '똠' as u32,
+            ]) {
+                let ch = char::from_u32(cp).unwrap();
+                let Some(m) = atlas.get_glyph_metric(ch) else { continue };
+                let x0 = (m._uv_min.x * w as f32).round() as u32;
+                let y0 = (m._uv_min.y * w as f32).round() as u32;
+                let x1 = (m._uv_max.x * w as f32).round() as u32;
+                let y1 = (m._uv_max.y * w as f32).round() as u32;
+
+                // Ensure bilinear interpolation at the UV quad edges never produces visible opacity (> 0.25)
+                if x0 > 0 {
+                    for y in y0..y1 {
+                        let p_left = atlas._pixels[(y * w + (x0 - 1)) as usize];
+                        let p_right = atlas._pixels[(y * w + x0) as usize];
+                        let r = 0.5 * (p_left.x as f32 + p_right.x as f32) / 255.0;
+                        let g = 0.5 * (p_left.y as f32 + p_right.y as f32) / 255.0;
+                        let b = 0.5 * (p_left.z as f32 + p_right.z as f32) / 255.0;
+                        assert!(
+                            med(r, g, b) < 0.25,
+                            "Font {} char '{}' has left seam artifact at y={}: med={}",
+                            font_name,
+                            ch,
+                            y,
+                            med(r, g, b)
+                        );
+                    }
+                }
+                if x1 < w {
+                    for y in y0..y1 {
+                        let p_left = atlas._pixels[(y * w + (x1 - 1)) as usize];
+                        let p_right = atlas._pixels[(y * w + x1) as usize];
+                        let r = 0.5 * (p_left.x as f32 + p_right.x as f32) / 255.0;
+                        let g = 0.5 * (p_left.y as f32 + p_right.y as f32) / 255.0;
+                        let b = 0.5 * (p_left.z as f32 + p_right.z as f32) / 255.0;
+                        assert!(
+                            med(r, g, b) < 0.25,
+                            "Font {} char '{}' has right seam artifact at y={}: med={}",
+                            font_name,
+                            ch,
+                            y,
+                            med(r, g, b)
+                        );
+                    }
+                }
             }
         }
     }
