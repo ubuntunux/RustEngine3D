@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use crate::constants::{DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT};
+use crate::constants::{DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT, MAX_AUDIO_VOLUME};
 use crate::core::engine_service_locator::get_engine_resources_mut;
 use crate::resource::resource::ResourceData;
 use crate::utilities::system::{RcRefCell, newRcRefCell};
@@ -260,7 +260,12 @@ impl AudioManager {
 
             self._bgm_audio_bank_data = Some(audio_bank_data.clone());
             self._bgm_audio_instance = self.play_audio_bank_data(&audio_bank_data, AudioLoop::ONCE, audio_volume);
-            self._bgm_volume = audio_volume;
+            if self._bgm_volume.is_none() {
+                self._bgm_volume = audio_volume;
+            }
+            if let Some(bgm_volume) = self._bgm_volume {
+                self.set_bgm_volume(bgm_volume);
+            }
         }
     }
 
@@ -272,9 +277,34 @@ impl AudioManager {
         self._bgm_audio_instance = None;
     }
 
-    pub fn set_bgm_volume(&self, volume: f32) {
+    pub fn set_bgm_volume(&mut self, volume: f32) {
+        self._bgm_volume = Some(volume);
         if let Some(audio_instance) = self._bgm_audio_instance.as_ref() {
-            self.set_audio_instance_volume(&audio_instance, volume);
+            let audio_instance_borrow = audio_instance.borrow();
+            if let Ok(channel) = audio_instance_borrow._channel.as_ref() {
+                let instance_volume = audio_instance_borrow._volume.unwrap_or(1.0);
+                channel.set_volume((MAX_AUDIO_VOLUME as f32 * volume * instance_volume) as i32);
+            }
+        }
+    }
+
+    pub fn set_volume(&mut self, volume: i32) {
+        self._volume = volume;
+        let bgm_channel_num = self
+            ._bgm_audio_instance
+            .as_ref()
+            .and_then(|bgm| bgm.borrow()._channel.as_ref().ok().map(|Channel(ch)| *ch));
+        for (channel_num, audio_instance) in self._audio_instances.iter() {
+            if Some(*channel_num) == bgm_channel_num {
+                continue;
+            }
+            let audio_instance_borrow = audio_instance.borrow();
+            if let Ok(channel) = audio_instance_borrow._channel.as_ref() {
+                if channel.is_playing() {
+                    let instance_volume = audio_instance_borrow._volume.unwrap_or(1.0);
+                    channel.set_volume((self._volume as f32 * instance_volume) as i32);
+                }
+            }
         }
     }
 
@@ -292,8 +322,10 @@ impl AudioManager {
         }
         false
     }
+
     pub fn set_audio_instance_volume(&self, audio_instance: &RcRefCell<AudioInstance>, volume: f32) {
-        let audio_instance_borrow = audio_instance.borrow();
+        let mut audio_instance_borrow = audio_instance.borrow_mut();
+        audio_instance_borrow._volume = Some(volume);
         if let Ok(channel) = audio_instance_borrow._channel.as_ref() {
             channel.set_volume((self._volume as f32 * volume) as i32);
         }
@@ -311,8 +343,12 @@ impl AudioManager {
 
         if false == is_playing_bgm && self._bgm_audio_bank_data.is_some() {
             if let Some(bgm_audio_bank_data) = self._bgm_audio_bank_data.as_ref() {
+                let instance_volume = self._bgm_audio_instance.as_ref().and_then(|instance| instance.borrow()._volume);
                 self._bgm_audio_instance =
-                    self.play_audio_bank_data(&bgm_audio_bank_data.clone(), AudioLoop::ONCE, self._bgm_volume);
+                    self.play_audio_bank_data(&bgm_audio_bank_data.clone(), AudioLoop::ONCE, instance_volume);
+                if let Some(bgm_volume) = self._bgm_volume {
+                    self.set_bgm_volume(bgm_volume);
+                }
             }
         }
 

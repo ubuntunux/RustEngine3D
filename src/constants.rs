@@ -94,4 +94,5 @@ pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
 
 // audio
 pub const DEFAULT_AUDIO_VOLUME: i32 = 32;
+pub const MAX_AUDIO_VOLUME: i32 = 128;
 pub const MAX_AUDIO_CHANNEL_COUNT: i32 = 128;
