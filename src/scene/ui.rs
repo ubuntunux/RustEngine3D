@@ -1910,6 +1910,8 @@ impl<'a> UIComponentInstance<'a> {
             need_to_collect_render_data = true;
         }
 
+        opacity *= self.get_opacity();
+
         if self._enable && self._visible && self._renderable && is_material_ready {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
@@ -1922,8 +1924,6 @@ impl<'a> UIComponentInstance<'a> {
 
             // collect ui render data
             if need_to_collect_render_data {
-                opacity *= self.get_opacity();
-
                 let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
                 render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
                 render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
