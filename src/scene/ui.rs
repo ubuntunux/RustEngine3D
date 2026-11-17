@@ -3168,41 +3168,32 @@ impl<'a> UIManager<'a> {
         self._font_data = font_data;
 
         let font_texture_name = format!("fonts/{}", font_data_name);
-        if let Some(material_instance) = self._default_render_ui_material.as_ref() {
-            let renderer_context = get_renderer_context();
-            let mut mat_mut = material_instance.borrow_mut();
-            mat_mut.set_material_parameter(
-                crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,
-                serde_json::Value::String(font_texture_name.clone()),
-            );
-            if engine_resources.has_texture_data(&font_texture_name) {
-                let texture_data = engine_resources.get_texture_data(&font_texture_name).borrow();
-                mat_mut.update_texture_descriptor_sets(
-                    renderer_context.get_device(),
-                    &font_texture_name,
-                    &texture_data,
-                );
-            }
-        }
+        engine_resources.pin_texture_data(&font_texture_name);
 
-        if engine_resources
-            .has_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME)
-        {
-            let renderer_context = get_renderer_context();
-            let render_font_mat = engine_resources
-                .get_material_instance_data(crate::resource::resource::DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME);
-            let mut mat_mut = render_font_mat.borrow_mut();
-            mat_mut.set_material_parameter(
-                crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,
-                serde_json::Value::String(font_texture_name.clone()),
-            );
-            if engine_resources.has_texture_data(&font_texture_name) {
-                let texture_data = engine_resources.get_texture_data(&font_texture_name).borrow();
-                mat_mut.update_texture_descriptor_sets(
-                    renderer_context.get_device(),
-                    &font_texture_name,
-                    &texture_data,
+        if engine_resources.has_texture_data(&font_texture_name) {
+            let texture_data = engine_resources.get_texture_data(&font_texture_name).borrow();
+            let device = renderer_context.get_device();
+            for material_instance in engine_resources._material_instance_data_map.values() {
+                let mut mat_mut = material_instance.borrow_mut();
+                if mat_mut
+                    ._material_parameters
+                    .contains_key(crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME)
+                {
+                    mat_mut.set_material_parameter(
+                        crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,
+                        serde_json::Value::String(font_texture_name.clone()),
+                    );
+                    mat_mut.update_texture_descriptor_sets(device, &font_texture_name, &texture_data);
+                }
+            }
+
+            if let Some(material_instance) = self._default_render_ui_material.as_ref() {
+                let mut mat_mut = material_instance.borrow_mut();
+                mat_mut.set_material_parameter(
+                    crate::resource::resource::TEXTURE_FONT_MATERIAL_PARAMETER_NAME,
+                    serde_json::Value::String(font_texture_name.clone()),
                 );
+                mat_mut.update_texture_descriptor_sets(device, &font_texture_name, &texture_data);
             }
         }
 
