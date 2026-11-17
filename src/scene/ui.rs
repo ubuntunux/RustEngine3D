@@ -89,6 +89,7 @@ pub const UI_RENDER_FLAG_TOUCHED_OVER: u32 = 1 << 2;
 pub const UI_RENDER_FLAG_TOUCHED: u32 = 1 << 3;
 pub const UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA: u32 = 1 << 4;
 pub const UI_RENDER_FLAG_CLAMP_TEXTURE: u32 = 1 << 5;
+pub const UI_RENDER_FLAG_ENABLE_NINE_SLICE: u32 = 1 << 6;
 
 pub const UI_INDEX_LEFT: usize = 0; // x
 pub const UI_INDEX_TOP: usize = 1; // y
@@ -198,6 +199,7 @@ pub struct UIRenderData {
     pub _ui_texcoord: Vector4<f32>,
     pub _ui_render_area: Vector4<f32>,
     pub _ui_renderable_area: Vector4<f32>,
+    pub _ui_padding: Vector4<f32>,
     pub _ui_renderable_area_round: f32,
     pub _ui_renderable_area_border: f32,
     pub _ui_round: f32,
@@ -211,7 +213,7 @@ pub struct UIRenderData {
     pub _ui_render_flags: u32,
     pub _ui_opacity: f32,
     pub _ui_rotation: f32,
-    pub _reserved0: u32,
+    pub _ui_dpi_scale: f32,
     pub _reserved1: u32,
     pub _reserved2: u32,
 }
@@ -295,6 +297,7 @@ pub struct UIComponentInstance<'a> {
     pub _enable: bool,
     pub _enable_dpi_scale: bool,
     pub _enable_renderable_area: bool,
+    pub _enable_nine_slice: bool,
     pub _ignore_parent_renderable_area: bool,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _selected: bool,
@@ -419,6 +422,7 @@ impl Default for UIRenderData {
             _ui_texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _ui_render_area: Vector4::zeros(),
             _ui_renderable_area: Vector4::zeros(),
+            _ui_padding: Vector4::zeros(),
             _ui_renderable_area_round: 0.0,
             _ui_renderable_area_border: 0.0,
             _ui_round: 0.0,
@@ -432,7 +436,7 @@ impl Default for UIRenderData {
             _ui_render_flags: UI_RENDER_FLAG_NONE,
             _ui_opacity: 1.0,
             _ui_rotation: 0.0,
-            _reserved0: 0,
+            _ui_dpi_scale: 1.0,
             _reserved1: 0,
             _reserved2: 0,
         }
@@ -523,6 +527,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _enable: true,
             _enable_dpi_scale: true,
             _enable_renderable_area: false,
+            _enable_nine_slice: false,
             _ignore_parent_renderable_area: false,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _selected: false,
@@ -1059,6 +1064,15 @@ impl<'a> UIComponentInstance<'a> {
     pub fn set_enable_renderable_area(&mut self, enable_renderable_area: bool) {
         if self._enable_renderable_area != enable_renderable_area {
             self._enable_renderable_area = enable_renderable_area;
+            self._changed_render_data = true;
+        }
+    }
+    pub fn get_enable_nine_slice(&self) -> bool {
+        self._enable_nine_slice
+    }
+    pub fn set_enable_nine_slice(&mut self, enable_nine_slice: bool) {
+        if self._enable_nine_slice != enable_nine_slice {
+            self._enable_nine_slice = enable_nine_slice;
             self._changed_render_data = true;
         }
     }
@@ -1913,9 +1927,11 @@ impl<'a> UIComponentInstance<'a> {
                 let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
                 render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
                 render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
+                let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
+                render_ui_instance_data._ui_padding = self.get_padding() * component_dpi_scale;
+                render_ui_instance_data._ui_dpi_scale = component_dpi_scale;
                 render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
                 render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
-                let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
                 render_ui_instance_data._ui_round = self.get_round() * component_dpi_scale;
                 render_ui_instance_data._ui_border = self.get_border() * component_dpi_scale;
                 render_ui_instance_data._ui_opacity = opacity;
@@ -1951,6 +1967,10 @@ impl<'a> UIComponentInstance<'a> {
 
                 if self._texture_wrap_mode != vk::SamplerAddressMode::REPEAT {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_CLAMP_TEXTURE;
+                }
+
+                if self._enable_nine_slice {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_NINE_SLICE;
                 }
             }
 
