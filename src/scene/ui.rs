@@ -1295,6 +1295,7 @@ impl<'a> UIComponentInstance<'a> {
             if !touchable {
                 self.reset_touch_state();
             }
+            self._changed_render_data = true;
         }
     }
     pub fn get_has_cursor(&self) -> bool {
