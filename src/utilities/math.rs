@@ -11,7 +11,7 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
 
 pub fn get_normalized_diff_radian(a: f32, b: f32) -> f32 {
     let diff = b - a;
-    (diff + HALF_PI) % TWO_PI - HALF_PI
+    (diff + std::f32::consts::PI).rem_euclid(TWO_PI) - std::f32::consts::PI
 }
 
 pub fn lerp_radian(a: f32, b: f32, t: f32) -> f32 {
@@ -289,14 +289,26 @@ pub fn inverse_transform_matrix(
 
 pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> Matrix4<f32> {
     let f: Vector3<f32> = safe_normalize(&(target - eye));
-    let s: Vector3<f32> = f.cross(&up);
-    let u: Vector3<f32> = s.cross(&f);
-    Matrix4::from_columns(&[
-        Vector4::new(s.x, s.y, s.z, 0.0),
-        Vector4::new(u.x, u.y, u.z, 0.0),
-        Vector4::new(f.x, f.y, f.z, 0.0),
-        Vector4::new(-s.dot(eye), -u.dot(eye), -f.dot(eye), 1.0),
-    ])
+    let s: Vector3<f32> = safe_normalize(&up.cross(&f));
+    let u: Vector3<f32> = f.cross(&s);
+    Matrix4::new(
+        s.x,
+        s.y,
+        s.z,
+        -s.dot(eye),
+        u.x,
+        u.y,
+        u.z,
+        -u.dot(eye),
+        f.x,
+        f.y,
+        f.z,
+        -f.dot(eye),
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    )
 }
 
 pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Matrix4<f32> {
@@ -424,57 +436,32 @@ pub fn vector_multiply_quaternion(vector, quaternion):
 */
 
 //====================================================================================================
-// MatrixDecomposeYawPitchRoll
-//
-// Extract the rotation contained in the provided matrix as yaw (heading), pitch and roll (bank) in
-// radiuans.
-//
-// Assumptions:
-//  Euler:   X = Pitch, Y = Yaw, Z = Roll
-//  Applied: Yaw then pitch then roll
-//  Axes:    X = Right, Y = Up, Z = Forward
-//  DirectX: Matrices are row major (http://www.mindcontrol.org/~hplus/graphics/matrix-layout.html)
-//
-// Code is based on Mike Tunnicliffe's answer to this question:
-//   https://stackoverflow.com/questions/1996957/conversion-euler-to-matrix-and-matrix-to-euler
+// Decompose rotation matrix into (pitch, yaw, roll) matching make_rotation_matrix:
+//   R = R_y(yaw) * R_z(roll) * R_x(pitch) (intrinsic Y-Z-X order)
+//   Axes: X = Right, Y = Up, Z = Forward (Left-Handed)
 pub fn matrix_decompose_pitch_yaw_roll(matrix: &Matrix4<f32>) -> Vector3<f32> {
-    let mut euler: Vector3<f32> = Vector3::zeros();
-    euler.x = (-matrix.m23).asin(); // Pitch
-    // Not at poles
-    if 0.0001 < euler.x.cos() {
-        euler.y = matrix.m13.atan2(matrix.m33); // Yaw
-        euler.z = matrix.m21.atan2(matrix.m22); // Roll
+    let r = extract_axes(matrix);
+    let sin_roll = r.m21.clamp(-1.0, 1.0);
+    let roll = sin_roll.asin();
+    let (pitch, yaw) = if 1.0 - sin_roll.abs() > 1e-6 {
+        ((-r.m23).atan2(r.m22), (-r.m31).atan2(r.m11))
     } else {
-        euler.y = 0.0; // Yaw
-        euler.z = (-matrix.m12).atan2(matrix.m11); // Roll
-    }
-    euler
+        (0.0, r.m13.atan2(r.m33))
+    };
+    Vector3::new(pitch, yaw, roll)
 }
 
 pub fn quaternion_to_euler(quat: &Quaternion<f32>) -> Vector3<f32> {
-    // convert to (pitch, yaw, roll)
-    glm::quat_euler_angles(quat).zyx()
+    // convert to (pitch, yaw, roll) matching make_rotation_matrix (Y-Z-X order)
+    matrix_decompose_pitch_yaw_roll(&quaternion_to_matrix(quat))
 }
 
 pub fn euler_to_quaternion(pitch: f32, yaw: f32, roll: f32) -> Quaternion<f32> {
-    UnitQuaternion::from_euler_angles(pitch, yaw, roll).into_inner()
-
-    // let t0 = (rz * 0.5).cos();
-    // let t1 = (rz * 0.5).sin();
-    // let t2 = (rx * 0.5).cos();
-    // let t3 = (rx * 0.5).sin();
-    // let t4 = (ry * 0.5).cos();
-    // let t5 = (ry * 0.5).sin();
-    // let t0t2 = t0 * t2;
-    // let t0t3 = t0 * t3;
-    // let t1t2 = t1 * t2;
-    // let t1t3 = t1 * t3;
-    // let qw = t0t2 * t4 + t1t3 * t5;
-    // let qx = t0t3 * t4 - t1t2 * t5;
-    // let qy = t0t2 * t5 + t1t3 * t4;
-    // let qz = t1t2 * t4 - t0t3 * t5;
-    // let n = 1.0 / (qw * qw + qx * qx + qy * qy + qz * qz).sqrt();
-    // Quaternion::new(qw, qx, qy, qz) * n
+    // R_y(yaw) * R_z(roll) * R_x(pitch) matching make_rotation_matrix
+    let q_y = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), yaw);
+    let q_z = UnitQuaternion::from_axis_angle(&Vector3::z_axis(), roll);
+    let q_x = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), pitch);
+    (q_y * q_z * q_x).into_inner()
 }
 
 pub fn matrix_to_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
@@ -652,19 +639,22 @@ pub fn extract_location(matrix: &Matrix4<f32>) -> Vector3<f32> {
 }
 
 pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
+    let c0 = safe_normalize(&matrix.column(0).xyz());
+    let c1 = safe_normalize(&matrix.column(1).xyz());
+    let c2 = safe_normalize(&matrix.column(2).xyz());
     Matrix4::from_columns(&[
-        matrix.column(0).normalize(),
-        matrix.column(1).normalize(),
-        matrix.column(2).normalize(),
+        Vector4::new(c0.x, c0.y, c0.z, 0.0),
+        Vector4::new(c1.x, c1.y, c1.z, 0.0),
+        Vector4::new(c2.x, c2.y, c2.z, 0.0),
         Vector4::new(0.0, 0.0, 0.0, 1.0),
     ])
 }
 
 pub fn extract_axes(matrix: &Matrix4<f32>) -> Matrix3<f32> {
     Matrix3::from_columns(&[
-        matrix.column(0).xyz().normalize(),
-        matrix.column(1).xyz().normalize(),
-        matrix.column(2).xyz().normalize(),
+        safe_normalize(&matrix.column(0).xyz()),
+        safe_normalize(&matrix.column(1).xyz()),
+        safe_normalize(&matrix.column(2).xyz()),
     ])
 }
 
@@ -673,9 +663,9 @@ pub fn extract_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
 }
 
 pub fn extract_scale(matrix: &Matrix4<f32>) -> Vector3<f32> {
-    let sx = matrix.column(0).norm();
-    let sy = matrix.column(1).norm();
-    let sz = matrix.column(2).norm();
+    let sx = matrix.column(0).xyz().norm();
+    let sy = matrix.column(1).xyz().norm();
+    let sz = matrix.column(2).xyz().norm();
     Vector3::new(sx, sy, sz)
 }
 
@@ -688,13 +678,18 @@ pub fn extract_location_rotation_scale(matrix: &Matrix4<f32>) -> (Vector3<f32>, 
 }
 
 pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {
-    let mut triangulated_list: Vec<u32> = Vec::new();
-    triangulated_list.push(quad[0]);
-    triangulated_list.push(quad[1]);
-    triangulated_list.push(quad[2]);
-    triangulated_list.push(quad[2]);
-    triangulated_list.push(quad[1]);
-    triangulated_list.push(quad[3]);
+    convert_triangulate_strided(quad, 1)
+}
+
+pub fn convert_triangulate_strided(quad: &[u32], stride: usize) -> Vec<u32> {
+    if stride == 0 || quad.len() < 4 * stride {
+        return Vec::new();
+    }
+    let mut triangulated_list: Vec<u32> = Vec::with_capacity(6 * stride);
+    for &corner in &[0usize, 1, 2, 0, 2, 3] {
+        let start = corner * stride;
+        triangulated_list.extend_from_slice(&quad[start..start + stride]);
+    }
     triangulated_list
 }
 
@@ -710,16 +705,17 @@ pub fn convert_to_screen_texcoord(
         Vector2::zeros()
     };
 
-    if clamp && texcoord.x != 0.0 && texcoord.y != 0.0 {
+    if clamp {
         if ndc.w < 0.0 || 1.0 < texcoord.x || texcoord.x < -1.0 || 1.0 < texcoord.y || texcoord.y < -1.0 {
             if ndc.w < 0.0 {
                 texcoord = -texcoord;
             }
 
-            if texcoord.x.abs() < texcoord.y.abs() {
-                texcoord /= texcoord.y.abs();
-            } else {
-                texcoord /= texcoord.x.abs();
+            let max_abs = texcoord.x.abs().max(texcoord.y.abs());
+            if max_abs > 0.0 {
+                texcoord /= max_abs;
+            } else if ndc.w < 0.0 {
+                texcoord = Vector2::new(0.0, 1.0);
             }
         }
     }
@@ -727,4 +723,109 @@ pub fn convert_to_screen_texcoord(
     texcoord.x = texcoord.x * 0.5 + 0.5;
     texcoord.y = 0.5 - texcoord.y * 0.5;
     texcoord
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_mat4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>, eps: f32) {
+        for r in 0..4 {
+            for c in 0..4 {
+                assert!(
+                    (a[(r, c)] - b[(r, c)]).abs() < eps,
+                    "Matrix mismatch at ({}, {}): {} vs {}\nA={}\nB={}",
+                    r,
+                    c,
+                    a[(r, c)],
+                    b[(r, c)],
+                    a,
+                    b
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_euler_matrix_quaternion_consistency_and_scaled_decompose() {
+        let test_cases = [
+            (0.0, 0.0, 0.0),
+            (0.5, 0.7, 0.6),
+            (-0.8, 2.3, -1.1),
+            (1.2, -2.5, 0.4),
+            // Gimbal lock poles (roll = +/- HALF_PI)
+            (0.4, 0.9, HALF_PI),
+            (-0.6, -1.2, -HALF_PI),
+        ];
+
+        for &(pitch, yaw, roll) in &test_cases {
+            let rot = make_rotation_matrix(pitch, yaw, roll);
+            // Quaternion <-> Matrix consistency
+            let q = euler_to_quaternion(pitch, yaw, roll);
+            let q_mat = quaternion_to_matrix(&q);
+            assert_mat4_approx_eq(&rot, &q_mat, 1e-5);
+
+            // Matrix -> Euler -> Matrix round-trip (including non-uniform scale)
+            let scaled = combinate_matrix(&Vector3::new(3.0, -2.0, 5.0), &rot, &Vector3::new(2.5, 0.5, 4.0));
+            let decomposed = matrix_decompose_pitch_yaw_roll(&scaled);
+            assert!(!decomposed.x.is_nan() && !decomposed.y.is_nan() && !decomposed.z.is_nan());
+            let reconstructed = make_rotation_matrix(decomposed.x, decomposed.y, decomposed.z);
+            assert_mat4_approx_eq(&rot, &reconstructed, 1e-5);
+
+            // Quaternion -> Euler -> Matrix round-trip
+            let q_euler = quaternion_to_euler(&q);
+            let q_reconstructed = make_rotation_matrix(q_euler.x, q_euler.y, q_euler.z);
+            assert_mat4_approx_eq(&rot, &q_reconstructed, 1e-5);
+        }
+    }
+
+    #[test]
+    fn test_get_normalized_diff_radian() {
+        let pi = std::f32::consts::PI;
+        assert!((get_normalized_diff_radian(0.0, 0.5) - 0.5).abs() < 1e-5);
+        assert!((get_normalized_diff_radian(0.0, 5.0) - (5.0 - TWO_PI)).abs() < 1e-5);
+        assert!((get_normalized_diff_radian(0.0, -5.0) - (TWO_PI - 5.0)).abs() < 1e-5);
+        assert!((get_normalized_diff_radian(0.1, TWO_PI - 0.1) - (-0.2)).abs() < 1e-5);
+        assert!((get_normalized_diff_radian(TWO_PI - 0.1, 0.1) - 0.2).abs() < 1e-5);
+        assert!(get_normalized_diff_radian(0.0, 4.0).abs() <= pi + 1e-5);
+        assert!(get_normalized_diff_radian(0.0, -6.0).abs() <= pi + 1e-5);
+    }
+
+    #[test]
+    fn test_look_at_left_handed() {
+        let eye = Vector3::new(2.0, 3.0, 4.0);
+        let target = Vector3::new(2.0, 3.0, 10.0);
+        let up = get_world_up();
+        let view = look_at(&eye, &target, &up);
+        let target_view = view * Vector4::new(target.x, target.y, target.z, 1.0);
+        assert!((target_view.x).abs() < 1e-5);
+        assert!((target_view.y).abs() < 1e-5);
+        assert!((target_view.z - 6.0).abs() < 1e-5);
+
+        // Looking along +X should match inverse of yaw = +HALF_PI
+        let view_x = look_at(&Vector3::zeros(), &Vector3::new(1.0, 0.0, 0.0), &up);
+        let rot_y_inv = make_rotation_matrix(0.0, HALF_PI, 0.0).transpose();
+        assert_mat4_approx_eq(&view_x, &rot_y_inv, 1e-5);
+    }
+
+    #[test]
+    fn test_convert_triangulate_strided() {
+        let quad = vec![0, 1, 2, 3];
+        assert_eq!(convert_triangulate(&quad), vec![0, 1, 2, 0, 2, 3]);
+
+        let strided = vec![10, 11, 20, 21, 30, 31, 40, 41];
+        assert_eq!(
+            convert_triangulate_strided(&strided, 2),
+            vec![10, 11, 20, 21, 30, 31, 10, 11, 30, 31, 40, 41]
+        );
+    }
+
+    #[test]
+    fn test_convert_to_screen_texcoord_behind_camera_center() {
+        let proj = perspective(1.0, 90.0, 0.1, 100.0);
+        let behind = Vector3::new(0.0, 0.0, -5.0);
+        let uv = convert_to_screen_texcoord(&proj, &behind, true);
+        // Should be clamped to an edge, not projected into screen center (0.5, 0.5)
+        assert!((uv.x - 0.5).abs() > 0.1 || (uv.y - 0.5).abs() > 0.1);
+    }
 }

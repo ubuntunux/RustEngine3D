@@ -2,7 +2,7 @@ void main() {
     vec4 base_color = vec4(1.0, 1.0, 1.0, 1.0);
     // x: roughness, y: metallic, z: emissive intensity
     vec4 material = vec4(1.0, 0.0, 0.0, 1.0);
-    vec3 tangent_normal = vec3(0.0, 1.0, 0.0);
+    vec3 tangent_normal = vec3(0.0, 0.0, 1.0);
 
     fragment_shader_main(
         base_color,

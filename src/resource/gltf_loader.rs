@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use gltf;
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix3, Matrix4, Quaternion, Vector2, Vector3, Vector4};
 
 use crate::constants;
 use crate::scene::animation::{AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree};
@@ -13,6 +13,86 @@ use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, SkeletalVertexD
 use crate::vulkan_context::{geometry_buffer, vulkan_context};
 
 pub const SHOW_GLTF_LOG: bool = false;
+
+fn gltf_node_matrix(node: &gltf::Node) -> Matrix4<f32> {
+    let m: &[[f32; 4]; 4] = &node.transform().matrix();
+    Matrix4::new(
+        m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2], m[3][2],
+        m[0][3], m[1][3], m[2][3], m[3][3],
+    )
+}
+
+/// Similarity transform F * M * F with F = diag(1, 1, -1, 1):
+/// converts a right-handed 4x4 transform into left-handed space while preserving det(M).
+pub fn convert_matrix_rh_to_lh(matrix: &Matrix4<f32>) -> Matrix4<f32> {
+    let mut converted = *matrix;
+    converted.m13 = -converted.m13;
+    converted.m23 = -converted.m23;
+    converted.m31 = -converted.m31;
+    converted.m32 = -converted.m32;
+    converted.m34 = -converted.m34;
+    converted.m43 = -converted.m43;
+    converted
+}
+
+/// Left-multiplies F = diag(1, 1, -1, 1) onto M (negates row 2):
+/// converts right-handed world coordinates M * v_rh into left-handed coordinates F * M * v_rh.
+pub fn convert_position_matrix_rh_to_lh(matrix: &Matrix4<f32>) -> Matrix4<f32> {
+    let mut converted = *matrix;
+    converted.m31 = -converted.m31;
+    converted.m32 = -converted.m32;
+    converted.m33 = -converted.m33;
+    converted.m34 = -converted.m34;
+    converted
+}
+
+fn find_node_world_transform_recursive(
+    node: &gltf::Node,
+    parent_world: &Matrix4<f32>,
+    target_index: usize,
+) -> Option<Matrix4<f32>> {
+    let world = parent_world * gltf_node_matrix(node);
+    if node.index() == target_index {
+        return Some(world);
+    }
+    for child in node.children() {
+        if let Some(found) = find_node_world_transform_recursive(&child, &world, target_index) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn find_node_world_transform(document: &gltf::Document, target_node: &gltf::Node) -> Matrix4<f32> {
+    let identity = Matrix4::identity();
+    for scene in document.scenes() {
+        for node in scene.nodes() {
+            if let Some(world) = find_node_world_transform_recursive(&node, &identity, target_node.index()) {
+                return world;
+            }
+        }
+    }
+    gltf_node_matrix(target_node)
+}
+
+fn read_accessor_bytes(accessor: &gltf::Accessor, buffers: &[gltf::buffer::Data]) -> Vec<u8> {
+    let view = accessor.view().unwrap();
+    let buffer_index = view.buffer().index();
+    let elem_size = accessor.size();
+    let stride = view.stride().unwrap_or(elem_size);
+    let start = view.offset() + accessor.offset();
+    if stride == elem_size {
+        let byte_len = accessor.count() * elem_size;
+        buffers[buffer_index].0[start..(start + byte_len)].to_vec()
+    } else {
+        let mut out = Vec::with_capacity(accessor.count() * elem_size);
+        for i in 0..accessor.count() {
+            let elem_start = start + i * stride;
+            out.extend_from_slice(&buffers[buffer_index].0[elem_start..(elem_start + elem_size)]);
+        }
+        out
+    }
+}
 
 type Point3 = [u32; 3];
 
@@ -54,9 +134,7 @@ pub fn parsing_index_buffer(primitive: &gltf::Primitive, buffers: &Vec<gltf::buf
     log_assesor_view("\t\t\tIndices", &accessor, &view);
 
     // convert index buffer to data
-    let buffer_offset = view.offset();
-    let buffer_length = view.length();
-    let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+    let bytes: Vec<u8> = read_accessor_bytes(&accessor, buffers);
     let data_type = accessor.data_type();
     let stride = match data_type {
         gltf::accessor::DataType::U16 => 2,
@@ -100,6 +178,12 @@ pub fn parsing_vertex_buffer(
     buffers: &Vec<gltf::buffer::Data>,
 ) -> (Vec<VertexData>, Vec<SkeletalVertexData>, bool) {
     let is_identity: bool = *parent_transform == Matrix4::identity();
+    let normal_matrix: Matrix3<f32> = if is_identity {
+        Matrix3::identity()
+    } else {
+        let upper = parent_transform.fixed_view::<3, 3>(0, 0).into_owned();
+        upper.try_inverse().map(|inv| inv.transpose()).unwrap_or(upper)
+    };
     let mut find_tangent_data: bool = false;
     let mut vertex_data_list: Vec<VertexData> = Vec::new();
     let mut skeletal_vertex_data_list: Vec<SkeletalVertexData> = Vec::new();
@@ -107,13 +191,10 @@ pub fn parsing_vertex_buffer(
     for attribute in primitive.attributes() {
         let semantic = &attribute.0;
         let accessor = &attribute.1;
-        let view = accessor.view().unwrap();
         let vertex_count = accessor.count();
 
         // convert buffer to data
-        let buffer_offset = view.offset();
-        let buffer_length = view.length();
-        let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+        let bytes: Vec<u8> = read_accessor_bytes(accessor, buffers);
 
         if is_skeletal_mesh {
             if skeletal_vertex_data_list.is_empty() {
@@ -148,8 +229,7 @@ pub fn parsing_vertex_buffer(
                 let mut buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
                 for (i, data) in buffer_data.iter_mut().enumerate() {
                     if false == is_identity {
-                        *data = math::apply_matrix_to_vector(parent_transform, &data, 0.0);
-                        *data = math::safe_normalize(&data);
+                        *data = math::safe_normalize(&(normal_matrix * (*data)));
                     }
 
                     if is_skeletal_mesh {
@@ -339,9 +419,7 @@ pub fn parsing_inverse_bind_matrices(skin: &gltf::Skin, buffers: &Vec<gltf::buff
     let view = accessor.view().unwrap();
     log_assesor_view("\t\t\tInverse Bind Matrices", &accessor, &view);
 
-    let buffer_offset = view.offset();
-    let buffer_length = view.length();
-    let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+    let bytes: Vec<u8> = read_accessor_bytes(&accessor, buffers);
     assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
     assert_eq!(gltf::accessor::Dimensions::Mat4, accessor.dimensions());
     let inverse_bind_matrices: Vec<Matrix4<f32>> = system::convert_vec(bytes);
@@ -358,26 +436,22 @@ pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHi
 }
 
 pub fn parsing_skins(
-    nodes: gltf::iter::Nodes,
+    document: &gltf::Document,
     skin: &gltf::Skin,
     buffers: &Vec<gltf::buffer::Data>,
     mesh_data_create_info: &mut MeshDataCreateInfo,
 ) {
-    for armature_node in nodes {
+    for armature_node in document.nodes() {
         if armature_node.name().unwrap() == skin.name().unwrap() {
-            let m: &[[f32; 4]; 4] = &armature_node.transform().matrix();
-            let mut parent_transform: Matrix4<f32> = Matrix4::new(
-                m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2],
-                m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
-            );
+            let mut parent_transform: Matrix4<f32> = find_node_world_transform(document, &armature_node);
 
             // inverse bind matrices
             let mut inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
 
             if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
-                parent_transform.set_column(2, &(-parent_transform.column(2)));
+                parent_transform = convert_matrix_rh_to_lh(&parent_transform);
                 for inverse_bind_matrix in inverse_bind_matrices.iter_mut() {
-                    inverse_bind_matrix.set_column(2, &(-inverse_bind_matrix.column(2)));
+                    *inverse_bind_matrix = convert_matrix_rh_to_lh(inverse_bind_matrix);
                 }
             }
 
@@ -438,9 +512,7 @@ pub fn parsing_animation(
                     let property = target.property();
                     let sampler = channel.sampler();
                     let input_accesor = sampler.input();
-                    let input_view = input_accesor.view().unwrap();
                     let output_accesor = sampler.output();
-                    let output_view = output_accesor.view().unwrap();
                     let _interpolation = sampler.interpolation();
 
                     if SHOW_GLTF_LOG {
@@ -465,30 +537,37 @@ pub fn parsing_animation(
 
                     // input data
                     if animation_node_data._times.is_empty() {
-                        let input_buffer_offset = input_view.offset();
-                        let input_buffer_length = input_view.length();
-                        let input_bytes: Vec<u8> =
-                            buffers[0].0[input_buffer_offset..(input_buffer_offset + input_buffer_length)].to_vec();
+                        let input_bytes: Vec<u8> = read_accessor_bytes(&input_accesor, buffers);
                         assert_eq!(gltf::accessor::DataType::F32, input_accesor.data_type());
                         assert_eq!(gltf::accessor::Dimensions::Scalar, input_accesor.dimensions());
                         animation_node_data._times = system::convert_vec(input_bytes);
                     }
 
                     // output data
-                    let output_buffer_offset = output_view.offset();
-                    let output_buffer_length = output_view.length();
-                    let output_bytes: Vec<u8> =
-                        buffers[0].0[output_buffer_offset..(output_buffer_offset + output_buffer_length)].to_vec();
+                    let output_bytes: Vec<u8> = read_accessor_bytes(&output_accesor, buffers);
                     match property {
                         gltf::animation::Property::Translation => {
                             assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
                             assert_eq!(gltf::accessor::Dimensions::Vec3, output_accesor.dimensions());
-                            animation_node_data._locations = system::convert_vec(output_bytes);
+                            let mut locations: Vec<Vector3<f32>> = system::convert_vec(output_bytes);
+                            if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
+                                for location in locations.iter_mut() {
+                                    location.z = -location.z;
+                                }
+                            }
+                            animation_node_data._locations = locations;
                         }
                         gltf::animation::Property::Rotation => {
                             assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
                             assert_eq!(gltf::accessor::Dimensions::Vec4, output_accesor.dimensions());
-                            animation_node_data._rotations = system::convert_vec(output_bytes);
+                            let mut rotations: Vec<Quaternion<f32>> = system::convert_vec(output_bytes);
+                            if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
+                                for rotation in rotations.iter_mut() {
+                                    rotation.coords.x = -rotation.coords.x;
+                                    rotation.coords.y = -rotation.coords.y;
+                                }
+                            }
+                            animation_node_data._rotations = rotations;
                         }
                         gltf::animation::Property::Scale => {
                             assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
@@ -518,7 +597,7 @@ pub fn parsing_animation(
 
 pub fn precompute_animation(
     frame_index: usize,
-    _parent_transform: &Matrix4<f32>,
+    parent_transform: &Matrix4<f32>,
     bone_index: usize,
     hierarchy: &SkeletonHierarchyTree,
     bone_names: &Vec<String>,
@@ -527,13 +606,14 @@ pub fn precompute_animation(
 ) {
     // precompute bone animation matrix with ancestor bone matrices
     let animation_node_data = &mut animation_node_data_list[bone_index];
-    let transform: Matrix4<f32> = math::combinate_matrix(
+    let local_transform: Matrix4<f32> = math::combinate_matrix(
         &animation_node_data._locations[frame_index],
         &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
         &animation_node_data._scales[frame_index],
     );
+    let global_transform = parent_transform * local_transform;
 
-    let combined_transform = &transform * &inv_bind_matrices[bone_index];
+    let combined_transform = &global_transform * &inv_bind_matrices[bone_index];
     animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
     animation_node_data._rotations[frame_index] = math::extract_quaternion(&combined_transform);
     animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
@@ -542,7 +622,7 @@ pub fn precompute_animation(
         let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
         precompute_animation(
             frame_index,
-            &transform,
+            &global_transform,
             child_bone_index,
             &child_hierarchy,
             bone_names,
@@ -554,6 +634,7 @@ pub fn precompute_animation(
 
 pub fn parsing_meshes(
     node: &gltf::Node,
+    parent_world_transform: &Matrix4<f32>,
     buffers: &Vec<gltf::buffer::Data>,
     depth: i32,
     mesh_data_create_info: &mut MeshDataCreateInfo,
@@ -576,17 +657,20 @@ pub fn parsing_meshes(
         );
     }
 
+    let node_world_transform = parent_world_transform * gltf_node_matrix(node);
+
     if node.mesh().is_some() {
         let is_skeletal_mesh: bool = node.skin().is_some();
         let mesh = node.mesh().unwrap();
-        let m: &[[f32; 4]; 4] = &node.transform().matrix();
-        let mut parent_transform: Matrix4<f32> = Matrix4::new(
-            m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2], m[3][2],
-            m[0][3], m[1][3], m[2][3], m[3][3],
-        );
+        // Per glTF 2.0 spec 3.7.3.1, skinned meshes ignore the mesh node's own transform.
+        let mut vertex_transform: Matrix4<f32> = if is_skeletal_mesh {
+            Matrix4::identity()
+        } else {
+            node_world_transform
+        };
 
         if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
-            parent_transform.set_column(2, &(-parent_transform.column(2)));
+            vertex_transform = convert_position_matrix_rh_to_lh(&vertex_transform);
         }
 
         if SHOW_GLTF_LOG {
@@ -594,7 +678,7 @@ pub fn parsing_meshes(
                 "\tMesh {:?}, Index: {:?}, Transform: {:?}",
                 mesh.name(),
                 mesh.index(),
-                parent_transform
+                vertex_transform
             );
         }
         for primitive in mesh.primitives() {
@@ -607,30 +691,24 @@ pub fn parsing_meshes(
             }
 
             // bound box
-            let bound_min = math::apply_matrix_to_vector(
-                &parent_transform,
-                &Vector3::new(
-                    primitive.bounding_box().min[0],
-                    primitive.bounding_box().min[1],
-                    primitive.bounding_box().min[2],
-                ),
-                1.0,
+            let raw_min = Vector3::new(
+                primitive.bounding_box().min[0],
+                primitive.bounding_box().min[1],
+                primitive.bounding_box().min[2],
             );
-            let bound_max = math::apply_matrix_to_vector(
-                &parent_transform,
-                &Vector3::new(
-                    primitive.bounding_box().max[0],
-                    primitive.bounding_box().max[1],
-                    primitive.bounding_box().max[2],
-                ),
-                1.0,
+            let raw_max = Vector3::new(
+                primitive.bounding_box().max[0],
+                primitive.bounding_box().max[1],
+                primitive.bounding_box().max[2],
             );
-            let bounding_box: BoundingBox = BoundingBox::create_bounding_box(&bound_min, &bound_max);
+            let local_bounding_box = BoundingBox::create_bounding_box(&raw_min, &raw_max);
+            let mut bounding_box: BoundingBox = BoundingBox::default();
+            bounding_box.update_axis_aligned_bounding_box(&local_bounding_box, &vertex_transform);
 
             // parsing vertex buffer
             let indices = parsing_index_buffer(&primitive, buffers);
             let (mut vertex_data_list, mut skeletal_vertex_data_list, find_tangent_data) =
-                parsing_vertex_buffer(is_skeletal_mesh, &parent_transform, &primitive, buffers);
+                parsing_vertex_buffer(is_skeletal_mesh, &vertex_transform, &primitive, buffers);
 
             // compute tangent normal
             if false == find_tangent_data {
@@ -653,7 +731,7 @@ pub fn parsing_meshes(
     }
 
     for child in node.children() {
-        parsing_meshes(&child, buffers, depth + 1, mesh_data_create_info);
+        parsing_meshes(&child, &node_world_transform, buffers, depth + 1, mesh_data_create_info);
     }
 }
 
@@ -663,7 +741,7 @@ impl GLTF {
         let (document, buffers, _images) = gltf::import(filename).unwrap();
         let mut mesh_data_create_info = MeshDataCreateInfo::default();
         for skin in document.skins() {
-            parsing_skins(document.nodes(), &skin, &buffers, &mut mesh_data_create_info);
+            parsing_skins(&document, &skin, &buffers, &mut mesh_data_create_info);
 
             parsing_animation(document.animations(), &skin, &buffers, &mut mesh_data_create_info);
 
@@ -693,14 +771,46 @@ impl GLTF {
             }
         }
 
+        let identity = Matrix4::identity();
         for scene in document.scenes() {
             for node in scene.nodes() {
-                parsing_meshes(&node, &buffers, 0, &mut mesh_data_create_info);
+                parsing_meshes(&node, &identity, &buffers, 0, &mut mesh_data_create_info);
             }
         }
 
         mesh_data_create_info._bound_box =
             MeshDataCreateInfo::calc_mesh_bounding_box(&mesh_data_create_info._geometry_create_infos);
         mesh_data_create_info
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rh_to_lh_similarity_and_quaternion_conversion() {
+        let z_flip = Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+        );
+        let q_rh = math::euler_to_quaternion(0.4, 0.9, -0.5);
+        let t_rh = Vector3::new(1.5, -2.0, 3.5);
+        let s_rh = Vector3::new(1.0, 2.0, 3.0);
+        let m_rh = math::make_location_quat_scale_transform(&t_rh, &q_rh, &s_rh);
+
+        let m_lh = convert_matrix_rh_to_lh(&m_rh);
+        let expected_m_lh = z_flip * m_rh * z_flip;
+        assert!((m_lh - expected_m_lh).norm() < 1e-5);
+        assert!(m_lh.determinant() > 0.0);
+
+        // Verify converted T/Q/S builds the exact same similarity matrix
+        let t_lh = Vector3::new(t_rh.x, t_rh.y, -t_rh.z);
+        let q_lh = Quaternion::new(q_rh.w, -q_rh.i, -q_rh.j, q_rh.k);
+        let rebuilt = math::make_location_quat_scale_transform(&t_lh, &q_lh, &s_rh);
+        assert!((rebuilt - expected_m_lh).norm() < 1e-5);
+
+        // Verify position matrix negates world Z (row 2)
+        let pos_m_lh = convert_position_matrix_rh_to_lh(&m_rh);
+        assert!((pos_m_lh - (z_flip * m_rh)).norm() < 1e-5);
     }
 }

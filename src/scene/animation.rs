@@ -329,25 +329,32 @@ impl AnimationData {
 
     pub fn get_time_to_frame(&self, current_frame: f32, current_time: f32) -> f32 {
         if 1 < self._frame_count {
-            let mut frame = current_frame as usize;
             let last_index = self._frame_count - 1;
-
-            if last_index <= frame {
-                frame %= last_index;
+            if current_time <= self._frame_times[0] {
+                return 0.0;
+            }
+            if self._frame_times[last_index] <= current_time {
+                return last_index as f32;
             }
 
-            loop {
-                if (0 == frame && current_time <= self._frame_times[frame])
-                    || (self._frame_times[frame] <= current_time && current_time <= self._frame_times[frame + 1])
-                {
+            let mut frame = (current_frame as usize) % last_index;
+            let mut iterations = 0;
+            while iterations < last_index {
+                if self._frame_times[frame] <= current_time && current_time <= self._frame_times[frame + 1] {
                     break;
                 }
                 frame = (frame + 1) % last_index;
+                iterations += 1;
             }
 
             let frame_time = self._frame_times[frame];
             let next_frame_time = self._frame_times[frame + 1];
-            let ratio = (current_time - frame_time) / (next_frame_time - frame_time);
+            let delta = next_frame_time - frame_time;
+            let ratio = if delta > 0.0 {
+                (current_time - frame_time) / delta
+            } else {
+                0.0
+            };
             return frame as f32 + ratio;
         }
         0.0
@@ -421,7 +428,11 @@ impl AnimationBuffer {
             let bone_node = &animation_data._nodes[bone_index];
             let transform =
                 ptr_as_ref(animation_data._skeleton)._transform * animation_transforms[bone_index].to_matrix();
-            self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
+            self._animation_buffer[bone_index] = if bone_node._combined_inv_bind_matrix {
+                animation_transforms[bone_index].to_matrix()
+            } else {
+                transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix
+            };
             self.update_hierarchical_animation_transform(
                 *bone_data,
                 &transform,
@@ -453,7 +464,11 @@ impl AnimationBuffer {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
             let transform = ptr_as_ref(parent_matrix) * animation_transforms[bone_index].to_matrix();
-            self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
+            self._animation_buffer[bone_index] = if bone_node._combined_inv_bind_matrix {
+                animation_transforms[bone_index].to_matrix()
+            } else {
+                transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix
+            };
             self.update_hierarchical_animation_transform(
                 *bone_data,
                 &transform,

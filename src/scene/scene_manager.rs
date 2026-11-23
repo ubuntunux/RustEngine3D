@@ -747,35 +747,27 @@ impl<'a> SceneManager<'a> {
     }
     pub fn shadow_culling(light: &DirectionalLight, geometry_bound_box: &BoundingBox) -> bool {
         let shadow_view_projection = light.get_shadow_view_projection();
-        let bound_min: Vector4<f32> = shadow_view_projection
-            * Vector4::new(
-                geometry_bound_box._min.x,
-                geometry_bound_box._min.y,
-                geometry_bound_box._min.z,
-                1.0,
-            );
-        let bound_max: Vector4<f32> = shadow_view_projection
-            * Vector4::new(
-                geometry_bound_box._max.x,
-                geometry_bound_box._max.y,
-                geometry_bound_box._max.z,
-                1.0,
-            );
-        let minimum: Vector3<f32> = Vector3::new(
-            bound_min.x.min(bound_max.x),
-            bound_min.y.min(bound_max.y),
-            bound_min.z.min(bound_max.z),
+        let c = geometry_bound_box._center;
+        let e = geometry_bound_box._extents;
+        let clip_center = shadow_view_projection * Vector4::new(c.x, c.y, c.z, 1.0);
+        let clip_extents = Vector3::new(
+            shadow_view_projection.m11.abs() * e.x
+                + shadow_view_projection.m12.abs() * e.y
+                + shadow_view_projection.m13.abs() * e.z,
+            shadow_view_projection.m21.abs() * e.x
+                + shadow_view_projection.m22.abs() * e.y
+                + shadow_view_projection.m23.abs() * e.z,
+            shadow_view_projection.m31.abs() * e.x
+                + shadow_view_projection.m32.abs() * e.y
+                + shadow_view_projection.m33.abs() * e.z,
         );
-        let maximum: Vector3<f32> = Vector3::new(
-            bound_min.x.max(bound_max.x),
-            bound_min.y.max(bound_max.y),
-            bound_min.z.max(bound_max.z),
-        );
+        let minimum = clip_center.xyz() - clip_extents;
+        let maximum = clip_center.xyz() + clip_extents;
         if maximum.x < -1.0
             || 1.0 < minimum.x
             || maximum.y < -1.0
             || 1.0 < minimum.y
-            || maximum.z < -1.0
+            || maximum.z < 0.0
             || 1.0 < minimum.z
         {
             return true;

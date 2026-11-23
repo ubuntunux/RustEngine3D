@@ -194,8 +194,6 @@ impl WaveFrontOBJ {
             let mut indices: Vec<u32> = Vec::new();
             let mut index_map: HashMap<(u32, u32, u32), u32> = HashMap::new();
 
-            let mut bound_min: Vector3<f32> = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
-            let mut bound_max: Vector3<f32> = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
             for mesh_indices in mesh.indices.iter() {
                 // exclude material
                 let (postion_indices, normal_indices, texcoord_indices) = mesh_indices;
@@ -210,16 +208,6 @@ impl WaveFrontOBJ {
                             positions.push(self.positions[postion_indices[i] as usize].clone() as Vector3<f32>);
                             normals.push(self.normals[normal_indices[i] as usize].clone() as Vector3<f32>);
                             texcoords.push(self.texcoords[texcoord_indices[i] as usize].clone() as Vector2<f32>);
-                            // bounding box
-                            let position: &Vector3<f32> = positions.last().unwrap();
-                            for j in 0..3 {
-                                if bound_min[j] > position[j] {
-                                    bound_min[j] = position[j];
-                                }
-                                if bound_max[j] < position[j] {
-                                    bound_max[j] = position[j];
-                                }
-                            }
                         }
                     }
                 }
@@ -243,6 +231,7 @@ impl WaveFrontOBJ {
                 }
             }
 
+            let bounding_box = BoundingBox::calc_bounding_box(&positions);
             let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
             let vertex_data_list: Vec<VertexData> = positions
@@ -260,7 +249,7 @@ impl WaveFrontOBJ {
             geometry_data_list.push(GeometryCreateInfo {
                 _vertex_data_list: vertex_data_list,
                 _indices: indices,
-                _bounding_box: BoundingBox::create_bounding_box(&bound_min, &bound_max),
+                _bounding_box: bounding_box,
                 ..Default::default()
             });
         }

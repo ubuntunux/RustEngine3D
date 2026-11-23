@@ -296,15 +296,46 @@ impl CameraObjectData {
             self._projection_jitter.column_mut(2)[1] = self._jitter[1];
             linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
             self._view_projection_jitter = &self._projection_jitter * &self._view;
+            self._inv_view_projection_jitter = &self._inv_view * &self._inv_projection_jitter;
             self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
-            linalg::try_invert_to(
-                self._view_origin_projection_jitter.into(),
-                &mut self._inv_view_origin_projection_jitter,
-            );
+            self._inv_view_origin_projection_jitter = &self._inv_view_origin * &self._inv_projection_jitter;
         } else if updated {
             self._view_projection_jitter = self._view_projection.into();
+            self._inv_view_projection_jitter = self._inv_view_projection.into();
             self._view_origin_projection_jitter = self._view_origin_projection.into();
             self._inv_view_origin_projection_jitter = self._inv_view_origin_projection.into();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_camera_inv_view_projection_jitter_updated() {
+        let create_info = CameraCreateInfo {
+            position: Vector3::new(3.0, 5.0, -2.0),
+            rotation: Vector3::new(0.3, 0.8, 0.0),
+            enable_jitter: true,
+            ..Default::default()
+        };
+        let mut cam = CameraObjectData::create_camera_object_data(Uuid::new_v4(), &String::from("test"), &create_info);
+        cam.update_camera_object_data();
+
+        let prod = cam._view_projection_jitter * cam._inv_view_projection_jitter;
+        for r in 0..4 {
+            for c in 0..4 {
+                let expected = if r == c { 1.0 } else { 0.0 };
+                assert!(
+                    (prod[(r, c)] - expected).abs() < 1e-3,
+                    "VP_jitter * InvVP_jitter mismatch at ({}, {}): {}",
+                    r,
+                    c,
+                    prod[(r, c)]
+                );
+            }
         }
     }
 }

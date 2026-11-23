@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::ops::Add;
 use std::path::PathBuf;
 
-use nalgebra::{self, Matrix4, Vector2, Vector3, Vector4};
+use nalgebra::{self, Matrix3, Matrix4, Unit, UnitQuaternion, Vector2, Vector3, Vector4};
 use nalgebra_glm as glm;
 
 use crate::constants;
@@ -312,7 +312,7 @@ impl ColladaNode {
         let xml_nodes = xml_node.get_elements("node");
         if xml_nodes.is_some() {
             for xml_child_node in xml_nodes.unwrap().iter() {
-                let child = ColladaNode::create_collada_node(xml_child_node, &collada_node, depth + 1);
+                let child = ColladaNode::create_collada_node(xml_child_node, std::ptr::null(), depth + 1);
                 collada_node._children.push(child);
             }
         }
@@ -322,21 +322,22 @@ impl ColladaNode {
     pub fn parsing_matrix(&mut self, xml_node: &XmlTree) {
         let xml_matrix = xml_node.get_elements("matrix");
         if xml_matrix.is_some() {
-            // transform matrix
+            // COLLADA <matrix> stores 16 floats in row-major order.
             let matrix: Vec<f32> = xml_matrix.unwrap()[0].text.split(" ").map(|x| parse_value::<f32>(x, 0.0)).collect();
             if 16 == matrix.len() {
-                self._matrix.copy_from_slice(&matrix);
+                self._matrix = Matrix4::from_row_slice(&matrix);
             } else {
                 panic!("parsing matrix error.");
             }
         } else {
-            // location, rotation, scale
+            // location, rotation, scale (post-multiplied in T * R * S order)
             let xml_translate = xml_node.get_elements("translate");
             if xml_translate.is_some() {
                 let translation: Vec<f32> =
                     xml_translate.unwrap()[0].text.split(" ").map(|x| parse_value::<f32>(x, 0.0)).collect();
                 if 3 == translation.len() {
-                    math::translate_matrix(&mut self._matrix, translation[0], translation[1], translation[2]);
+                    self._matrix *=
+                        math::make_translate_matrix(&Vector3::new(translation[0], translation[1], translation[2]));
                 } else {
                     panic!("{} node has a invalid translate.", self._name);
                 }
@@ -347,13 +348,13 @@ impl ColladaNode {
                 for xml_rotate in xml_rotates.unwrap().iter() {
                     let rotation: Vec<f32> = xml_rotate.text.split(" ").map(|x| parse_value::<f32>(x, 0.0)).collect();
                     if 4 == rotation.len() {
-                        let axis = xml_rotate.attributes.get("sid").unwrap();
-                        match axis.as_str() {
-                            // rotation_axis : rotation[0], rotation[1], rotation[2], radian : rotation[3]
-                            "rotationX" => math::matrix_rotate_x(&mut self._matrix, rotation[3]),
-                            "rotationY" => math::matrix_rotate_y(&mut self._matrix, rotation[3]),
-                            "rotationZ" => math::matrix_rotate_z(&mut self._matrix, rotation[3]),
-                            _ => panic!("{} node has a invalid rotate.", self._name),
+                        // COLLADA <rotate> angle is in degrees around arbitrary axis (x, y, z)
+                        let axis = Vector3::new(rotation[0], rotation[1], rotation[2]);
+                        let radian = math::degree_to_radian(rotation[3]);
+                        if axis.magnitude_squared() > 0.0 {
+                            let rot_mat =
+                                UnitQuaternion::from_axis_angle(&Unit::new_normalize(axis), radian).to_homogeneous();
+                            self._matrix *= rot_mat;
                         }
                     }
                 }
@@ -364,7 +365,7 @@ impl ColladaNode {
                 let scale: Vec<f32> =
                     xml_scale.unwrap()[0].text.split(" ").map(|x| parse_value::<f32>(x, 1.0)).collect();
                 if 3 == scale.len() {
-                    math::scale_matrix(&mut self._matrix, scale[0], scale[1], scale[2]);
+                    self._matrix *= math::make_scale_matrix(scale[0], scale[1], scale[2]);
                 } else {
                     panic!("{} node has a invalid scale.", self._name);
                 }
@@ -401,12 +402,16 @@ impl ColladaController {
                 self._skin_source = String::from(self._skin_source.get(1..).unwrap());
             }
 
-            // parsing bind_shape_matrix
+            // parsing bind_shape_matrix (COLLADA row-major)
             let bind_shape_matrix = xml_skin.get_elements("bind_shape_matrix");
             if bind_shape_matrix.is_some() {
                 let bind_shape_matrix = &bind_shape_matrix.unwrap()[0];
                 let float_array = parse_list::<f32>(bind_shape_matrix.text.as_str());
-                self._bind_shape_matrix.copy_from_slice(&float_array);
+                if float_array.len() == 16 {
+                    self._bind_shape_matrix = Matrix4::from_row_slice(&float_array);
+                } else {
+                    self._bind_shape_matrix = Matrix4::identity();
+                }
             } else {
                 self._bind_shape_matrix = Matrix4::identity();
             }
@@ -476,7 +481,7 @@ impl ColladaController {
                     }
                 }
                 let weight = weights_semantics.get("WEIGHT");
-                if joint.is_some() {
+                if weight.is_some() {
                     let offset = weight.unwrap()._offset;
                     if v < vcount {
                         bone_weights.push(weight_sources[indices[offset + v * semantic_stride] as usize]);
@@ -523,11 +528,7 @@ impl ColladaController {
                 };
                 self._inv_bind_matrices = inv_bind_matrices
                     .iter()
-                    .map(|inv_bind_matrix_float_array| {
-                        let mut inv_bind_matrix: Matrix4<f32> = Matrix4::identity();
-                        inv_bind_matrix.copy_from_slice(&inv_bind_matrix_float_array);
-                        inv_bind_matrix
-                    })
+                    .map(|inv_bind_matrix_float_array| Matrix4::from_row_slice(inv_bind_matrix_float_array))
                     .collect();
             }
         }
@@ -587,8 +588,11 @@ impl ColladaAnimation {
                 match output_source {
                     ColladaSourceData::VectorArray(matrices) => {
                         for matrix in matrices.iter() {
-                            self._outputs.push(Matrix4::identity());
-                            self._outputs.last_mut().unwrap().copy_from_slice(&matrix);
+                            if matrix.len() == 16 {
+                                self._outputs.push(Matrix4::from_row_slice(matrix));
+                            } else {
+                                self._outputs.push(Matrix4::identity());
+                            }
                         }
                     }
                     ColladaSourceData::FloatArray(data) => {
@@ -733,7 +737,10 @@ impl ColladaGeometry {
                             if 3 == (*vcount) {
                                 vertex_index_list.extend(vertex_indices);
                             } else if 4 == (*vcount) {
-                                vertex_index_list.extend(math::convert_triangulate(&vertex_indices));
+                                vertex_index_list.extend(math::convert_triangulate_strided(
+                                    &vertex_indices,
+                                    semantic_stride as usize,
+                                ));
                             } else {
                                 panic!("too many polygon shape.")
                             }
@@ -936,7 +943,43 @@ impl Collada {
         }
     }
 
+    /// Returns `(coord_matrix, inv_coord_matrix, flips_handedness)` converting from
+    /// COLLADA native right-handed space (`_up_axis`, `_unit_meter`) to Engine space.
+    pub fn get_coordinate_conversion_matrices(&self) -> (Matrix4<f32>, Matrix4<f32>, bool) {
+        let to_lh = constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED;
+        let basis: Matrix4<f32> = match (self._up_axis.as_str(), to_lh) {
+            // Z_UP RH (+X right, +Y forward, +Z up) -> Y_UP LH (+X right, +Y up, +Z forward): swap Y <-> Z
+            ("Z_UP", true) => Matrix4::new(
+                1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ),
+            // Z_UP RH -> Y_UP RH: rotate -90 deg around X -> (x, z, -y)
+            ("Z_UP", false) => Matrix4::new(
+                1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ),
+            // X_UP RH -> Y_UP LH: (-y, x, -z)
+            ("X_UP", true) => Matrix4::new(
+                0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ),
+            // X_UP RH -> Y_UP RH: (-y, x, z)
+            ("X_UP", false) => Matrix4::new(
+                0.0, -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ),
+            // Y_UP RH -> Y_UP LH: negate Z
+            (_, true) => Matrix4::new(
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ),
+            // Y_UP RH -> Y_UP RH: identity
+            (_, false) => Matrix4::identity(),
+        };
+        let scale = if self._unit_meter > 0.0 { self._unit_meter } else { 1.0 };
+        let inv_scale = 1.0 / scale;
+        let coord = basis * math::make_scale_matrix(scale, scale, scale);
+        let inv_coord = math::make_scale_matrix(inv_scale, inv_scale, inv_scale) * basis.transpose();
+        (coord, inv_coord, to_lh)
+    }
+
     pub fn get_skeleton_data(&mut self) -> Vec<SkeletonDataCreateInfo> {
+        let (coord, inv_coord, _) = self.get_coordinate_conversion_matrices();
         let mut skeleton_data_list: Vec<SkeletonDataCreateInfo> = Vec::new();
         let mut check_duplicated: Vec<&str> = Vec::new();
         for controller in self._controllers.iter_mut() {
@@ -953,17 +996,23 @@ impl Collada {
                     }
                 }
 
-                if let Some(root_node) = root_node {
+                let root_transform = if let Some(root_node) = root_node {
                     // recursive build hierarchy of bones
                     Collada::build_hierarchy(controller, &root_node, &mut hierarchy);
-                }
+                    coord * root_node._matrix * inv_coord
+                } else {
+                    Matrix4::identity()
+                };
+
+                let converted_inv_bind_matrices: Vec<Matrix4<f32>> =
+                    controller._inv_bind_matrices.iter().map(|ibm| coord * ibm * inv_coord).collect();
 
                 let skeleton_data = SkeletonDataCreateInfo {
                     _name: controller._name.clone(),
-                    _transform: Matrix4::identity(),
-                    _hierarchy: hierarchy,                       // bone names map as hierarchy
-                    _bone_names: controller._bone_names.clone(), // bone name list ordered by index
-                    _inv_bind_matrices: controller._inv_bind_matrices.clone(), // inverse matrix of bone
+                    _transform: root_transform,
+                    _hierarchy: hierarchy,                           // bone names map as hierarchy
+                    _bone_names: controller._bone_names.clone(),     // bone name list ordered by index
+                    _inv_bind_matrices: converted_inv_bind_matrices, // inverse matrix of bone
                 };
                 skeleton_data_list.push(skeleton_data);
             }
@@ -976,22 +1025,24 @@ impl Collada {
         children_hierarchy: &SkeletonHierarchyTree,
         bone_names: &Vec<String>,
         inv_bind_matrices: &Vec<Matrix4<f32>>,
-        _parent_matrix: &Matrix4<f32>,
+        parent_matrix: &Matrix4<f32>,
+        coord: &Matrix4<f32>,
+        inv_coord: &Matrix4<f32>,
         frame: usize,
     ) {
         for child in children_hierarchy._children.keys() {
             for i in 0..animations.len() {
                 if *child == animations[i]._target {
-                    // just Transpose child bones, no swap y-z.
-                    let child_transform: Matrix4<f32> = animations[i]._outputs[frame].transpose();
+                    let child_local: Matrix4<f32> = coord * animations[i]._outputs[frame] * inv_coord;
+                    let child_global: Matrix4<f32> = parent_matrix * child_local;
 
                     if constants::COMBINED_INVERSE_BIND_MATRIX {
                         let child_bone_index =
                             bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap();
                         let child_inv_bind_matrix = &inv_bind_matrices[child_bone_index];
-                        animations[i]._outputs[frame] = child_transform * child_inv_bind_matrix;
+                        animations[i]._outputs[frame] = child_global * child_inv_bind_matrix;
                     } else {
-                        animations[i]._outputs[frame] = child_transform;
+                        animations[i]._outputs[frame] = child_local;
                     }
                     // recursive precompute animation
                     Collada::precompute_animation(
@@ -999,7 +1050,9 @@ impl Collada {
                         children_hierarchy._children.get(&animations[i]._target).unwrap(),
                         bone_names,
                         inv_bind_matrices,
-                        &child_transform,
+                        &child_global,
+                        coord,
+                        inv_coord,
                         frame,
                     );
                     break;
@@ -1012,6 +1065,7 @@ impl Collada {
         &mut self,
         skeleton_data_list: &Vec<SkeletonDataCreateInfo>,
     ) -> Vec<Vec<AnimationNodeCreateInfo>> {
+        let (coord, inv_coord, _) = self.get_coordinate_conversion_matrices();
         // precompute_animation
         let mut animation_data_list: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
         for skeleton_data in skeleton_data_list.iter() {
@@ -1029,15 +1083,15 @@ impl Collada {
                 if hierarchy._children.contains_key(&animations[i]._target) {
                     // precompute all animation frames
                     for frame in 0..animations[i]._outputs.len() {
-                        // only root bone adjust convert_matrix for swap Y-Z Axis
-                        let transform: Matrix4<f32> = animations[i]._outputs[frame].clone() as Matrix4<f32>;
+                        let local_transform: Matrix4<f32> = coord * animations[i]._outputs[frame] * inv_coord;
+                        let global_transform: Matrix4<f32> = skeleton_data._transform * local_transform;
                         if constants::COMBINED_INVERSE_BIND_MATRIX {
                             let bone_index =
                                 bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap();
                             let inv_bind_matrix: &Matrix4<f32> = &inv_bind_matrices[bone_index];
-                            animations[i]._outputs[frame] = transform * inv_bind_matrix;
+                            animations[i]._outputs[frame] = global_transform * inv_bind_matrix;
                         } else {
-                            animations[i]._outputs[frame] = transform;
+                            animations[i]._outputs[frame] = local_transform;
                         }
                         // recursive precompute animation
                         Collada::precompute_animation(
@@ -1045,7 +1099,9 @@ impl Collada {
                             hierarchy._children.get(&animations[i]._target).unwrap(),
                             bone_names,
                             inv_bind_matrices,
-                            &transform,
+                            &global_transform,
+                            &coord,
+                            &inv_coord,
                             frame,
                         );
                     }
@@ -1100,11 +1156,15 @@ impl Collada {
     }
 
     pub fn get_geometry_data(&mut self) -> Vec<GeometryCreateInfo> {
+        let (coord, _, flips_handedness) = self.get_coordinate_conversion_matrices();
         let mut geometry_data_list: Vec<GeometryCreateInfo> = Vec::new();
         for i in 0..self._geometries.len() {
             let geometry: &mut ColladaGeometry = &mut self._geometries[i];
+            let final_bind_matrix = coord * geometry._bind_shape_matrix;
+            let upper: Matrix3<f32> = final_bind_matrix.fixed_view::<3, 3>(0, 0).into_owned();
+            let normal_matrix: Matrix3<f32> = upper.try_inverse().map(|inv| inv.transpose()).unwrap_or(upper);
 
-            // precompute bind_shape_matrix
+            // precompute bind_shape_matrix and coordinate conversion
             for position_index in 0..geometry._positions.len() {
                 let position: Vector4<f32> = Vector4::new(
                     geometry._positions[position_index].x,
@@ -1112,20 +1172,22 @@ impl Collada {
                     geometry._positions[position_index].z,
                     1.0,
                 );
-                geometry._positions[position_index] = glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &position));
+                geometry._positions[position_index] = glm::vec4_to_vec3(&(&final_bind_matrix * &position));
             }
 
             let bounding_box: BoundingBox = BoundingBox::calc_bounding_box(&geometry._positions);
 
             for normal_index in 0..geometry._normals.len() {
-                let normal = Vector4::new(
-                    geometry._normals[normal_index].x,
-                    geometry._normals[normal_index].y,
-                    geometry._normals[normal_index].z,
-                    0.0,
-                );
                 geometry._normals[normal_index] =
-                    math::safe_normalize(&glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &normal)));
+                    math::safe_normalize(&(normal_matrix * geometry._normals[normal_index]));
+            }
+
+            if flips_handedness {
+                for tri in (0..geometry._indices.len()).step_by(3) {
+                    if tri + 2 < geometry._indices.len() {
+                        geometry._indices.swap(tri + 1, tri + 2);
+                    }
+                }
             }
 
             let tangents = geometry_buffer::compute_tangent(
@@ -1193,5 +1255,54 @@ impl Collada {
             _animation_node_create_infos: animation_data_list,
             _geometry_create_infos: geometry_data_list,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_dummy_collada(up_axis: &str, unit_meter: f32) -> Collada {
+        Collada {
+            _name: String::new(),
+            _collada_version: String::new(),
+            _author: String::new(),
+            _authoring_tool: String::new(),
+            _created: String::new(),
+            _modified: String::new(),
+            _unit_name: String::from("meter"),
+            _unit_meter: unit_meter,
+            _up_axis: up_axis.to_string(),
+            _nodes: Vec::new(),
+            _node_name_map: HashMap::new(),
+            _geometries: Vec::new(),
+            _controllers: Vec::new(),
+            _animations: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn test_collada_coordinate_conversion_invariants() {
+        for up_axis in &["Y_UP", "Z_UP", "X_UP"] {
+            let collada = make_dummy_collada(up_axis, 0.01);
+            let (coord, inv_coord, flips) = collada.get_coordinate_conversion_matrices();
+            assert_eq!(flips, constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED);
+            assert!((coord * inv_coord - Matrix4::identity()).norm() < 1e-5);
+
+            // Similarity transform preserves positive determinant
+            let m = math::make_srt_transform(
+                &Vector3::new(100.0, 200.0, 300.0),
+                &Vector3::new(0.3, 0.5, 0.7),
+                &Vector3::new(1.0, 1.0, 1.0),
+            );
+            let m_conv = coord * m * inv_coord;
+            assert!((m_conv.determinant() - 1.0).abs() < 1e-4);
+        }
+
+        // Z_UP -> Y_UP LH swaps Y and Z and applies unit_meter
+        let z_up = make_dummy_collada("Z_UP", 0.5);
+        let (coord, _, _) = z_up.get_coordinate_conversion_matrices();
+        let v = coord * Vector4::new(2.0, 4.0, 6.0, 1.0);
+        assert!((v.xyz() - Vector3::new(1.0, 3.0, 2.0)).norm() < 1e-5);
     }
 }
