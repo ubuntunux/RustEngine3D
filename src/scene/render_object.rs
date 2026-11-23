@@ -653,16 +653,6 @@ impl<'a> RenderObjectData<'a> {
         &self._material_instance_data_list[index]
     }
 
-    pub fn set_material_instance_data(
-        &mut self,
-        index: usize,
-        material_instance_data: RcRefCell<MaterialInstanceData<'a>>,
-    ) {
-        if index < self._material_instance_data_list.len() {
-            self._material_instance_data_list[index] = material_instance_data;
-        }
-    }
-
     pub fn get_push_constant_data_list(&self, model_index: usize) -> &Vec<PipelinePushConstantData> {
         &self._push_constant_data_list_group[model_index]
     }

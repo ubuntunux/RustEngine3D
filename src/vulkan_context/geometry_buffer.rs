@@ -46,6 +46,7 @@ pub struct SkeletalVertexData {
     pub _texcoord: Vector2<f32>,
     pub _bone_indices: Vector4<u32>,
     pub _bone_weights: Vector4<f32>,
+    pub _texcoord1: Vector2<f32>,
 }
 
 impl Default for SkeletalVertexData {
@@ -58,6 +59,7 @@ impl Default for SkeletalVertexData {
             _texcoord: Vector2::new(0.0, 0.0),
             _bone_indices: Vector4::new(0, 0, 0, 0),
             _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
+            _texcoord1: Vector2::new(-1.0, -1.0),
         }
     }
 }
@@ -154,6 +156,7 @@ impl SkeletalVertexData {
     const TEXCOORD: vk::Format = vk::Format::R32G32_SFLOAT;
     const BONE_INDICES: vk::Format = vk::Format::R32G32B32A32_UINT;
     const BONE_WEIGHTS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
+    const TEXCOORD1: vk::Format = vk::Format::R32G32_SFLOAT;
 }
 
 impl VertexDataBase for SkeletalVertexData {
@@ -194,6 +197,11 @@ impl VertexDataBase for SkeletalVertexData {
             &mut vertex_input_attribute_descriptions,
             binding,
             SkeletalVertexData::BONE_WEIGHTS,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::TEXCOORD1,
         );
         vertex_input_attribute_descriptions
     }

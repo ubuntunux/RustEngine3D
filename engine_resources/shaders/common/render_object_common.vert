@@ -91,4 +91,9 @@ void main() {
     vec3 bitangent = cross(vertex_tangent, vertex_normal);
     out_vertex_output._tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
     out_vertex_output._texCoord = inTexCoord;
+#if (RenderObjectType_Skeletal == RenderObjectType)
+    out_vertex_output._texCoord1 = inTexCoord1;
+#else
+    out_vertex_output._texCoord1 = vec2(-1.0, -1.0);
+#endif
 }

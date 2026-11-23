@@ -253,6 +253,13 @@ pub fn parsing_vertex_buffer(
                             vertex_data_list[i]._texcoord.clone_from(&data);
                         }
                     }
+                } else if 1 == *uv_index && is_skeletal_mesh {
+                    assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+                    assert_eq!(gltf::accessor::Dimensions::Vec2, accessor.dimensions());
+                    let buffer_data: Vec<Vector2<f32>> = system::convert_vec(bytes);
+                    for (i, data) in buffer_data.iter().enumerate() {
+                        skeletal_vertex_data_list[i]._texcoord1.clone_from(&data);
+                    }
                 }
             }
             gltf::Semantic::Joints(joint_index) => {

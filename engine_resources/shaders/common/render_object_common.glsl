@@ -66,6 +66,7 @@ struct VertexOutput
     mat3 _tangent_to_world;
     vec4 _color;
     vec2 _texCoord;
+    vec2 _texCoord1;
     vec3 _relative_position;
     vec4 _projection_pos;
     vec4 _projection_pos_prev;
@@ -94,6 +95,7 @@ struct PushConstant_RenderObjectBase
     #if (RenderObjectType_Skeletal == RenderObjectType)
         layout(location = 5) in uvec4 inBoneIndices;
         layout(location = 6) in vec4 inBoneWeights;
+        layout(location = 7) in vec2 inTexCoord1;
     #endif
     layout(location = 0) out VertexOutput out_vertex_output;
 

@@ -1162,6 +1162,7 @@ impl Collada {
                         _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
                         _bone_indices: geometry._bone_indices[index].clone() as Vector4<u32>,
                         _bone_weights: geometry._bone_weights[index].clone() as Vector4<f32>,
+                        _texcoord1: Vector2::new(-1.0, -1.0),
                     });
                 }
             }
