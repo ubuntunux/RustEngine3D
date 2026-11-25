@@ -1139,7 +1139,7 @@ impl<'a> EngineCore<'a> {
                             rt_total_bytes as f32 / (1024.0 * 1024.0)
                         ));
                         font_manager.log(format!(
-                            "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
+                            "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, ToneMap: {:?}, Exp: {:.2}",
                              { constants::RENDER_QUALITY_LEVEL },
                              { constants::ENABLE_UPSCALE },
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
@@ -1148,6 +1148,9 @@ impl<'a> EngineCore<'a> {
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderSSGI),
+                            renderer_context._renderer_data._tone_mapping_mode,
+                            renderer_context._renderer_data._exposure,
                         ));
 
                         let metrics = self._engine_resources.get_resource_metrics();
@@ -1574,6 +1577,11 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                             ._renderer_context
                             .get_renderer_data_mut()
                             .toggle_render_option(RenderOption::RenderSSAO)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit7) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSSGI)
                     }
                 }
             }

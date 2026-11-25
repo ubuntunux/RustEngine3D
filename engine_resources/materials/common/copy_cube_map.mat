@@ -2,5 +2,6 @@
     [ {"render_pass": "copy_cube_map", "pipeline": "copy"}
     , {"render_pass": "copy_cube_map", "pipeline": "blend"}
     , {"render_pass": "copy_cube_map", "pipeline": "convolve_irradiance"}
+    , {"render_pass": "copy_cube_map", "pipeline": "prefilter_specular"}
     ]
 }

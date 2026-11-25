@@ -44,6 +44,8 @@ pub struct RenderContext_LightProbe<'a> {
     pub _light_probe_forward_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _only_sky_convolve_irradiance_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _light_probe_forward_convolve_irradiance_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _only_sky_prefilter_specular_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _light_probe_forward_prefilter_specular_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
 }
 
 impl<'a> Default for RenderContext_LightProbe<'a> {
@@ -68,6 +70,8 @@ impl<'a> Default for RenderContext_LightProbe<'a> {
             _light_probe_forward_copy_descriptor_sets: Vec::new(),
             _only_sky_convolve_irradiance_descriptor_sets: Vec::new(),
             _light_probe_forward_convolve_irradiance_descriptor_sets: Vec::new(),
+            _only_sky_prefilter_specular_descriptor_sets: Vec::new(),
+            _light_probe_forward_prefilter_specular_descriptor_sets: Vec::new(),
         }
     }
 }
@@ -585,30 +589,50 @@ impl RenderContext_CompositeGBuffer {
         engine_resources: &EngineResources<'a>,
         texture_ssr_resolved: &TextureData,
         texture_ssr_resolved_prev: &TextureData,
+        texture_ssgi_resolved: &TextureData,
+        texture_ssgi_resolved_prev: &TextureData,
     ) {
         let render_copy_material_instance =
             engine_resources.get_material_instance_data("common/composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
-        // ssr
+        // ssr & ssgi ping-pong descriptors
         self._descriptor_sets0 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
-            &[(
-                composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(),
-                utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_default_image_info()),
-            )],
+            &[
+                (
+                    composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_ssr_resolved.get_default_image_info(),
+                    ),
+                ),
+                (
+                    composite_gbuffer::SEMANTIC_TEXTURE_SCENE_GI.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_ssgi_resolved.get_default_image_info(),
+                    ),
+                ),
+            ],
         );
         self._descriptor_sets1 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
-            &[(
-                composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(),
-                utility::create_descriptor_image_info_swapchain_array(
-                    texture_ssr_resolved_prev.get_default_image_info(),
+            &[
+                (
+                    composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_ssr_resolved_prev.get_default_image_info(),
+                    ),
                 ),
-            )],
+                (
+                    composite_gbuffer::SEMANTIC_TEXTURE_SCENE_GI.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_ssgi_resolved_prev.get_default_image_info(),
+                    ),
+                ),
+            ],
         );
     }
 
@@ -683,6 +707,8 @@ impl<'a> RenderContext_ClearRenderTargets<'a> {
 }
 
 impl<'a> RenderContext_LightProbe<'a> {
+    pub const PREFILTER_SPECULAR_MIP_START: u32 = 1;
+    pub const PREFILTER_SPECULAR_MIP_END: u32 = 6;
     pub const IRRADIANCE_SRC_MIP: u32 = 4;
     pub const IRRADIANCE_DST_MIP_START: u32 = 6;
 
@@ -726,6 +752,8 @@ impl<'a> RenderContext_LightProbe<'a> {
             copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
         let convolve_irradiance_pipeline_binding_data =
             copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/convolve_irradiance");
+        let prefilter_specular_pipeline_binding_data =
+            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/prefilter_specular");
 
         self._next_refresh_time = 0.0;
         self._light_probe_blend_time = 0.0;
@@ -1044,6 +1072,57 @@ impl<'a> RenderContext_LightProbe<'a> {
                 ),
             );
         }
+
+        // prefilter GGX specular mips from mip 0 into PREFILTER_SPECULAR_MIP_START..PREFILTER_SPECULAR_MIP_END
+        let spec_mip_end = Self::PREFILTER_SPECULAR_MIP_END.min(image_mip_levels);
+        for dst_mip in Self::PREFILTER_SPECULAR_MIP_START..spec_mip_end {
+            let mut only_sky_prefilter_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> =
+                SwapchainArray::new();
+            let mut forward_prefilter_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> =
+                SwapchainArray::new();
+            for layer in 0..6 {
+                only_sky_prefilter_infos.push((
+                    format!("IMAGE_INPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky.get_sub_image_info(layer, 0),
+                    ),
+                ));
+                forward_prefilter_infos.push((
+                    format!("IMAGE_INPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward.get_sub_image_info(layer, 0),
+                    ),
+                ));
+            }
+            for layer in 0..6 {
+                only_sky_prefilter_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky.get_sub_image_info(layer, dst_mip),
+                    ),
+                ));
+                forward_prefilter_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward.get_sub_image_info(layer, dst_mip),
+                    ),
+                ));
+            }
+            self._only_sky_prefilter_specular_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                prefilter_specular_pipeline_binding_data,
+                &only_sky_prefilter_infos,
+            ));
+            self._light_probe_forward_prefilter_specular_descriptor_sets.push(
+                utility::create_descriptor_sets_by_semantic(
+                    device,
+                    debug_utils_device,
+                    prefilter_specular_pipeline_binding_data,
+                    &forward_prefilter_infos,
+                ),
+            );
+        }
     }
 
     pub fn destroy(&mut self, device: &Device) {
@@ -1072,5 +1151,7 @@ impl<'a> RenderContext_LightProbe<'a> {
         self._light_probe_forward_copy_descriptor_sets.clear();
         self._only_sky_convolve_irradiance_descriptor_sets.clear();
         self._light_probe_forward_convolve_irradiance_descriptor_sets.clear();
+        self._only_sky_prefilter_specular_descriptor_sets.clear();
+        self._light_probe_forward_prefilter_specular_descriptor_sets.clear();
     }
 }

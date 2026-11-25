@@ -63,6 +63,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         common::render_gaussian_blur::get_render_pass_data_create_info(renderer_data),
         common::render_motion_blur::get_render_pass_data_create_info(renderer_data),
         common::render_shadow_ao::get_render_pass_data_create_info(renderer_data),
+        common::render_ssgi::get_render_pass_data_create_info(renderer_data),
         common::render_ssr::get_render_pass_data_create_info(renderer_data),
         common::render_taa_simple::get_render_pass_data_create_info(renderer_data),
         common::render_taa::get_render_pass_data_create_info(renderer_data),

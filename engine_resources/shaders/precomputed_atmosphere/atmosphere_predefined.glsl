@@ -29,6 +29,12 @@ struct ATMOSPHERE_CONSTANTS
     vec2 sun_size;
     float atmosphere_exposure;
     float inscatter_power;
+
+    vec3 ground_bounce_albedo;
+    float fog_density;
+
+    vec3 fog_tint;
+    float fog_start_distance;
 };
 
 // Definitions

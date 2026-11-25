@@ -669,6 +669,10 @@ pub struct Atmosphere<'a> {
     pub _noise_contrast: f32,
     pub _noise_coverage: f32,
     pub _noise_tiling: f32,
+    pub _ground_bounce_albedo: Vector3<f32>,
+    pub _fog_density: f32,
+    pub _fog_tint: Vector3<f32>,
+    pub _fog_start_distance: f32,
     pub _compute_multiple_scattering_framebuffers: Layers<FramebufferData<'a>>,
     pub _compute_single_scattering_framebuffers: Layers<FramebufferData<'a>>,
     pub _compute_scattering_density_framebuffers: Layers<FramebufferData<'a>>,
@@ -1061,7 +1065,7 @@ impl<'a> Atmosphere<'a> {
             _atmosphere_constants: AtmosphereConstants::default(),
             _atmosphere_exposure: 0.0001,
             _cloud_exposure: 0.1,
-            _cloud_altitude: 100.0,
+            _cloud_altitude: 350.0,
             _cloud_height: 500.0,
             _cloud_speed: 0.001,
             _cloud_absorption: 0.15,
@@ -1072,6 +1076,10 @@ impl<'a> Atmosphere<'a> {
             _noise_contrast: 1.0,
             _noise_coverage: 1.0,
             _noise_tiling: 0.0003,
+            _ground_bounce_albedo: Vector3::new(0.48, 0.40, 0.27),
+            _fog_density: 0.0020,
+            _fog_tint: Vector3::new(0.42, 0.62, 0.88),
+            _fog_start_distance: 35.0,
             _compute_multiple_scattering_framebuffers: Layers::new(),
             _compute_single_scattering_framebuffers: Layers::new(),
             _compute_scattering_density_framebuffers: Layers::new(),
@@ -1162,6 +1170,10 @@ impl<'a> Atmosphere<'a> {
             _sun_size: self._sun_size.into(),
             _atmosphere_exposure: self._atmosphere_exposure,
             _inscatter_power: self._inscatter_power,
+            _ground_bounce_albedo: self._ground_bounce_albedo,
+            _fog_density: self._fog_density,
+            _fog_tint: self._fog_tint,
+            _fog_start_distance: self._fog_start_distance,
         };
 
         // generate precomputed textures
@@ -1198,6 +1210,23 @@ impl<'a> Atmosphere<'a> {
                 num_scattering_orders,
             );
         }
+    }
+
+    pub fn set_biome_atmosphere_params(
+        &mut self,
+        ground_bounce_albedo: Vector3<f32>,
+        fog_density: f32,
+        fog_tint: Vector3<f32>,
+        fog_start_distance: f32,
+    ) {
+        self._ground_bounce_albedo = ground_bounce_albedo;
+        self._fog_density = fog_density;
+        self._fog_tint = fog_tint;
+        self._fog_start_distance = fog_start_distance;
+        self._atmosphere_constants._ground_bounce_albedo = ground_bounce_albedo;
+        self._atmosphere_constants._fog_density = fog_density;
+        self._atmosphere_constants._fog_tint = fog_tint;
+        self._atmosphere_constants._fog_start_distance = fog_start_distance;
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData) {

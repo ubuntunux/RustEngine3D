@@ -147,6 +147,7 @@ void main()
     apply_image_based_lighting(
         texture_probe,
         scene_reflect_color,
+        vec4(0.0),
         sky_irradiance,
         water_color,
         1.0,
@@ -154,6 +155,7 @@ void main()
         roughness,
         F0,
         L,
+        N,
         N,
         smoothR,
         NoV,

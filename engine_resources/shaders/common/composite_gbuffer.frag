@@ -41,6 +41,7 @@ layout(binding = 14) uniform sampler2D transmittance_texture;
 layout(binding = 15) uniform sampler2D irradiance_texture;
 layout(binding = 16) uniform sampler3D scattering_texture;
 layout(binding = 17) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 18) uniform sampler2D textureSceneGI;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -69,17 +70,26 @@ void main() {
     float roughness = material.x;
     float metallic = material.y;
     float reflectance = 0.0;
-    vec2 shadow_ao = ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0)
-        ? texture(textureShadowResolved, vs_output.texCoord).xy
-        : vec2(1.0);
-    float shadow_resolved = shadow_ao.x;
-    float ao_resolved = shadow_ao.y;
-    uint shading_model = decode_shading_model(normal.w);
-    vec4 scene_reflect_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0) ? texture(textureSceneReflect, vs_output.texCoord) : vec4(0.0);
-
     vec3 vertexNormal = oct_decode_normal(material.zw);
     vec3 N = normalize(normal.xyz * 2.0 - 1.0);
     vec3 V = normalize(-relative_position.xyz);
+
+    float shadow_resolved = 1.0;
+    float ao_resolved = 1.0;
+    vec3 bent_normal = N;
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0)
+    {
+        vec4 shadow_ao_bent = texture(textureShadowResolved, vs_output.texCoord);
+        shadow_resolved = shadow_ao_bent.x;
+        ao_resolved = shadow_ao_bent.y;
+        if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0)
+        {
+            bent_normal = normalize(oct_decode_normal(shadow_ao_bent.zw));
+        }
+    }
+    uint shading_model = decode_shading_model(normal.w);
+    vec4 scene_reflect_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0) ? texture(textureSceneReflect, vs_output.texCoord) : vec4(0.0);
+    vec4 scene_gi_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSGI) != 0) ? texture(textureSceneGI, vs_output.texCoord) : vec4(0.0);
     const bool IS_COMBINED_SHADOW = true;
 
     outColor = surface_shading(
@@ -102,6 +112,7 @@ void main() {
         ao_resolved,
         shading_model,
         scene_reflect_color,
+        scene_gi_color,
         texture_probe,
         textureShadow,
         textureHeightMap,
@@ -109,6 +120,7 @@ void main() {
         world_position,
         vertexNormal,
         N,
+        bent_normal,
         V,
         depth,
         IS_COMBINED_SHADOW

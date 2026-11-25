@@ -155,6 +155,12 @@ pub struct AtmosphereConstants {
     pub _sun_size: Vector2<f32>,
     pub _atmosphere_exposure: f32,
     pub _inscatter_power: f32,
+
+    pub _ground_bounce_albedo: Vector3<f32>,
+    pub _fog_density: f32,
+
+    pub _fog_tint: Vector3<f32>,
+    pub _fog_start_distance: f32,
 }
 
 #[derive(Clone)]

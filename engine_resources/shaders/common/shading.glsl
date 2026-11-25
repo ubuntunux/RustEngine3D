@@ -207,6 +207,7 @@ float compute_specular_occlusion(float NoV, float ao, float roughness)
 void apply_image_based_lighting(
     const in samplerCube texture_probe,
     const in vec4 scene_reflect_color,
+    const in vec4 scene_gi_color,
     const in vec3 scene_sky_irradiance,
     const in vec3 base_color,
     float ao_factor,
@@ -215,6 +216,7 @@ void apply_image_based_lighting(
     const in vec3 F0,
     const in vec3 sun_direction,
     const in vec3 N,
+    const in vec3 bent_normal,
     const in vec3 R,
     float NoV,
     inout vec3 diffuse_light,
@@ -223,7 +225,7 @@ void apply_image_based_lighting(
 {
     const vec2 env_size = textureSize(texture_probe, 0);
     const float max_env_mipmap = min(8.0, log2(max(env_size.x, env_size.y)) - 1.0);
-    // Mips 0..(max_env_mipmap - 2) store specular mip chain; (max_env_mipmap - 1) stores cosine-weighted diffuse irradiance
+    // Mips 0..(max_env_mipmap - 2) store GGX prefiltered specular chain; (max_env_mipmap - 1) stores cosine-weighted diffuse irradiance
     const float max_spec_mipmap = max(1.0, max_env_mipmap - 2.0);
     const float diffuse_irradiance_mipmap = max(1.0, max_env_mipmap - 1.0);
 
@@ -232,7 +234,7 @@ void apply_image_based_lighting(
     const vec3 kD = vec3(1.0) - kS;
     const vec3 specular_brdf = F0 * envBRDF.x + vec3(envBRDF.y);
 
-    vec3 ibl_diffuse_light = textureLod(texture_probe, N, diffuse_irradiance_mipmap).xyz;
+    vec3 ibl_diffuse_light = textureLod(texture_probe, bent_normal, diffuse_irradiance_mipmap).xyz;
     vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_spec_mipmap).xyz;
 
     // Multi-bounce GI boost: single-scatter sky probe underestimates real-world multi-bounce ambient fill
@@ -242,7 +244,7 @@ void apply_image_based_lighting(
     ibl_specular_light *= IBL_SPECULAR_INTENSITY;
 
     // Supplement with physical hemisphere sky irradiance fallback & gentle cave/dawn floor without washing out shadows
-    float sky_hemi = N.y * 0.5 + 0.5;
+    float sky_hemi = bent_normal.y * 0.5 + 0.5;
     vec3 sky_irrad_fill = (scene_sky_irradiance / PI) * mix(0.40, 1.0, sky_hemi) * 0.70;
     vec3 min_ambient_fill = mix(vec3(0.04, 0.038, 0.034), vec3(0.045, 0.052, 0.065), sky_hemi);
     ibl_diffuse_light = max(ibl_diffuse_light, sky_irrad_fill) + min_ambient_fill;
@@ -259,6 +261,9 @@ void apply_image_based_lighting(
     {
         ibl_specular_light = mix(ibl_specular_light, scene_reflect_color.xyz, scene_reflect_color.w);
     }
+
+    // 1-bounce Screen-Space GI diffuse color bleeding
+    diffuse_light += scene_gi_color.xyz * kD * diffuse_ao * 0.75;
 
     diffuse_light += ibl_diffuse_light * kD;
     specular_light.xyz += ibl_specular_light * specular_brdf;
@@ -288,6 +293,7 @@ vec4 surface_shading(
     float ao_factor,
     uint shading_model,
     const in vec4 scene_reflect_color,
+    const in vec4 scene_gi_color,
     const in samplerCube texture_probe,
     const in sampler2D texture_shadow,
     const in sampler2D texture_height_map,
@@ -295,6 +301,7 @@ vec4 surface_shading(
     const in vec3 world_position,
     const in vec3 vertexNormal,
     const in vec3 N,
+    const in vec3 bent_normal,
     const in vec3 V,
     const in float depth,
     const in bool IS_COMBINED_SHADOW
@@ -388,10 +395,11 @@ vec4 surface_shading(
     vec3 unshadowed_sun_color = light_color * scene_sun_irradiance * sun_horizon_fade;
     light_color = unshadowed_sun_color * shadow_factor;
 
-    // Image based lighting (indirect sky + ground bounce, modulated by AO & sky_visibility, NOT direct shadow)
+    // Image based lighting (indirect sky + ground bounce + SSGI, modulated by AO & sky_visibility, NOT direct shadow)
     apply_image_based_lighting(
         texture_probe,
         scene_reflect_color,
+        scene_gi_color,
         scene_sky_irradiance,
         base_color,
         ao_factor,
@@ -400,6 +408,7 @@ vec4 surface_shading(
         F0,
         L,
         N,
+        bent_normal,
         R,
         NoV,
         diffuse_light,
@@ -414,14 +423,15 @@ vec4 surface_shading(
     }
     #endif
 
-    // Analytic 1-bounce sunlit terrain GI fill (warms shaded cliffs, tree undersides, and cave walls)
+    // Analytic 1-bounce sunlit terrain GI fill (attenuated where SSGI provides real screen-space color bleeding)
     {
         vec3 bounce_dir = normalize(vec3(-L.x, 0.35, -L.z));
-        float bounce_ndl = saturate(dot(N, bounce_dir) * 0.5 + 0.5);
-        float ground_facing = saturate(-N.y * 0.5 + 0.5);
-        vec3 warm_bounce_tint = mix(vec3(0.95, 0.88, 0.74), vec3(1.12, 0.94, 0.68), ground_facing);
+        float bounce_ndl = saturate(dot(bent_normal, bounce_dir) * 0.5 + 0.5);
+        float ground_facing = saturate(-bent_normal.y * 0.5 + 0.5);
+        vec3 warm_bounce_tint = mix(vec3(0.95, 0.88, 0.74), atmosphere_constants.ground_bounce_albedo * 2.1, ground_facing);
         vec3 diffuse_ao = multi_bounce_ao(ao_factor, base_color);
-        diffuse_light += unshadowed_sun_color * (0.08 / PI) * bounce_ndl * warm_bounce_tint * mix(0.50, 1.0, sky_visibility) * diffuse_ao;
+        float analytic_gi_weight = mix(1.0, 0.35, scene_gi_color.w);
+        diffuse_light += unshadowed_sun_color * (0.08 / PI) * bounce_ndl * warm_bounce_tint * mix(0.50, 1.0, sky_visibility) * diffuse_ao * analytic_gi_weight;
     }
 
     // Directional Light

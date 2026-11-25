@@ -35,11 +35,9 @@ void main()
     float height_above_sea = max(0.0, world_y - scene_constants.SEA_HEIGHT);
     float height_falloff = exp(-height_above_sea * 0.015);
 
-    const float FOG_START_DIST = 35.0;
-    const float FOG_DENSITY = 0.0020;
     const float FOG_MAX_OPACITY = 0.72;
-    float fog_dist = max(0.0, ray_dist - FOG_START_DIST);
-    float fog_factor = clamp(1.0 - exp(-fog_dist * FOG_DENSITY * mix(0.45, 1.0, height_falloff)), 0.0, FOG_MAX_OPACITY);
+    float fog_dist = max(0.0, ray_dist - atmosphere_constants.fog_start_distance);
+    float fog_factor = clamp(1.0 - exp(-fog_dist * atmosphere_constants.fog_density * mix(0.45, 1.0, height_falloff)), 0.0, FOG_MAX_OPACITY);
 
     vec3 eye_dir = normalize(vs_output.eye_ray);
     vec3 sun_dir = normalize(-light_data.LIGHT_DIRECTION.xyz);
@@ -48,7 +46,7 @@ void main()
     float weather_scale = clamp(get_luminance(light_data.LIGHT_COLOR.xyz) / 1.2, 0.25, 1.5);
 
     // Blend aerial fog toward sky color with warm sunlit Mie forward-scattering glow
-    vec3 day_haze = mix(vec3(0.42, 0.62, 0.88) * 0.65 * weather_scale, color.xyz * 0.85, 0.65);
+    vec3 day_haze = mix(atmosphere_constants.fog_tint * 0.65 * weather_scale, color.xyz * 0.85, 0.65);
     vec3 night_haze = scene_constants.MOON_LIGHT_COLOR * 0.35;
     vec3 sun_glow = vec3(1.15, 0.88, 0.58) * light_data.LIGHT_COLOR.xyz * pow(sun_amount, 6.0) * 0.45 * sun_height;
     vec3 aerial_fog_color = mix(night_haze, day_haze, sun_height) + sun_glow;

@@ -110,10 +110,10 @@ void main()
             false,
             ground_sky_irradiance
         );
-        const vec3 GROUND_BOUNCE_ALBEDO = vec3(0.48, 0.40, 0.27);
+        vec3 ground_bounce_albedo = atmosphere_constants.ground_bounce_albedo;
         vec3 direct_ground = ground_sun_irradiance * max(sun_direction.y, 0.05) * light_data.LIGHT_COLOR.xyz;
         vec3 sky_ground = ground_sky_irradiance * weather_scale * 1.4;
-        vec3 ground_radiance = (direct_ground + sky_ground) * (GROUND_BOUNCE_ALBEDO / PI);
+        vec3 ground_radiance = (direct_ground + sky_ground) * (ground_bounce_albedo / PI);
         ground_radiance = max(ground_radiance, moon_light_color * 0.85);
         float ground_blend = smoothstep(0.08, -0.15, eye_direction.y);
         radiance = mix(radiance, ground_radiance, ground_blend);

@@ -40,6 +40,9 @@ pub enum RenderTargetType {
     SSR,
     SSRResolved,
     SSRResolvedPrev,
+    SSGI,
+    SSGIResolved,
+    SSGIResolvedPrev,
     // FFT Ocean
     FFT_A,
     FFT_B,
@@ -346,6 +349,24 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             _texture_name: RenderTargetType::SSRResolvedPrev.to_string(),
             _texture_width: render_viewport_width,
             _texture_height: render_viewport_height,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSGI.to_string(),
+            _texture_width: (render_viewport_width / 2).max(1),
+            _texture_height: (render_viewport_height / 2).max(1),
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSGIResolved.to_string(),
+            _texture_width: (render_viewport_width / 2).max(1),
+            _texture_height: (render_viewport_height / 2).max(1),
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSGIResolvedPrev.to_string(),
+            _texture_width: (render_viewport_width / 2).max(1),
+            _texture_height: (render_viewport_height / 2).max(1),
             ..hdr_texture_create_info.clone()
         },
         // FFT Ocean

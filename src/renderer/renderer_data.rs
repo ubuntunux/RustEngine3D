@@ -133,6 +133,7 @@ pub enum RenderOption {
     RenderSky = 1 << 3,
     RenderShadow = 1 << 4,
     RenderSSAO = 1 << 5,
+    RenderSSGI = 1 << 6,
     ALL = 0xffffffff,
 }
 
@@ -152,6 +153,7 @@ pub struct RendererData<'a> {
     pub _render_context_hiz: RenderContext_HierarchicalMinZ,
     pub _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling,
     pub _render_context_ssr: RenderContext_TAA_Simple<'a>,
+    pub _render_context_ssgi: RenderContext_TAA_Simple<'a>,
     pub _render_context_composite_gbuffer: RenderContext_CompositeGBuffer,
     pub _render_context_clear_render_targets: RenderContext_ClearRenderTargets<'a>,
     pub _render_context_light_probe: RenderContext_LightProbe<'a>,
@@ -159,6 +161,7 @@ pub struct RendererData<'a> {
     pub _atmosphere: Atmosphere<'a>,
     pub _render_option: u32,
     pub _tone_mapping_mode: ToneMappingMode,
+    pub _exposure: f32,
     pub _is_render_scene: bool,
 }
 
@@ -237,6 +240,18 @@ impl<'a> RendererData<'a> {
             RenderTargetType::SSRResolvedPrev,
         );
 
+        // SSGI
+        self._render_context_ssgi.initialize(
+            device,
+            debug_utils_device,
+            engine_resources,
+            self._render_target_data_map.get(&RenderTargetType::SSGI).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSGIResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSGIResolvedPrev).as_ref().unwrap(),
+            RenderTargetType::SSGIResolved,
+            RenderTargetType::SSGIResolvedPrev,
+        );
+
         // Composite GBuffer
         self._render_context_composite_gbuffer.initialize(
             device,
@@ -244,6 +259,8 @@ impl<'a> RendererData<'a> {
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSGIResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSGIResolvedPrev).as_ref().unwrap(),
         );
 
         // RenderContext_LightProbe
@@ -340,6 +357,18 @@ impl<'a> RendererData<'a> {
                     vulkan_context::get_color_clear_zero(),
                 ),
                 (
+                    *self._render_target_data_map.get(&RenderTargetType::SSGI).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::SSGIResolved).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::SSGIResolvedPrev).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
                     *self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
                     vulkan_context::get_color_clear_zero(),
                 ),
@@ -404,6 +433,7 @@ impl<'a> RendererData<'a> {
         self._render_context_hiz.destroy(device);
         self._render_context_scene_color_downsampling.destroy(device);
         self._render_context_ssr.destroy(device);
+        self._render_context_ssgi.destroy(device);
         self._render_context_composite_gbuffer.destroy(device);
         self._render_context_clear_render_targets.destroy(device);
         self._render_context_light_probe.destroy(device);
@@ -475,9 +505,9 @@ impl<'a> RendererData<'a> {
             self._render_context_shadow_ao.update();
         }
 
-        if self.has_render_option(RenderOption::RenderSSR) {
-            self._render_context_ssr.update();
-        }
+        // Keep SSR and SSGI temporal ping-pong indices strictly in lockstep for CompositeGBuffer descriptor selection
+        self._render_context_ssr.update();
+        self._render_context_ssgi.update();
     }
 
     pub fn upload_uniform_buffers(
@@ -586,6 +616,7 @@ impl<'a> RendererData<'a> {
             _render_context_hiz: RenderContext_HierarchicalMinZ::default(),
             _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(),
             _render_context_ssr: RenderContext_TAA_Simple::default(),
+            _render_context_ssgi: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
             _render_context_clear_render_targets: RenderContext_ClearRenderTargets::default(),
             _render_context_light_probe: RenderContext_LightProbe::default(),
@@ -593,6 +624,7 @@ impl<'a> RendererData<'a> {
             _atmosphere: Atmosphere::create_atmosphere(true),
             _render_option: unsafe { CURRENT_RENDER_OPTION },
             _tone_mapping_mode: unsafe { constants::TONE_MAPPING_MODE },
+            _exposure: unsafe { constants::EXPOSURE },
             _is_render_scene: true,
         }
     }
@@ -883,6 +915,65 @@ impl<'a> RendererData<'a> {
         );
     }
 
+    pub fn prefilter_cube_map_specular(
+        &self,
+        renderer_context: &RendererContext<'a>,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        prefilter_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
+        image_width: u32,
+    ) {
+        let memory_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ);
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::DependencyFlags::empty(),
+            &[memory_barrier],
+            &[],
+            &[],
+        );
+
+        let engine_resources = get_engine_resources();
+        let copy_cube_map_material_instance =
+            engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
+        let pipeline_binding_data =
+            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/prefilter_specular");
+        let pipeline_data = pipeline_binding_data.get_pipeline_data().borrow();
+        renderer_context.begin_compute_pipeline(command_buffer, &pipeline_data);
+
+        let max_spec_mip = (RenderContext_LightProbe::PREFILTER_SPECULAR_MIP_END - 1).max(1) as f32;
+        for (index, descriptor_sets) in prefilter_descriptor_sets.iter().enumerate() {
+            let dst_mip = RenderContext_LightProbe::PREFILTER_SPECULAR_MIP_START + index as u32;
+            let roughness = (dst_mip as f32 / max_spec_mip).clamp(0.05, 1.0);
+            let push_constant = PushConstant_BlendCubeMap {
+                _blend_ratio: roughness,
+                ..Default::default()
+            };
+            renderer_context.upload_push_constant_data(command_buffer, &pipeline_data, &push_constant);
+            renderer_context.bind_descriptor_sets(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                Some(descriptor_sets),
+            );
+            let dispatch_count: u32 = (image_width >> dst_mip).max(1);
+            renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+        }
+
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::DependencyFlags::empty(),
+            &[memory_barrier],
+            &[],
+            &[],
+        );
+    }
+
     pub fn reset_render_light_probe_time(&mut self) {
         self._render_context_light_probe.reset_light_probe_data()
     }
@@ -1028,6 +1119,15 @@ impl<'a> RendererData<'a> {
             constants::LIGHT_PROBE_SIZE,
         );
 
+        // prefilter GGX specular mip chain for only sky
+        self.prefilter_cube_map_specular(
+            renderer_context,
+            command_buffer,
+            swapchain_index,
+            &self._render_context_light_probe._only_sky_prefilter_specular_descriptor_sets,
+            constants::LIGHT_PROBE_SIZE,
+        );
+
         // render static object for light probe
         if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
             // copy light_probe_forward to light_probe_forward_prev
@@ -1122,6 +1222,15 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 &self._render_context_light_probe._light_probe_forward_convolve_irradiance_descriptor_sets,
+                constants::LIGHT_PROBE_SIZE,
+            );
+
+            // prefilter GGX specular mip chain for forward light probe
+            self.prefilter_cube_map_specular(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &self._render_context_light_probe._light_probe_forward_prefilter_specular_descriptor_sets,
                 constants::LIGHT_PROBE_SIZE,
             );
         }
@@ -1500,6 +1609,53 @@ impl<'a> RendererData<'a> {
         );
     }
 
+    pub fn render_ssgi(
+        &self,
+        renderer_context: &RendererContext<'a>,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+    ) {
+        let _label_render_ssgi = ScopedDebugLabel::create_scoped_cmd_label(
+            renderer_context.get_debug_utils(),
+            command_buffer,
+            "render_ssgi",
+        );
+        renderer_context.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "common/render_ssgi",
+            DEFAULT_PIPELINE,
+            &quad_geometry_data,
+            None,
+            None,
+            None,
+        );
+
+        // Temporal resolve for half-resolution SSGI
+        let (framebuffer, descriptor_sets) = match self._render_context_ssgi._current_taa_resolved {
+            RenderTargetType::SSGIResolved => (
+                Some(&self._render_context_ssgi._framebuffer_data0),
+                Some(&self._render_context_ssgi._descriptor_sets0),
+            ),
+            RenderTargetType::SSGIResolvedPrev => (
+                Some(&self._render_context_ssgi._framebuffer_data1),
+                Some(&self._render_context_ssgi._descriptor_sets1),
+            ),
+            _ => panic!("error"),
+        };
+        renderer_context.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "common/render_taa",
+            DEFAULT_PIPELINE,
+            quad_geometry_data,
+            framebuffer,
+            descriptor_sets,
+            None,
+        );
+    }
+
     pub fn render_shadow_ao(
         &self,
         renderer_context: &RendererContext<'a>,
@@ -1651,6 +1807,11 @@ impl<'a> RendererData<'a> {
         // Screen Space Reflection
         if self.has_render_option(RenderOption::RenderSSR) {
             self.render_ssr(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
+        }
+
+        // Screen Space Global Illumination
+        if self.has_render_option(RenderOption::RenderSSGI) {
+            self.render_ssgi(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
         }
 
         // ShadowAO
@@ -2098,6 +2259,7 @@ impl<'a> RendererData<'a> {
                 None,
                 Some(&PushConstant_RenderFinal {
                     _tone_mapping_mode: self._tone_mapping_mode as u32,
+                    _exposure: self._exposure,
                     ..Default::default()
                 }),
             );

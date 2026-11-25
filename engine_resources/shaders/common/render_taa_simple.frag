@@ -109,7 +109,7 @@ void main()
     vec4 maxc = mu + VarianceClipGamma * sigma;
     prevColor = ClipAABB(minc, maxc, prevColor, m1 / mWeight);
 
-    vec4 weightB = mix(vec4(0.9f), vec4(0.99f), saturate(abs(clrMax - clrMin) / currColor));
+    vec4 weightB = mix(vec4(0.9f), vec4(0.99f), saturate(abs(clrMax - clrMin) / max(abs(currColor), vec4(0.0001))));
     vec4 weightA = 1.0f - weightB;
 
     // inverse luminance filtering

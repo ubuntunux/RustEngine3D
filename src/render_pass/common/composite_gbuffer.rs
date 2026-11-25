@@ -17,6 +17,7 @@ use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub const SEMANTIC_TEXTURE_SHADOW_AO: &str = "TEXTURE_SHADOW_AO";
 pub const SEMANTIC_TEXTURE_SCENE_REFLECT: &str = "TEXTURE_SCENE_REFLECT";
+pub const SEMANTIC_TEXTURE_SCENE_GI: &str = "TEXTURE_SCENE_GI";
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
@@ -216,6 +217,14 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_SCENE_GI.to_string(),
+                _descriptor_binding_index: 18,
+                _descriptor_name: enum_to_string(&RenderTargetType::SSGIResolved),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
         ],

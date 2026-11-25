@@ -109,6 +109,18 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("convolve_irradiance"),
             _pipeline_compute_shader_file: PathBuf::from("common/convolve_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _descriptor_data_create_infos: copy_cube_map_descriptor_data_create_infos.clone(),
+            ..Default::default()
+        },
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("prefilter_specular"),
+            _pipeline_compute_shader_file: PathBuf::from("common/prefilter_cube_map.comp"),
+            _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _push_constant_data_list: vec![PipelinePushConstantData {
+                _stage_flags: vk::ShaderStageFlags::ALL,
+                _offset: 0,
+                _push_constant: Box::new(PushConstant_BlendCubeMap::default()),
+            }],
             _descriptor_data_create_infos: copy_cube_map_descriptor_data_create_infos,
             ..Default::default()
         },

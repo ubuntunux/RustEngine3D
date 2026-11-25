@@ -33,68 +33,141 @@ layout(binding = 7) uniform ShadowAOConstants
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
-// x: direct sun shadow factor, y: SSAO visibility
+// x: direct sun shadow factor, y: GTAO visibility, zw: octahedral world-space bent normal
 layout(location = 0) out vec4 outColor;
 
+// Monotonic antiderivative of |sin(theta)| * cos(theta - n) over [-PI, PI] (Jimenez et al. 2016 GTAO)
+float gtao_arc_antiderivative(float theta, float n)
+{
+    float g_pos = 0.25 * (-cos(2.0 * theta - n) + cos(n) + 2.0 * theta * sin(n));
+    return (theta >= 0.0) ? g_pos : -g_pos;
+}
 
 void main() {
-    outColor = vec4(1.0);
-
     vec2 texCoord = vs_output.texCoord;
     float device_depth = texture(textureSceneDepth, texCoord).x;
-    if(0.0 == device_depth)
+    if (0.0 == device_depth)
     {
+        outColor = vec4(1.0, 1.0, 0.5, 0.5);
         return;
     }
 
-    const vec2 inv_depth_size = 1.0 / textureSize(textureSceneDepth, 0).xy;
-    const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
-    const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
+    const vec2 depth_size = vec2(textureSize(textureSceneDepth, 0).xy);
+    const vec2 inv_depth_size = 1.0 / depth_size;
+    const ivec2 screen_pos = ivec2(texCoord * scene_constants.SCREEN_SIZE);
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
+    const vec3 N = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
+    const vec3 V = normalize(-relative_pos.xyz);
 
-    float acc_occlusion = 1.0;
-    if((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0)
+    float gtao_visibility = 1.0;
+    vec3 bent_normal = N;
+
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0)
     {
-        const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
-        const vec3 randomVec = normalize(texture(ssaoNoise, texCoord).xyz * 2.0 - 1.0);
-        const vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-        const vec3 bitangent = normalize(cross(normal, tangent));
-        const mat3 tnb = mat3(tangent, normal, bitangent);
-        const float occlusion_distance_min = 0.05;
-        const float occlusion_distance_max = 5.0;
-        const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * inv_depth_size * 2.0;
-        const int sample_count = SSAO_KERNEL_SIZE;
-        const float occlusion_factor = 4.0 * sample_count / 64;
-        for (int i = 0; i < sample_count; ++i)
+        const float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
+        const float GTAO_WORLD_RADIUS = 1.8;
+        const float proj_scale = abs(view_constants.PROJECTION[1][1]) * 0.5 * depth_size.y;
+        const float screen_radius = clamp((GTAO_WORLD_RADIUS * proj_scale) / max(linear_depth, 0.25), 4.0, 48.0);
+
+        const int SLICE_COUNT = 4;
+        const int STEP_COUNT = 4;
+        const float frame_rot = fract(float(scene_constants.ELAPSED_FRAME % 64u) * 0.61803398875);
+        const float spatial_noise = interleaved_gradient_noise(screen_pos);
+        const float base_phi = fract(spatial_noise + frame_rot) * PI;
+        const float step_jitter = fract(interleaved_gradient_noise(screen_pos + ivec2(37, 17)) + frame_rot * 1.6180339);
+
+        const vec3 cam_right = normalize(view_constants.INV_VIEW_ORIGIN[0].xyz);
+        const vec3 cam_up = normalize(view_constants.INV_VIEW_ORIGIN[1].xyz);
+        const float inv_radius2 = 1.0 / (GTAO_WORLD_RADIUS * GTAO_WORLD_RADIUS);
+
+        float ao_sum = 0.0;
+        vec3 bent_sum = vec3(0.0);
+
+        for (int s = 0; s < SLICE_COUNT; ++s)
         {
-            // ray
-            const float t = float(i) / float(sample_count - 1);
-            const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, t*t);
-            float kernel_radius = float(i + 1) / float(sample_count);
-            vec3 ray = normalize(uboSSAOKernel.SSAO_KERNEL_SAPLES[i].xyz * vec3(kernel_radius, 1.0, kernel_radius));
-            vec3 pos = normalize(tnb * ray) * occlusion_distance + relative_pos.xyz;
+            float phi = base_phi + (float(s) / float(SLICE_COUNT)) * PI;
+            vec2 slice_dir_ss = vec2(cos(phi), sin(phi));
+            vec3 slice_dir_ws = normalize(cam_right * slice_dir_ss.x - cam_up * slice_dir_ss.y);
+            vec3 ortho_dir = safe_normalize(slice_dir_ws - V * dot(slice_dir_ws, V));
+            vec3 plane_normal = safe_normalize(cross(ortho_dir, V));
 
-            // project sample position:
-            vec4 offset = vec4(pos, 1.0);
-            offset = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * offset;
-            offset.xyz /= offset.w;
-            offset.xy = offset.xy * 0.5 + 0.5 + noise;
-
-            if(offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0 || 1.0 < offset.z)
+            vec3 proj_N = N - plane_normal * dot(N, plane_normal);
+            float proj_N_len = length(proj_N);
+            if (proj_N_len < 0.0001)
             {
-                break;
-            }
-
-            const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
-            if(occlusion_depth <= offset.z)
-            {
+                ao_sum += 1.0;
+                bent_sum += N;
                 continue;
             }
+            vec3 proj_N_norm = proj_N / proj_N_len;
+            float cos_n = clamp(dot(proj_N_norm, V), -1.0, 1.0);
+            float n_angle = sign(dot(proj_N_norm, ortho_dir)) * acos(cos_n);
 
-            const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
-            const float distance = length(occlusion_relative_pos - relative_pos);
-            const float occlusion = 1.0 - exp(-distance * occlusion_factor);
-            acc_occlusion *= occlusion;
+            float max_cos_h_pos = -1.0;
+            float max_cos_h_neg = -1.0;
+
+            for (int step_idx = 0; step_idx < STEP_COUNT; ++step_idx)
+            {
+                float t = (float(step_idx) + 0.35 + 0.65 * step_jitter) / float(STEP_COUNT);
+                float sample_px = max(1.0, t * t * screen_radius);
+                vec2 uv_offset = slice_dir_ss * sample_px * inv_depth_size;
+
+                // Positive side
+                vec2 uv_pos = texCoord + uv_offset;
+                if (uv_pos.x >= 0.0 && uv_pos.x <= 1.0 && uv_pos.y >= 0.0 && uv_pos.y <= 1.0)
+                {
+                    float d_pos = texture(textureSceneDepth, uv_pos).x;
+                    if (d_pos > 0.0)
+                    {
+                        vec3 rel_pos_s = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, uv_pos, d_pos).xyz;
+                        vec3 delta = rel_pos_s - relative_pos.xyz;
+                        float dist2 = dot(delta, delta);
+                        if (dist2 > 0.0001)
+                        {
+                            float falloff = saturate(1.0 - dist2 * inv_radius2);
+                            float cos_h = dot(delta * inversesqrt(dist2), V);
+                            max_cos_h_pos = max(max_cos_h_pos, mix(-1.0, cos_h, falloff));
+                        }
+                    }
+                }
+
+                // Negative side
+                vec2 uv_neg = texCoord - uv_offset;
+                if (uv_neg.x >= 0.0 && uv_neg.x <= 1.0 && uv_neg.y >= 0.0 && uv_neg.y <= 1.0)
+                {
+                    float d_neg = texture(textureSceneDepth, uv_neg).x;
+                    if (d_neg > 0.0)
+                    {
+                        vec3 rel_neg_s = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, uv_neg, d_neg).xyz;
+                        vec3 delta = rel_neg_s - relative_pos.xyz;
+                        float dist2 = dot(delta, delta);
+                        if (dist2 > 0.0001)
+                        {
+                            float falloff = saturate(1.0 - dist2 * inv_radius2);
+                            float cos_h = dot(delta * inversesqrt(dist2), V);
+                            max_cos_h_neg = max(max_cos_h_neg, mix(-1.0, cos_h, falloff));
+                        }
+                    }
+                }
+            }
+
+            float h1 = max(-acos(clamp(max_cos_h_neg, -1.0, 1.0)), n_angle - HALF_PI);
+            float h2 = min( acos(clamp(max_cos_h_pos, -1.0, 1.0)), n_angle + HALF_PI);
+            h1 = min(h1, h2);
+
+            float vis_full = max(0.001, gtao_arc_antiderivative(n_angle + HALF_PI, n_angle) - gtao_arc_antiderivative(n_angle - HALF_PI, n_angle));
+            float vis_slice = saturate((gtao_arc_antiderivative(h2, n_angle) - gtao_arc_antiderivative(h1, n_angle)) / vis_full);
+            ao_sum += vis_slice;
+
+            float bent_angle = 0.5 * (h1 + h2);
+            vec3 bent_dir_slice = V * cos(bent_angle) + ortho_dir * sin(bent_angle);
+            bent_sum += proj_N_len * bent_dir_slice;
+        }
+
+        gtao_visibility = clamp(ao_sum / float(SLICE_COUNT), 0.18, 1.0);
+        if (length(bent_sum) > 0.001)
+        {
+            bent_normal = normalize(mix(N, normalize(bent_sum), 0.75));
         }
     }
 
@@ -110,5 +183,5 @@ void main() {
         texture_shadow
     );
 
-    outColor = vec4(saturate(shadow_factor), clamp(acc_occlusion, 0.15, 1.0), 1.0, 1.0);
+    outColor = vec4(saturate(shadow_factor), gtao_visibility, oct_encode_normal(bent_normal));
 }

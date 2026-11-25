@@ -67,6 +67,7 @@ pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
 pub static mut ENABLE_UPSCALE: bool = false;
 pub static mut RENDER_QUALITY_LEVEL: RenderQualityLevel = RenderQualityLevel::Medium;
 pub static mut TONE_MAPPING_MODE: ToneMappingMode = ToneMappingMode::AgX;
+pub static mut EXPOSURE: f32 = 0.90;
 pub static mut CURRENT_RENDER_OPTION: u32 = RenderOption::ALL as u32;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
