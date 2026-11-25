@@ -11,24 +11,24 @@ layout( push_constant ) uniform PushConstant_BlendCubeMap
 } pushConstant;
 
 layout(local_size_x = 1, local_size_y = 1) in;
-layout(rgba32f, binding = 0) uniform readonly image2D img_input_0_0;
-layout(rgba32f, binding = 1) uniform readonly image2D img_input_0_1;
-layout(rgba32f, binding = 2) uniform readonly image2D img_input_0_2;
-layout(rgba32f, binding = 3) uniform readonly image2D img_input_0_3;
-layout(rgba32f, binding = 4) uniform readonly image2D img_input_0_4;
-layout(rgba32f, binding = 5) uniform readonly image2D img_input_0_5;
-layout(rgba32f, binding = 6) uniform readonly image2D img_input_1_0;
-layout(rgba32f, binding = 7) uniform readonly image2D img_input_1_1;
-layout(rgba32f, binding = 8) uniform readonly image2D img_input_1_2;
-layout(rgba32f, binding = 9) uniform readonly image2D img_input_1_3;
-layout(rgba32f, binding = 10) uniform readonly image2D img_input_1_4;
-layout(rgba32f, binding = 11) uniform readonly image2D img_input_1_5;
-layout(rgba32f, binding = 12) uniform image2D img_output_0;
-layout(rgba32f, binding = 13) uniform image2D img_output_1;
-layout(rgba32f, binding = 14) uniform image2D img_output_2;
-layout(rgba32f, binding = 15) uniform image2D img_output_3;
-layout(rgba32f, binding = 16) uniform image2D img_output_4;
-layout(rgba32f, binding = 17) uniform image2D img_output_5;
+layout(rgba16f, binding = 0) uniform readonly image2D img_input_0_0;
+layout(rgba16f, binding = 1) uniform readonly image2D img_input_0_1;
+layout(rgba16f, binding = 2) uniform readonly image2D img_input_0_2;
+layout(rgba16f, binding = 3) uniform readonly image2D img_input_0_3;
+layout(rgba16f, binding = 4) uniform readonly image2D img_input_0_4;
+layout(rgba16f, binding = 5) uniform readonly image2D img_input_0_5;
+layout(rgba16f, binding = 6) uniform readonly image2D img_input_1_0;
+layout(rgba16f, binding = 7) uniform readonly image2D img_input_1_1;
+layout(rgba16f, binding = 8) uniform readonly image2D img_input_1_2;
+layout(rgba16f, binding = 9) uniform readonly image2D img_input_1_3;
+layout(rgba16f, binding = 10) uniform readonly image2D img_input_1_4;
+layout(rgba16f, binding = 11) uniform readonly image2D img_input_1_5;
+layout(rgba16f, binding = 12) uniform image2D img_output_0;
+layout(rgba16f, binding = 13) uniform image2D img_output_1;
+layout(rgba16f, binding = 14) uniform image2D img_output_2;
+layout(rgba16f, binding = 15) uniform image2D img_output_3;
+layout(rgba16f, binding = 16) uniform image2D img_output_4;
+layout(rgba16f, binding = 17) uniform image2D img_output_5;
 
 void main()
 {

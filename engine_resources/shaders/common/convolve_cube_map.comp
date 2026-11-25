@@ -1,0 +1,158 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+layout(local_size_x = 1, local_size_y = 1) in;
+layout(rgba16f, binding = 0) uniform readonly image2D img_input_0;
+layout(rgba16f, binding = 1) uniform readonly image2D img_input_1;
+layout(rgba16f, binding = 2) uniform readonly image2D img_input_2;
+layout(rgba16f, binding = 3) uniform readonly image2D img_input_3;
+layout(rgba16f, binding = 4) uniform readonly image2D img_input_4;
+layout(rgba16f, binding = 5) uniform readonly image2D img_input_5;
+layout(rgba16f, binding = 6) uniform image2D img_output_0;
+layout(rgba16f, binding = 7) uniform image2D img_output_1;
+layout(rgba16f, binding = 8) uniform image2D img_output_2;
+layout(rgba16f, binding = 9) uniform image2D img_output_3;
+layout(rgba16f, binding = 10) uniform image2D img_output_4;
+layout(rgba16f, binding = 11) uniform image2D img_output_5;
+
+const float PI = 3.14159265358979323846;
+const float TWO_PI = 6.28318530717958647692;
+const float HALF_PI = 1.57079632679489661923;
+
+vec3 face_uv_to_dir(int face, vec2 uv)
+{
+    if (face == 0) return normalize(vec3( 1.0, -uv.y, -uv.x));
+    if (face == 1) return normalize(vec3(-1.0, -uv.y,  uv.x));
+    if (face == 2) return normalize(vec3( uv.x,  1.0,  uv.y));
+    if (face == 3) return normalize(vec3( uv.x, -1.0, -uv.y));
+    if (face == 4) return normalize(vec3( uv.x, -uv.y,  1.0));
+    return normalize(vec3(-uv.x, -uv.y, -1.0));
+}
+
+vec3 load_face_bilinear(int face, vec2 uv, ivec2 input_size)
+{
+    vec2 fcoord = clamp(uv * 0.5 + 0.5, vec2(0.0), vec2(1.0)) * vec2(input_size) - 0.5;
+    ivec2 c0 = clamp(ivec2(floor(fcoord)), ivec2(0), input_size - 1);
+    ivec2 c1 = clamp(c0 + 1, ivec2(0), input_size - 1);
+    vec2 frac = clamp(fcoord - vec2(c0), vec2(0.0), vec2(1.0));
+
+    vec3 s00, s10, s01, s11;
+    if (face == 0) {
+        s00 = imageLoad(img_input_0, c0).rgb;
+        s10 = imageLoad(img_input_0, ivec2(c1.x, c0.y)).rgb;
+        s01 = imageLoad(img_input_0, ivec2(c0.x, c1.y)).rgb;
+        s11 = imageLoad(img_input_0, c1).rgb;
+    } else if (face == 1) {
+        s00 = imageLoad(img_input_1, c0).rgb;
+        s10 = imageLoad(img_input_1, ivec2(c1.x, c0.y)).rgb;
+        s01 = imageLoad(img_input_1, ivec2(c0.x, c1.y)).rgb;
+        s11 = imageLoad(img_input_1, c1).rgb;
+    } else if (face == 2) {
+        s00 = imageLoad(img_input_2, c0).rgb;
+        s10 = imageLoad(img_input_2, ivec2(c1.x, c0.y)).rgb;
+        s01 = imageLoad(img_input_2, ivec2(c0.x, c1.y)).rgb;
+        s11 = imageLoad(img_input_2, c1).rgb;
+    } else if (face == 3) {
+        s00 = imageLoad(img_input_3, c0).rgb;
+        s10 = imageLoad(img_input_3, ivec2(c1.x, c0.y)).rgb;
+        s01 = imageLoad(img_input_3, ivec2(c0.x, c1.y)).rgb;
+        s11 = imageLoad(img_input_3, c1).rgb;
+    } else if (face == 4) {
+        s00 = imageLoad(img_input_4, c0).rgb;
+        s10 = imageLoad(img_input_4, ivec2(c1.x, c0.y)).rgb;
+        s01 = imageLoad(img_input_4, ivec2(c0.x, c1.y)).rgb;
+        s11 = imageLoad(img_input_4, c1).rgb;
+    } else {
+        s00 = imageLoad(img_input_5, c0).rgb;
+        s10 = imageLoad(img_input_5, ivec2(c1.x, c0.y)).rgb;
+        s01 = imageLoad(img_input_5, ivec2(c0.x, c1.y)).rgb;
+        s11 = imageLoad(img_input_5, c1).rgb;
+    }
+    return mix(mix(s00, s10, frac.x), mix(s01, s11, frac.x), frac.y);
+}
+
+vec3 sample_cube_dir(vec3 d, ivec2 input_size)
+{
+    vec3 ad = abs(d);
+    int face;
+    vec2 uv;
+    if (ad.x >= ad.y && ad.x >= ad.z) {
+        if (d.x > 0.0) {
+            face = 0;
+            uv = vec2(-d.z, -d.y) / ad.x;
+        } else {
+            face = 1;
+            uv = vec2(d.z, -d.y) / ad.x;
+        }
+    } else if (ad.y >= ad.x && ad.y >= ad.z) {
+        if (d.y > 0.0) {
+            face = 2;
+            uv = vec2(d.x, d.z) / ad.y;
+        } else {
+            face = 3;
+            uv = vec2(d.x, -d.z) / ad.y;
+        }
+    } else {
+        if (d.z > 0.0) {
+            face = 4;
+            uv = vec2(d.x, -d.y) / ad.z;
+        } else {
+            face = 5;
+            uv = vec2(-d.x, -d.y) / ad.z;
+        }
+    }
+    return load_face_bilinear(face, uv, input_size);
+}
+
+vec3 convolve_hemisphere(vec3 N, ivec2 input_size)
+{
+    vec3 up = abs(N.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(0.0, 0.0, 1.0);
+    vec3 right = normalize(cross(up, N));
+    up = cross(N, right);
+
+    const int PHI_STEPS = 16;
+    const int THETA_STEPS = 8;
+    const float d_phi = TWO_PI / float(PHI_STEPS);
+    const float d_theta = HALF_PI / float(THETA_STEPS);
+
+    vec3 irradiance = vec3(0.0);
+    float weight_sum = 0.0;
+
+    for (int p = 0; p < PHI_STEPS; ++p) {
+        float phi = (float(p) + 0.5) * d_phi;
+        float c_phi = cos(phi);
+        float s_phi = sin(phi);
+        vec3 tangent_dir = right * c_phi + up * s_phi;
+
+        for (int t = 0; t < THETA_STEPS; ++t) {
+            float theta = (float(t) + 0.5) * d_theta;
+            float c_theta = cos(theta);
+            float s_theta = sin(theta);
+            vec3 sample_dir = N * c_theta + tangent_dir * s_theta;
+            float weight = c_theta * s_theta;
+            irradiance += max(vec3(0.0), sample_cube_dir(sample_dir, input_size)) * weight;
+            weight_sum += weight;
+        }
+    }
+    return irradiance / max(weight_sum, 0.0001);
+}
+
+void main()
+{
+    ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 output_size = imageSize(img_output_0);
+    if (pixel_coords.x >= output_size.x || pixel_coords.y >= output_size.y) {
+        return;
+    }
+
+    ivec2 input_size = imageSize(img_input_0);
+    vec2 uv = ((vec2(pixel_coords) + 0.5) / vec2(output_size)) * 2.0 - 1.0;
+
+    imageStore(img_output_0, pixel_coords, vec4(convolve_hemisphere(face_uv_to_dir(0, uv), input_size), 1.0));
+    imageStore(img_output_1, pixel_coords, vec4(convolve_hemisphere(face_uv_to_dir(1, uv), input_size), 1.0));
+    imageStore(img_output_2, pixel_coords, vec4(convolve_hemisphere(face_uv_to_dir(2, uv), input_size), 1.0));
+    imageStore(img_output_3, pixel_coords, vec4(convolve_hemisphere(face_uv_to_dir(3, uv), input_size), 1.0));
+    imageStore(img_output_4, pixel_coords, vec4(convolve_hemisphere(face_uv_to_dir(4, uv), input_size), 1.0));
+    imageStore(img_output_5, pixel_coords, vec4(convolve_hemisphere(face_uv_to_dir(5, uv), input_size), 1.0));
+}

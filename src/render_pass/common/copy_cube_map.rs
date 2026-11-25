@@ -90,7 +90,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("copy"),
             _pipeline_compute_shader_file: PathBuf::from("common/copy_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _descriptor_data_create_infos: copy_cube_map_descriptor_data_create_infos,
+            _descriptor_data_create_infos: copy_cube_map_descriptor_data_create_infos.clone(),
             ..Default::default()
         },
         PipelineDataCreateInfo {
@@ -103,6 +103,13 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 _push_constant: Box::new(PushConstant_BlendCubeMap::default()),
             }],
             _descriptor_data_create_infos: blend_cube_map_descriptor_data_create_infos,
+            ..Default::default()
+        },
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("convolve_irradiance"),
+            _pipeline_compute_shader_file: PathBuf::from("common/convolve_cube_map.comp"),
+            _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _descriptor_data_create_infos: copy_cube_map_descriptor_data_create_infos,
             ..Default::default()
         },
     ];

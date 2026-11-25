@@ -33,11 +33,12 @@ layout(binding = 7) uniform ShadowAOConstants
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
-layout(location = 0) out float outColor;
+// x: direct sun shadow factor, y: SSAO visibility
+layout(location = 0) out vec4 outColor;
 
 
 void main() {
-    outColor = 1;
+    outColor = vec4(1.0);
 
     vec2 texCoord = vs_output.texCoord;
     float device_depth = texture(textureSceneDepth, texCoord).x;
@@ -109,5 +110,5 @@ void main() {
         texture_shadow
     );
 
-    outColor = saturate(min(acc_occlusion, shadow_factor));
+    outColor = vec4(saturate(shadow_factor), clamp(acc_occlusion, 0.15, 1.0), 1.0, 1.0);
 }

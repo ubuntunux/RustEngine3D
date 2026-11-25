@@ -1,6 +1,10 @@
 #ifndef _ATMOSPHERE_PREDEFINED_
 #define _ATMOSPHERE_PREDEFINED_
 
+#ifndef COMBINED_SCATTERING_TEXTURES
+#define COMBINED_SCATTERING_TEXTURES 1
+#endif
+
 struct ATMOSPHERE_CONSTANTS
 {
     vec3 SKY_RADIANCE_TO_LUMINANCE;
@@ -601,7 +605,7 @@ int scattering_order
 
         for (int m = 0; m < 2 * SAMPLE_COUNT; ++m)
         {
-            float phi = 1.5 * dphi;
+            float phi = (float(m) + 0.5) * dphi;
             vec3 omega_i = vec3(cos(phi) * sin_theta, sin(phi) * sin_theta, cos_theta);
             float domega_i = dtheta * dphi * sin(theta);
             float nu1 = dot(omega_s, omega_i);
@@ -1023,8 +1027,7 @@ vec3 GetSolarRadiance(const in AtmosphereParameters atmosphere, const in ATMOSPH
 {
     return atmosphere.solar_irradiance /
     (PI * atmosphere.sun_angular_radius * atmosphere.sun_angular_radius) *
-    atmosphere_constants.SUN_RADIANCE_TO_LUMINANCE *
-    atmosphere_constants.atmosphere_exposure;
+    atmosphere_constants.SUN_RADIANCE_TO_LUMINANCE;
 }
 
 vec3 GetSkyRadiance(
@@ -1310,8 +1313,8 @@ void GetSceneRadiance(
         sun_direction,
         transmittance
     );
-    sun_irradiance *= transmittance / PI;
-    sky_irradiance *= transmittance / PI;
+    sun_irradiance *= transmittance;
+    sky_irradiance *= transmittance;
 }
 
 
@@ -1380,8 +1383,8 @@ void GetSceneRadianceWithShadow(
         sun_direction,
         transmittance
     );
-    sun_irradiance *= transmittance / PI;
-    sky_irradiance *= transmittance / PI;
+    sun_irradiance *= transmittance;
+    sky_irradiance *= transmittance;
 }
 
 

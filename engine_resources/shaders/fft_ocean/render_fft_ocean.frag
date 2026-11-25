@@ -148,7 +148,8 @@ void main()
         texture_probe,
         scene_reflect_color,
         sky_irradiance,
-        vs_output.shadow_factor,
+        water_color,
+        1.0,
         sky_visibility,
         roughness,
         F0,
@@ -160,18 +161,19 @@ void main()
         specular_light
     );
 
-    // Moon Light;
+    // Moon Light
+    float night_factor = smoothstep(0.15, -0.1, L.y);
+    if (night_factor > 0.0)
     {
         vec3 moon_light_dir = -L;
         const float moon_light_NoL = max(0.0, dot(N, moon_light_dir) * 0.5 + 0.5);
-        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR;
+        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR * night_factor;
     }
 
     // Directional Light
     {
         const vec3 F = fresnelSchlick(VoH, F0);
-        //diffuse_light += oren_nayar(roughness2, clampled_NoL, NoV, N, V, L) * (vec3(1.0) - F) * light_color;
-        diffuse_light += diffuse_burley(roughness, NoV, NoL, VoH ) * clampled_NoL * (vec3(1.0) - F) * light_color;
+        diffuse_light += diffuse_burley(roughness, NoV, clampled_NoL, VoH) * clampled_NoL * light_color;
         specular_light += cooktorrance_specular(F, clampled_NoL, NoV, NoH, roughness) * clampled_NoL * light_color;
     }
 

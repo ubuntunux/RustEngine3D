@@ -189,11 +189,27 @@ vec2 env_BRDF_pproximate(float NoV, float roughness)
     return vec2(-1.04, 1.04) * a004 + r.zw;
 }
 
+// [Jimenez et al. 2016, "Practical Realtime Strategies for Accurate Indirect Occlusion"]
+vec3 multi_bounce_ao(float visibility, vec3 albedo)
+{
+    vec3 a = 2.0404 * albedo - 0.3324;
+    vec3 b = -4.7951 * albedo + 0.6417;
+    vec3 c = 2.7552 * albedo + 0.6903;
+    return max(vec3(visibility), ((visibility * a + b) * visibility + c) * visibility);
+}
+
+// [Lagarde 2014, "Moving Frostbite to PBR"]
+float compute_specular_occlusion(float NoV, float ao, float roughness)
+{
+    return saturate(pow(NoV + ao, exp2(-16.0 * roughness - 1.0)) - 1.0 + ao);
+}
+
 void apply_image_based_lighting(
     const in samplerCube texture_probe,
     const in vec4 scene_reflect_color,
     const in vec3 scene_sky_irradiance,
-    float shadow_factor,
+    const in vec3 base_color,
+    float ao_factor,
     const float sky_visibility,
     float roughness,
     const in vec3 F0,
@@ -207,26 +223,45 @@ void apply_image_based_lighting(
 {
     const vec2 env_size = textureSize(texture_probe, 0);
     const float max_env_mipmap = min(8.0, log2(max(env_size.x, env_size.y)) - 1.0);
+    // Mips 0..(max_env_mipmap - 2) store specular mip chain; (max_env_mipmap - 1) stores cosine-weighted diffuse irradiance
+    const float max_spec_mipmap = max(1.0, max_env_mipmap - 2.0);
+    const float diffuse_irradiance_mipmap = max(1.0, max_env_mipmap - 1.0);
+
     vec2 envBRDF = env_BRDF_pproximate(NoV, roughness);
-    // clamp uv ( half_texel ~ 1.0 - half_texel)
-    //vec2 envBRDF2  = texture(ibl_brdf_lut, clamp(vec2(NoV, 1.0 - roughness), vec2(0.0009765625), vec2(0.9990234375))).xy;
     const vec3 kS = fresnelSchlickRoughness(NoV, F0, roughness);
     const vec3 kD = vec3(1.0) - kS;
-    const vec3 shValue = kS * envBRDF.x + envBRDF.y;
-    vec3 ibl_diffuse_light = textureLod(texture_probe, N, max_env_mipmap).xyz;
-    vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_env_mipmap).xyz;
+    const vec3 specular_brdf = F0 * envBRDF.x + vec3(envBRDF.y);
 
-    shadow_factor = pow(max(shadow_factor, dot(vec3(0.33333333), scene_sky_irradiance)), 1.5 - sky_visibility * 0.5);
-    ibl_diffuse_light *= shadow_factor;
-    ibl_specular_light *= shadow_factor;
+    vec3 ibl_diffuse_light = textureLod(texture_probe, N, diffuse_irradiance_mipmap).xyz;
+    vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_spec_mipmap).xyz;
 
-    // if(RENDER_SSR)
+    // Multi-bounce GI boost: single-scatter sky probe underestimates real-world multi-bounce ambient fill
+    const float IBL_DIFFUSE_INTENSITY = 1.45;
+    const float IBL_SPECULAR_INTENSITY = 1.20;
+    ibl_diffuse_light *= IBL_DIFFUSE_INTENSITY;
+    ibl_specular_light *= IBL_SPECULAR_INTENSITY;
+
+    // Supplement with physical hemisphere sky irradiance fallback & gentle cave/dawn floor without washing out shadows
+    float sky_hemi = N.y * 0.5 + 0.5;
+    vec3 sky_irrad_fill = (scene_sky_irradiance / PI) * mix(0.40, 1.0, sky_hemi) * 0.70;
+    vec3 min_ambient_fill = mix(vec3(0.04, 0.038, 0.034), vec3(0.045, 0.052, 0.065), sky_hemi);
+    ibl_diffuse_light = max(ibl_diffuse_light, sky_irrad_fill) + min_ambient_fill;
+
+    // Keep outdoor tree canopies and cave interiors readable (CaptureHeightMap sets sky_visibility=0 under trees too)
+    float sky_vis_factor = mix(0.55, 1.0, sky_visibility);
+    vec3 diffuse_ao = multi_bounce_ao(ao_factor, base_color);
+    float specular_ao = compute_specular_occlusion(NoV, ao_factor, roughness);
+
+    ibl_diffuse_light *= sky_vis_factor * diffuse_ao;
+    ibl_specular_light *= sky_vis_factor * specular_ao;
+
+    // Blend SSR into specular IBL
     {
         ibl_specular_light = mix(ibl_specular_light, scene_reflect_color.xyz, scene_reflect_color.w);
     }
 
     diffuse_light += ibl_diffuse_light * kD;
-    specular_light.xyz += ibl_specular_light * shValue;
+    specular_light.xyz += ibl_specular_light * specular_brdf;
 }
 
 
@@ -250,6 +285,8 @@ vec4 surface_shading(
     float roughness,
     float reflectance,
     float shadow_factor,
+    float ao_factor,
+    uint shading_model,
     const in vec4 scene_reflect_color,
     const in samplerCube texture_probe,
     const in sampler2D texture_shadow,
@@ -276,28 +313,26 @@ vec4 surface_shading(
 
     // safe roughness
     roughness = clamp(roughness, 0.05, 1.0);
-    const float roughness2 = roughness * roughness;
 
     // compute material reflectance
     const vec3 R = reflect(-V, N);
     const vec3 H = normalize(V + L);
 
-    float NoL = dot(N, L);
+    const float raw_NoL = dot(N, L);
+    float NoL = raw_NoL;
     if(HALF_LAMBERT_LIGHTING)
         NoL = pow(saturate(NoL * 0.5 + 0.5), 2.0);
-    const float clampled_NoL = clamp(NoL, 0.0, 1.0);
-    const float specular_clampled_NoL = clamp(dot(N, L), 0.0, 1.0);
+    const float clampled_NoL = saturate(NoL);
+    const float specular_clampled_NoL = saturate(raw_NoL);
     const float NoV = clamp(dot(N, V), 0.001, 1.0);
     const float NoH = clamp(dot(N, H), 0.001, 1.0);
     const float VoH = clamp(dot(H, V), 0.001, 1.0);
-    const float VoL = clamp(dot(L, V), 0.001, 1.0);
 
     // Atmosphere
     const bool doLambertianReflectance = false;
     vec3 scene_in_scatter = vec3(0.0);
     vec3 scene_sun_irradiance = vec3(1.0);
     vec3 scene_sky_irradiance = vec3(0.0);
-    float scene_shadow_length = 0.0;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
     GetSceneRadiance(
         ATMOSPHERE,
@@ -334,8 +369,10 @@ vec4 surface_shading(
             texture_shadow
         );
     }
-    const float ambient_light = 0.1;
-    shadow_factor = 0.0 < L.y ? max(ambient_light, shadow_factor) : ambient_light;
+
+    // Physical direct sun visibility: zero in complete shadow or below horizon
+    float sun_horizon_fade = smoothstep(0.0, 0.05, L.y);
+    shadow_factor = saturate(shadow_factor) * sun_horizon_fade;
 
     float sky_visibility = get_shadow_factor(
         scene_constants.TIME,
@@ -348,14 +385,16 @@ vec4 surface_shading(
         texture_height_map
     );
 
-    light_color = light_color * scene_sun_irradiance * shadow_factor;
+    vec3 unshadowed_sun_color = light_color * scene_sun_irradiance * sun_horizon_fade;
+    light_color = unshadowed_sun_color * shadow_factor;
 
-    // Image based lighting
+    // Image based lighting (indirect sky + ground bounce, modulated by AO & sky_visibility, NOT direct shadow)
     apply_image_based_lighting(
         texture_probe,
         scene_reflect_color,
         scene_sky_irradiance,
-        shadow_factor,
+        base_color,
+        ao_factor,
         sky_visibility,
         roughness,
         F0,
@@ -375,72 +414,96 @@ vec4 surface_shading(
     }
     #endif
 
+    // Analytic 1-bounce sunlit terrain GI fill (warms shaded cliffs, tree undersides, and cave walls)
+    {
+        vec3 bounce_dir = normalize(vec3(-L.x, 0.35, -L.z));
+        float bounce_ndl = saturate(dot(N, bounce_dir) * 0.5 + 0.5);
+        float ground_facing = saturate(-N.y * 0.5 + 0.5);
+        vec3 warm_bounce_tint = mix(vec3(0.95, 0.88, 0.74), vec3(1.12, 0.94, 0.68), ground_facing);
+        vec3 diffuse_ao = multi_bounce_ao(ao_factor, base_color);
+        diffuse_light += unshadowed_sun_color * (0.08 / PI) * bounce_ndl * warm_bounce_tint * mix(0.50, 1.0, sky_visibility) * diffuse_ao;
+    }
+
     // Directional Light
+    if (clampled_NoL > 0.0)
+    {
+        diffuse_light += diffuse_burley(roughness, NoV, clampled_NoL, VoH) * clampled_NoL * light_color;
+    }
+    if (specular_clampled_NoL > 0.0)
     {
         const vec3 F = fresnelSchlick(VoH, F0);
-        diffuse_light += diffuse_burley(roughness, NoV, NoL, VoH ) * clampled_NoL * (vec3(1.0) - F) * light_color;
         specular_light += cooktorrance_specular(F, specular_clampled_NoL, NoV, NoH, roughness) * specular_clampled_NoL * light_color;
+    }
+
+    // Stylized Shading Models (Foliage backlit SSS & Character skin wrap + soft rim)
+    if (shading_model == ShadingModel_Foliage)
+    {
+        vec3 back_lit_dir = normalize(L + N * 0.35);
+        float back_scatter = pow(saturate(dot(V, -back_lit_dir)), 3.0);
+        float wrap_diffuse = saturate((raw_NoL + 0.4) / 1.4) * 0.22;
+        vec3 foliage_tint = vec3(1.12, 1.22, 0.65);
+        diffuse_light += (back_scatter * 0.65 + wrap_diffuse) * (1.0 / PI) * light_color * foliage_tint;
+    }
+    else if (shading_model == ShadingModel_Character)
+    {
+        // Warm skin wrap lighting across the shadow terminator
+        float wrap_NoL = saturate((raw_NoL + 0.35) / 1.35);
+        float skin_wrap = max(0.0, wrap_NoL - clampled_NoL) * 0.35;
+        diffuse_light += skin_wrap * (1.0 / PI) * light_color * vec3(1.15, 0.90, 0.80);
+
+        // Soft Fresnel rim light from sky/environment for silhouette clarity in shade and caves
+        float rim = pow(1.0 - NoV, 3.0) * smoothstep(-0.25, 0.65, N.y);
+        vec3 rim_color = max(scene_sky_irradiance * 0.14, vec3(0.10, 0.12, 0.14));
+        specular_light += rim * rim_color * 0.35 * mix(0.45, 1.0, sky_visibility) * ao_factor;
     }
 
     // apply sea ratio
     diffuse_light *= inv_sea_ratio;
     specular_light *= inv_sea_ratio;
 
-    // Point Lights
+    // Point Lights (physical inverse-square attenuation with smooth radius window)
     const int light_count = min(MAX_POINT_LIGHTS, scene_constants.RENDER_POINT_LIGHT_COUNT);
     for(int i = 0; i < light_count; ++i)
     {
         const float point_light_radius = point_lights.point_light_data[i].RADIUS;
         vec3 to_point_light = point_lights.point_light_data[i].LIGHT_POSITION - world_position;
         const float point_light_dist = length(to_point_light);
-        if(point_light_dist <= point_light_radius)
+        if(point_light_dist <= point_light_radius && point_light_dist > 0.0001)
         {
             vec3 point_light_dir = to_point_light / point_light_dist;
-            const vec3 point_light_half = normalize(V + point_light_dir);
-            float point_light_attenuation = clamp(1.0 - point_light_dist / point_light_radius, 0.0, 1.0);
-            point_light_attenuation *= point_light_attenuation;
-            const vec3 point_light_color = point_lights.point_light_data[i].LIGHT_COLOR * point_light_attenuation;
-            float point_light_NoL = max(0.01, dot(N, point_light_dir));
-            if(HALF_LAMBERT_LIGHTING)
-                point_light_NoL = pow(saturate(point_light_NoL * 0.5 + 0.5), 2.0);
-            const float specular_point_light_NoL = max(0.01, dot(N, point_light_dir));
-            const float point_light_NoH = max(0.01, dot(N, point_light_half));
-            const float point_light_VoH = max(0.01, dot(V, point_light_half));
-            const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
+            const float raw_point_NoL = dot(N, point_light_dir);
+            if(raw_point_NoL > 0.0)
+            {
+                const vec3 point_light_half = normalize(V + point_light_dir);
+                const float dist_ratio = point_light_dist / max(point_light_radius, 0.001);
+                float window = saturate(1.0 - dist_ratio * dist_ratio * dist_ratio * dist_ratio);
+                window *= window;
+                const float point_light_attenuation = window / (1.0 + point_light_dist * point_light_dist * 0.25);
+                const vec3 point_light_color = point_lights.point_light_data[i].LIGHT_COLOR * point_light_attenuation;
 
-            diffuse_light += diffuse_burley(roughness, NoV, point_light_NoL, point_light_VoH) * point_light_NoL * (vec3(1.0) - point_light_F) * point_light_color;
-            specular_light += cooktorrance_specular(point_light_F, specular_point_light_NoL, NoV, point_light_NoH, roughness) * specular_point_light_NoL * point_light_color;
+                const float point_light_NoL = saturate(raw_point_NoL);
+                const float point_light_NoH = clamp(dot(N, point_light_half), 0.001, 1.0);
+                const float point_light_VoH = clamp(dot(V, point_light_half), 0.001, 1.0);
+                const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
+
+                diffuse_light += diffuse_burley(roughness, NoV, point_light_NoL, point_light_VoH) * point_light_NoL * point_light_color;
+                specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
+            }
         }
     }
 
-    // Moon Light
+    // Moon Light (only active at dusk/night)
+    float night_factor = smoothstep(0.15, -0.1, L.y);
+    if (night_factor > 0.0)
     {
         vec3 moon_light_dir = -L;
-        const float moon_light_NoL = max(0.0, dot(N, moon_light_dir) * 0.5 + 0.5);
-        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR;
+        const float moon_light_NoL = saturate(dot(N, moon_light_dir) * 0.5 + 0.5);
+        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR * night_factor * mix(0.30, 1.0, sky_visibility) * ao_factor;
     }
 
-
-/*
-#ifdef FRAGMENT_SHADER
-    // Compute curvature
-    vec3 ddx = dFdx(N);
-    vec3 ddy = dFdy(N);
-    vec3 xneg = N - ddx;
-    vec3 xpos = N + ddx;
-    vec3 yneg = N - ddy;
-    vec3 ypos = N + ddy;
-    float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) / scene_linear_depth;
-    float corrosion = clamp(-curvature * 3.0, 0.0, 1.0);
-    float shine = clamp(curvature * 5.0, 0.0, 1.0);
-    curvature = pow(saturate((curvature * 0.5 + 0.5) * 1.0), 4.0);
-    return vec4(curvature, curvature, curvature, 1.0);
-#endif
-*/
-
-    // final result
+    // Final PBR energy-conserving combination (F0 is already applied in specular_light)
     result = diffuse_light * base_color * (1.0 - max(reflectance, metallic));
-    result += mix(specular_light, specular_light * F0, vec3(max(reflectance, metallic)));
+    result += specular_light;
     return vec4(max(vec3(0.0), result), opacity);
 }
 

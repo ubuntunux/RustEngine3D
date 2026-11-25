@@ -48,7 +48,7 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     float depth = texture(textureSceneDepth, vs_output.texCoord).x;
-    if(depth == 1.0)
+    if(depth == 0.0)
     {
         outColor = vec4(0.0);
         return;
@@ -58,8 +58,9 @@ void main() {
     float opacity = 1.0;
     vec3 emissive_color = base_color.xyz * decode_emissive_intensity(base_color.w);
 
-    // x: roughness y: metalic, zw: vertex_normal
+    // x: roughness, y: metallic, zw: octahedral vertex_normal
     vec4 material = texture(textureSceneMaterial, vs_output.texCoord);
+    // xyz: world normal, w: encoded shading_model
     vec4 normal = texture(textureSceneNormal, vs_output.texCoord);
 
     vec4 relative_position = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, vs_output.texCoord, depth);
@@ -68,10 +69,15 @@ void main() {
     float roughness = material.x;
     float metallic = material.y;
     float reflectance = 0.0;
-    float shadow_resolved = ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0) ? texture(textureShadowResolved, vs_output.texCoord).x : 1.0;
+    vec2 shadow_ao = ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0)
+        ? texture(textureShadowResolved, vs_output.texCoord).xy
+        : vec2(1.0);
+    float shadow_resolved = shadow_ao.x;
+    float ao_resolved = shadow_ao.y;
+    uint shading_model = decode_shading_model(normal.w);
     vec4 scene_reflect_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0) ? texture(textureSceneReflect, vs_output.texCoord) : vec4(0.0);
 
-    vec3 vertexNormal = normalize(vec3(material.z, material.w, normal.w) * 2.0 - 1.0);
+    vec3 vertexNormal = oct_decode_normal(material.zw);
     vec3 N = normalize(normal.xyz * 2.0 - 1.0);
     vec3 V = normalize(-relative_position.xyz);
     const bool IS_COMBINED_SHADOW = true;
@@ -93,6 +99,8 @@ void main() {
         roughness,
         reflectance,
         shadow_resolved,
+        ao_resolved,
+        shading_model,
         scene_reflect_color,
         texture_probe,
         textureShadow,

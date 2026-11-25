@@ -20,7 +20,8 @@ pub fn get_framebuffer_data_create_info(
     let mut color_render_targets = Vec::new();
     for render_target_format in render_target_formats.iter() {
         let render_target_type = match *render_target_format {
-            vk::Format::R8G8B8A8_UNORM => RenderTargetType::SceneAlbedo,
+            vk::Format::R8G8B8A8_SRGB => RenderTargetType::SceneAlbedo,
+            vk::Format::R8G8B8A8_UNORM => RenderTargetType::SceneNormal,
             vk::Format::R16G16_SFLOAT => RenderTargetType::SceneVelocity,
             vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
             vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,

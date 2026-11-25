@@ -281,3 +281,32 @@ impl PushConstantName for PushConstant_RenderDebug {
 }
 
 impl PushConstant for PushConstant_RenderDebug {}
+
+#[repr(C)]
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderFinal {
+    pub _tone_mapping_mode: u32,
+    pub _exposure: f32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+}
+
+impl Default for PushConstant_RenderFinal {
+    fn default() -> PushConstant_RenderFinal {
+        PushConstant_RenderFinal {
+            _tone_mapping_mode: 0,
+            _exposure: 0.90,
+            _reserved0: 0,
+            _reserved1: 0,
+        }
+    }
+}
+
+impl PushConstantName for PushConstant_RenderFinal {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_RenderFinal"
+    }
+}
+
+impl PushConstant for PushConstant_RenderFinal {}

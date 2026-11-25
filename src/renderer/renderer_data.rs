@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::num::Wrapping;
 use std::str::FromStr;
 use std::vec::Vec;
 use strum_macros::{Display, EnumCount, EnumIter, FromRepr};
@@ -13,6 +12,7 @@ use crate::render_pass::render_object::{depth_prepass, render_forward_for_light_
 use crate::render_pass::render_pass;
 use crate::renderer::push_constants::{
     PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy, PushConstant_RenderDebug,
+    PushConstant_RenderFinal,
 };
 use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
@@ -106,6 +106,25 @@ impl Default for RenderQualityLevel {
     }
 }
 
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumCount, EnumIter, FromRepr, Default,
+)]
+#[repr(u32)]
+pub enum ToneMappingMode {
+    #[default]
+    AgX = 0,
+    AcesFilmic = 1,
+}
+
+impl ToneMappingMode {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            ToneMappingMode::AgX => "AgX",
+            ToneMappingMode::AcesFilmic => "ACES Filmic",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RenderOption {
     RenderSSR = 1 << 0,
@@ -139,6 +158,7 @@ pub struct RendererData<'a> {
     pub _fft_ocean: FFTOcean<'a>,
     pub _atmosphere: Atmosphere<'a>,
     pub _render_option: u32,
+    pub _tone_mapping_mode: ToneMappingMode,
     pub _is_render_scene: bool,
 }
 
@@ -572,6 +592,7 @@ impl<'a> RendererData<'a> {
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
             _render_option: unsafe { CURRENT_RENDER_OPTION },
+            _tone_mapping_mode: unsafe { constants::TONE_MAPPING_MODE },
             _is_render_scene: true,
         }
     }
@@ -805,9 +826,61 @@ impl<'a> RendererData<'a> {
                 pipeline_binding_data,
                 descriptor_sets,
             );
-            let dispatch_count: u32 = (Wrapping(image_width) >> mip_level).0;
+            let dispatch_count: u32 = (image_width >> mip_level).max(1);
             renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
         }
+    }
+
+    pub fn convolve_cube_map_irradiance(
+        &self,
+        renderer_context: &RendererContext<'a>,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        convolve_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
+        image_width: u32,
+    ) {
+        let memory_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ);
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::DependencyFlags::empty(),
+            &[memory_barrier],
+            &[],
+            &[],
+        );
+
+        let engine_resources = get_engine_resources();
+        let copy_cube_map_material_instance =
+            engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
+        let pipeline_binding_data =
+            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/convolve_irradiance");
+        let pipeline_data = pipeline_binding_data.get_pipeline_data().borrow();
+        renderer_context.begin_compute_pipeline(command_buffer, &pipeline_data);
+
+        for (index, descriptor_sets) in convolve_descriptor_sets.iter().enumerate() {
+            let dst_mip = RenderContext_LightProbe::IRRADIANCE_DST_MIP_START + index as u32;
+            renderer_context.bind_descriptor_sets(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                Some(descriptor_sets),
+            );
+            let dispatch_count: u32 = (image_width >> dst_mip).max(1);
+            renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+        }
+
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::DependencyFlags::empty(),
+            &[memory_barrier],
+            &[],
+            &[],
+        );
     }
 
     pub fn reset_render_light_probe_time(&mut self) {
@@ -898,15 +971,30 @@ impl<'a> RendererData<'a> {
                 None,
             );
 
-            // downsampling for only sky
+            // Ensure mip 0 color attachment write completes before compute downsampling reads it
+            let graphics_to_compute_barrier = vk::MemoryBarrier::default()
+                .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+                .dst_access_mask(vk::AccessFlags::SHADER_READ);
+            renderer_context.pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::empty(),
+                &[graphics_to_compute_barrier],
+                &[],
+                &[],
+            );
+
+            // downsampling for only sky (specular mips 0..IRRADIANCE_DST_MIP_START)
             renderer_context.begin_compute_pipeline(
                 command_buffer,
                 &downsampling_pipeline_binding_data.get_pipeline_data().borrow(),
             );
             let mip_level_descriptor_sets =
                 &self._render_context_light_probe._only_sky_downsampling_descriptor_sets[layer_index];
-            let mip_levels = mip_level_descriptor_sets.len();
-            for mip_level in 0..mip_levels {
+            let specular_mip_count =
+                (RenderContext_LightProbe::IRRADIANCE_DST_MIP_START as usize - 1).min(mip_level_descriptor_sets.len());
+            for mip_level in 0..specular_mip_count {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
                 renderer_context.bind_descriptor_sets(
                     command_buffer,
@@ -914,10 +1002,31 @@ impl<'a> RendererData<'a> {
                     downsampling_pipeline_binding_data,
                     descriptor_sets,
                 );
-                let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
+                let dispatch_count = (constants::LIGHT_PROBE_SIZE >> (mip_level + 1)).max(1);
                 renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+                let memory_barrier = vk::MemoryBarrier::default()
+                    .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+                    .dst_access_mask(vk::AccessFlags::SHADER_READ);
+                renderer_context.pipeline_barrier(
+                    command_buffer,
+                    vk::PipelineStageFlags::COMPUTE_SHADER,
+                    vk::PipelineStageFlags::COMPUTE_SHADER,
+                    vk::DependencyFlags::empty(),
+                    &[memory_barrier],
+                    &[],
+                    &[],
+                );
             }
         }
+
+        // convolve cosine-weighted diffuse irradiance for only sky
+        self.convolve_cube_map_irradiance(
+            renderer_context,
+            command_buffer,
+            swapchain_index,
+            &self._render_context_light_probe._only_sky_convolve_irradiance_descriptor_sets,
+            constants::LIGHT_PROBE_SIZE,
+        );
 
         // render static object for light probe
         if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
@@ -973,15 +1082,16 @@ impl<'a> RendererData<'a> {
                     static_render_elements,
                 );
 
-                // downsampling light probe
+                // downsampling light probe (specular mips 0..IRRADIANCE_DST_MIP_START)
                 renderer_context.begin_compute_pipeline(
                     command_buffer,
                     &downsampling_pipeline_binding_data.get_pipeline_data().borrow(),
                 );
                 let mip_level_descriptor_sets =
                     &self._render_context_light_probe._light_probe_downsampling_descriptor_sets[layer_index];
-                let mip_levels = mip_level_descriptor_sets.len();
-                for mip_level in 0..mip_levels {
+                let specular_mip_count = (RenderContext_LightProbe::IRRADIANCE_DST_MIP_START as usize - 1)
+                    .min(mip_level_descriptor_sets.len());
+                for mip_level in 0..specular_mip_count {
                     let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
                     renderer_context.bind_descriptor_sets(
                         command_buffer,
@@ -989,10 +1099,31 @@ impl<'a> RendererData<'a> {
                         downsampling_pipeline_binding_data,
                         descriptor_sets,
                     );
-                    let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
+                    let dispatch_count = (constants::LIGHT_PROBE_SIZE >> (mip_level + 1)).max(1);
                     renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+                    let memory_barrier = vk::MemoryBarrier::default()
+                        .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+                        .dst_access_mask(vk::AccessFlags::SHADER_READ);
+                    renderer_context.pipeline_barrier(
+                        command_buffer,
+                        vk::PipelineStageFlags::COMPUTE_SHADER,
+                        vk::PipelineStageFlags::COMPUTE_SHADER,
+                        vk::DependencyFlags::empty(),
+                        &[memory_barrier],
+                        &[],
+                        &[],
+                    );
                 }
             }
+
+            // convolve cosine-weighted diffuse irradiance for forward light probe
+            self.convolve_cube_map_irradiance(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &self._render_context_light_probe._light_probe_forward_convolve_irradiance_descriptor_sets,
+                constants::LIGHT_PROBE_SIZE,
+            );
         }
     }
 
@@ -1777,15 +1908,22 @@ impl<'a> RendererData<'a> {
             ._render_context_light_probe
             ._light_probe_blend_term
             .min(self._render_context_light_probe._light_probe_refresh_term);
-        if self._render_context_light_probe._light_probe_blend_time < light_probe_term {
+        let force_immediate_blend = self._render_context_light_probe._force_immediate_blend
+            || self._render_context_light_probe._light_probe_capture_count <= MAX_FRAME_COUNT;
+        if force_immediate_blend || self._render_context_light_probe._light_probe_blend_time < light_probe_term {
             let _label_copy_cube_map = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
                 "copy_cube_map",
             );
-            self._render_context_light_probe._light_probe_blend_time += delta_time;
-            let blend_ratio: f64 =
-                1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
+            let blend_ratio: f64 = if force_immediate_blend || light_probe_term <= 0.0 {
+                self._render_context_light_probe._light_probe_blend_time = light_probe_term;
+                self._render_context_light_probe._force_immediate_blend = false;
+                1.0
+            } else {
+                self._render_context_light_probe._light_probe_blend_time += delta_time;
+                1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term)
+            };
             self.copy_cube_map(
                 renderer_context,
                 command_buffer,
@@ -1803,6 +1941,20 @@ impl<'a> RendererData<'a> {
                     _reserved1: 0,
                     _reserved2: 0,
                 }),
+            );
+
+            // Ensure blended LightProbeColor compute writes are visible to fragment shaders
+            let compute_to_fragment_barrier = vk::MemoryBarrier::default()
+                .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+                .dst_access_mask(vk::AccessFlags::SHADER_READ);
+            renderer_context.pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::FRAGMENT_SHADER,
+                vk::DependencyFlags::empty(),
+                &[compute_to_fragment_barrier],
+                &[],
+                &[],
             );
         }
 
@@ -1944,7 +2096,10 @@ impl<'a> RendererData<'a> {
                 &quad_geometry_data,
                 None,
                 None,
-                None,
+                Some(&PushConstant_RenderFinal {
+                    _tone_mapping_mode: self._tone_mapping_mode as u32,
+                    ..Default::default()
+                }),
             );
         }
 

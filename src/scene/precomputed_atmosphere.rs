@@ -1147,7 +1147,7 @@ impl<'a> Atmosphere<'a> {
         self._atmosphere_constants = AtmosphereConstants {
             _sky_radiance_to_luminance: &self._sky * self._atmosphere_exposure,
             _cloud_exposure: self._cloud_exposure,
-            _sun_radiance_to_luminance: &self._sky * self._atmosphere_exposure,
+            _sun_radiance_to_luminance: &self._sun * self._atmosphere_exposure,
             _cloud_altitude: self._cloud_altitude,
             _cloud_height: self._cloud_height,
             _cloud_speed: self._cloud_speed,

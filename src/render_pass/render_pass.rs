@@ -30,7 +30,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         common::clear_render_target::get_render_pass_data_create_info(
             renderer_data,
             &[
-                vk::Format::R8G8B8A8_UNORM,
+                vk::Format::R8G8B8A8_SRGB,
                 vk::Format::R8G8B8A8_UNORM,
                 vk::Format::R8G8B8A8_UNORM,
                 vk::Format::R16G16_SFLOAT,

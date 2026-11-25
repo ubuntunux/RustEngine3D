@@ -284,6 +284,44 @@ float decode_emissive_intensity(float emissive_intensity)
     return emissive_intensity * 10.0;
 }
 
+// Octahedral normal encoding to [0, 1]^2 (Cigolle et al. 2014)
+vec2 oct_sign_not_zero(vec2 v)
+{
+    return vec2((v.x >= 0.0) ? 1.0 : -1.0, (v.y >= 0.0) ? 1.0 : -1.0);
+}
+
+vec2 oct_encode_normal(vec3 n)
+{
+    float denom = abs(n.x) + abs(n.y) + abs(n.z);
+    vec2 p = n.xy / max(denom, 0.00001);
+    if (n.z < 0.0)
+    {
+        p = (1.0 - abs(p.yx)) * oct_sign_not_zero(p);
+    }
+    return p * 0.5 + 0.5;
+}
+
+vec3 oct_decode_normal(vec2 e)
+{
+    vec2 p = e * 2.0 - 1.0;
+    vec3 n = vec3(p.xy, 1.0 - abs(p.x) - abs(p.y));
+    if (n.z < 0.0)
+    {
+        n.xy = (1.0 - abs(n.yx)) * oct_sign_not_zero(n.xy);
+    }
+    return safe_normalize(n);
+}
+
+float encode_shading_model(uint shading_model)
+{
+    return float(shading_model) / 255.0;
+}
+
+uint decode_shading_model(float encoded)
+{
+    return uint(floor(encoded * 255.0 + 0.5));
+}
+
 mat4 make_rotation_matrix(float pitch, float yaw, float roll)
 {
     float ch = cos(yaw);

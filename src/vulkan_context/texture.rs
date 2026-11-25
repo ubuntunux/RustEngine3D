@@ -1144,11 +1144,16 @@ fn create_texture_data_inner<T: Copy>(
                 vk::ImageLayout::GENERAL,
             )
         } else {
+            let format_properties = unsafe {
+                instance.get_physical_device_format_properties(physical_device, texture_create_info._texture_format)
+            };
+            let mut color_usage =
+                common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT;
+            if format_properties.optimal_tiling_features.contains(vk::FormatFeatureFlags::STORAGE_IMAGE) {
+                color_usage |= vk::ImageUsageFlags::STORAGE;
+            }
             (
-                common_usage
-                    | vk::ImageUsageFlags::INPUT_ATTACHMENT
-                    | vk::ImageUsageFlags::COLOR_ATTACHMENT
-                    | vk::ImageUsageFlags::STORAGE,
+                color_usage,
                 vk::ImageAspectFlags::COLOR,
                 ImageLayoutTransition::TransferUndefToColorAttachement,
                 texture_create_info._texture_format,
@@ -1421,6 +1426,7 @@ pub fn update_texture_data_region(
     }
 
     let image_aspect = get_image_aspect_by_format(texture_data._image_format);
+    let target_layout = texture_data._image_info.image_layout;
     run_commands_once(
         device,
         command_pool,
@@ -1430,7 +1436,7 @@ pub fn update_texture_data_region(
                 s_type: vk::StructureType::IMAGE_MEMORY_BARRIER,
                 src_access_mask: vk::AccessFlags::SHADER_READ,
                 dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
-                old_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                old_layout: target_layout,
                 new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
                 src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                 dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
@@ -1489,7 +1495,7 @@ pub fn update_texture_data_region(
                 src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
                 dst_access_mask: vk::AccessFlags::SHADER_READ,
                 old_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-                new_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                new_layout: target_layout,
                 src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                 dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                 image: texture_data._image,

@@ -30,6 +30,7 @@ pub struct RenderContext_LightProbe<'a> {
     pub _light_probe_blend_time: f64,
     pub _light_probe_blend_term: f64,
     pub _light_probe_capture_count: u64,
+    pub _force_immediate_blend: bool,
     pub _render_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData<'a>>,
     pub _render_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
     pub _composite_atmosphere_framebuffer_data_list_only_sky: CubeMapArray<FramebufferData<'a>>,
@@ -41,6 +42,8 @@ pub struct RenderContext_LightProbe<'a> {
     pub _light_probe_blend_from_forward_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _only_sky_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _light_probe_forward_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _only_sky_convolve_irradiance_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _light_probe_forward_convolve_irradiance_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
 }
 
 impl<'a> Default for RenderContext_LightProbe<'a> {
@@ -51,6 +54,7 @@ impl<'a> Default for RenderContext_LightProbe<'a> {
             _light_probe_blend_time: 0.0,
             _light_probe_blend_term: 1.0,
             _light_probe_capture_count: 0,
+            _force_immediate_blend: true,
             _render_atmosphere_framebuffer_data_list: Vec::new(),
             _render_atmosphere_descriptor_sets: Vec::new(),
             _composite_atmosphere_framebuffer_data_list_only_sky: Vec::new(),
@@ -62,6 +66,8 @@ impl<'a> Default for RenderContext_LightProbe<'a> {
             _light_probe_blend_from_forward_descriptor_sets: Vec::new(),
             _only_sky_copy_descriptor_sets: Vec::new(),
             _light_probe_forward_copy_descriptor_sets: Vec::new(),
+            _only_sky_convolve_irradiance_descriptor_sets: Vec::new(),
+            _light_probe_forward_convolve_irradiance_descriptor_sets: Vec::new(),
         }
     }
 }
@@ -677,9 +683,13 @@ impl<'a> RenderContext_ClearRenderTargets<'a> {
 }
 
 impl<'a> RenderContext_LightProbe<'a> {
+    pub const IRRADIANCE_SRC_MIP: u32 = 4;
+    pub const IRRADIANCE_DST_MIP_START: u32 = 6;
+
     pub fn reset_light_probe_data(&mut self) {
         self._next_refresh_time = 0.0;
-        self._light_probe_blend_term = 0.0;
+        self._light_probe_blend_time = 0.0;
+        self._force_immediate_blend = true;
     }
 
     pub fn initialize(
@@ -714,10 +724,13 @@ impl<'a> RenderContext_LightProbe<'a> {
             copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/copy");
         let blend_cube_map_pipeline_binding_data =
             copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
+        let convolve_irradiance_pipeline_binding_data =
+            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/convolve_irradiance");
 
         self._next_refresh_time = 0.0;
         self._light_probe_blend_time = 0.0;
         self._light_probe_capture_count = 0;
+        self._force_immediate_blend = true;
 
         for i in 0..constants::CUBE_LAYER_COUNT {
             // render_atmosphere
@@ -869,118 +882,167 @@ impl<'a> RenderContext_LightProbe<'a> {
                 );
                 self._light_probe_downsampling_descriptor_sets.last_mut().unwrap().push(descriptor_sets);
             }
+        }
 
-            // copy cube map, blend cube map
-            let image_mip_levels: u32 = light_probe_color_forward._image_mip_levels;
-            for mip_level in 0..image_mip_levels {
-                let mut only_sky_copy_descriptor_resource_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> =
-                    SwapchainArray::new();
-                let mut light_probe_forward_copy_descriptor_resource_infos: SwapchainArray<
-                    DescriptorResourceInfoBySemantic<'a>,
-                > = SwapchainArray::new();
-                let mut light_probe_blend_from_only_sky_descriptor_resource_infos: SwapchainArray<
-                    DescriptorResourceInfoBySemantic<'a>,
-                > = SwapchainArray::new();
-                let mut light_probe_blend_from_forward_descriptor_resource_infos: SwapchainArray<
-                    DescriptorResourceInfoBySemantic<'a>,
-                > = SwapchainArray::new();
-                for layer in 0..6 {
-                    only_sky_copy_descriptor_resource_infos.push((
-                        format!("IMAGE_INPUT_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_only_sky.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_forward_copy_descriptor_resource_infos.push((
-                        format!("IMAGE_INPUT_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_forward.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_blend_from_only_sky_descriptor_resource_infos.push((
-                        format!("IMAGE_INPUT_0_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_only_sky_prev.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_blend_from_forward_descriptor_resource_infos.push((
-                        format!("IMAGE_INPUT_0_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_forward_prev.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                }
-                for layer in 0..6 {
-                    only_sky_copy_descriptor_resource_infos.push((
-                        format!("IMAGE_OUTPUT_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_only_sky_prev.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_forward_copy_descriptor_resource_infos.push((
-                        format!("IMAGE_OUTPUT_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_forward_prev.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_blend_from_only_sky_descriptor_resource_infos.push((
-                        format!("IMAGE_INPUT_1_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_only_sky.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_blend_from_forward_descriptor_resource_infos.push((
-                        format!("IMAGE_INPUT_1_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color_forward.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                }
-                for layer in 0..6 {
-                    light_probe_blend_from_only_sky_descriptor_resource_infos.push((
-                        format!("IMAGE_OUTPUT_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                    light_probe_blend_from_forward_descriptor_resource_infos.push((
-                        format!("IMAGE_OUTPUT_{}", layer),
-                        utility::create_descriptor_image_info_swapchain_array(
-                            light_probe_color.get_sub_image_info(layer, mip_level),
-                        ),
-                    ));
-                }
-
-                // copy cube map
-                self._only_sky_copy_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
-                    device,
-                    debug_utils_device,
-                    copy_cube_map_pipeline_binding_data,
-                    &only_sky_copy_descriptor_resource_infos,
-                ));
-                self._light_probe_forward_copy_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
-                    device,
-                    debug_utils_device,
-                    copy_cube_map_pipeline_binding_data,
-                    &light_probe_forward_copy_descriptor_resource_infos,
-                ));
-
-                // blend cube map
-                self._light_probe_blend_from_only_sky_descriptor_sets.push(
-                    utility::create_descriptor_sets_by_semantic(
-                        device,
-                        debug_utils_device,
-                        blend_cube_map_pipeline_binding_data,
-                        &light_probe_blend_from_only_sky_descriptor_resource_infos,
+        // copy cube map, blend cube map (once across all 6 faces per mip level)
+        let image_mip_levels: u32 = light_probe_color_forward._image_mip_levels;
+        for mip_level in 0..image_mip_levels {
+            let mut only_sky_copy_descriptor_resource_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> =
+                SwapchainArray::new();
+            let mut light_probe_forward_copy_descriptor_resource_infos: SwapchainArray<
+                DescriptorResourceInfoBySemantic<'a>,
+            > = SwapchainArray::new();
+            let mut light_probe_blend_from_only_sky_descriptor_resource_infos: SwapchainArray<
+                DescriptorResourceInfoBySemantic<'a>,
+            > = SwapchainArray::new();
+            let mut light_probe_blend_from_forward_descriptor_resource_infos: SwapchainArray<
+                DescriptorResourceInfoBySemantic<'a>,
+            > = SwapchainArray::new();
+            for layer in 0..6 {
+                only_sky_copy_descriptor_resource_infos.push((
+                    format!("IMAGE_INPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky.get_sub_image_info(layer, mip_level),
                     ),
-                );
-                self._light_probe_blend_from_forward_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
-                    device,
-                    debug_utils_device,
-                    blend_cube_map_pipeline_binding_data,
-                    &light_probe_blend_from_forward_descriptor_resource_infos,
+                ));
+                light_probe_forward_copy_descriptor_resource_infos.push((
+                    format!("IMAGE_INPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+                light_probe_blend_from_only_sky_descriptor_resource_infos.push((
+                    format!("IMAGE_INPUT_0_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky_prev.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+                light_probe_blend_from_forward_descriptor_resource_infos.push((
+                    format!("IMAGE_INPUT_0_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward_prev.get_sub_image_info(layer, mip_level),
+                    ),
                 ));
             }
+            for layer in 0..6 {
+                only_sky_copy_descriptor_resource_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky_prev.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+                light_probe_forward_copy_descriptor_resource_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward_prev.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+                light_probe_blend_from_only_sky_descriptor_resource_infos.push((
+                    format!("IMAGE_INPUT_1_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+                light_probe_blend_from_forward_descriptor_resource_infos.push((
+                    format!("IMAGE_INPUT_1_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+            }
+            for layer in 0..6 {
+                light_probe_blend_from_only_sky_descriptor_resource_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+                light_probe_blend_from_forward_descriptor_resource_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color.get_sub_image_info(layer, mip_level),
+                    ),
+                ));
+            }
+
+            // copy cube map
+            self._only_sky_copy_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                copy_cube_map_pipeline_binding_data,
+                &only_sky_copy_descriptor_resource_infos,
+            ));
+            self._light_probe_forward_copy_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                copy_cube_map_pipeline_binding_data,
+                &light_probe_forward_copy_descriptor_resource_infos,
+            ));
+
+            // blend cube map
+            self._light_probe_blend_from_only_sky_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                blend_cube_map_pipeline_binding_data,
+                &light_probe_blend_from_only_sky_descriptor_resource_infos,
+            ));
+            self._light_probe_blend_from_forward_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                blend_cube_map_pipeline_binding_data,
+                &light_probe_blend_from_forward_descriptor_resource_infos,
+            ));
+        }
+
+        // convolve diffuse irradiance from IRRADIANCE_SRC_MIP into IRRADIANCE_DST_MIP_START..image_mip_levels
+        let src_mip = Self::IRRADIANCE_SRC_MIP.min(image_mip_levels.saturating_sub(1));
+        for dst_mip in Self::IRRADIANCE_DST_MIP_START..image_mip_levels {
+            let mut only_sky_convolve_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> =
+                SwapchainArray::new();
+            let mut forward_convolve_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> =
+                SwapchainArray::new();
+            for layer in 0..6 {
+                only_sky_convolve_infos.push((
+                    format!("IMAGE_INPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky.get_sub_image_info(layer, src_mip),
+                    ),
+                ));
+                forward_convolve_infos.push((
+                    format!("IMAGE_INPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward.get_sub_image_info(layer, src_mip),
+                    ),
+                ));
+            }
+            for layer in 0..6 {
+                only_sky_convolve_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_only_sky.get_sub_image_info(layer, dst_mip),
+                    ),
+                ));
+                forward_convolve_infos.push((
+                    format!("IMAGE_OUTPUT_{}", layer),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        light_probe_color_forward.get_sub_image_info(layer, dst_mip),
+                    ),
+                ));
+            }
+            self._only_sky_convolve_irradiance_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                convolve_irradiance_pipeline_binding_data,
+                &only_sky_convolve_infos,
+            ));
+            self._light_probe_forward_convolve_irradiance_descriptor_sets.push(
+                utility::create_descriptor_sets_by_semantic(
+                    device,
+                    debug_utils_device,
+                    convolve_irradiance_pipeline_binding_data,
+                    &forward_convolve_infos,
+                ),
+            );
         }
     }
 
@@ -1008,5 +1070,7 @@ impl<'a> RenderContext_LightProbe<'a> {
         self._light_probe_blend_from_forward_descriptor_sets.clear();
         self._only_sky_copy_descriptor_sets.clear();
         self._light_probe_forward_copy_descriptor_sets.clear();
+        self._only_sky_convolve_irradiance_descriptor_sets.clear();
+        self._light_probe_forward_convolve_irradiance_descriptor_sets.clear();
     }
 }

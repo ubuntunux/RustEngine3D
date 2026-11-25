@@ -202,6 +202,9 @@ impl<'a> SceneManager<'a> {
     pub fn get_main_light(&self) -> &RcRefCell<DirectionalLight> {
         &self._main_light.as_ref().unwrap()
     }
+    pub fn get_maybe_main_light(&self) -> Option<&RcRefCell<DirectionalLight>> {
+        self._main_light.as_ref()
+    }
     pub fn get_render_point_lights(&self) -> &PointLights {
         &self._render_point_lights
     }

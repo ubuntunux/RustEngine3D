@@ -29,7 +29,11 @@ void main() {
     vec3 color3 = max(vec3(0.0), texture(textureSrc, texCoord + inv_texture_size).xyz);
     vec3 color = (color0 + color1 + color2 + color3) * 0.25;
     float luminance = get_luminance(color);
-    float exp_value = 4.0;
-    luminance = pow(saturate(1.0 - exp(-luminance * exp_value)), exp_value);
-    outColor = vec4(color * luminance, 1.0);
+    // Soft-knee HDR bloom extraction so only genuine bright highlights (sun/sky/emissives) bloom
+    const float threshold = max(pushConstant._bloom_threshold_min, 1.6);
+    const float knee = 0.5;
+    float soft = clamp(luminance - threshold + knee, 0.0, 2.0 * knee);
+    soft = (soft * soft) / (4.0 * knee + 0.00001);
+    float contribution = max(soft, luminance - threshold) / max(luminance, 0.00001);
+    outColor = vec4(color * saturate(contribution), 1.0);
 }

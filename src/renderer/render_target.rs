@@ -89,7 +89,7 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
 
     let precomputed_atmosphere_texture_create_info = TextureCreateInfo {
         _texture_width: render_viewport_width / 4,
-        _texture_height: render_viewport_width / 4,
+        _texture_height: render_viewport_height / 4,
         _texture_format: vk::Format::R16G16B16A16_SFLOAT,
         _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
         ..Default::default()
@@ -234,7 +234,7 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             _texture_name: RenderTargetType::SceneAlbedo.to_string(),
             _texture_width: render_viewport_width,
             _texture_height: render_viewport_height,
-            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_format: vk::Format::R8G8B8A8_SRGB,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },
@@ -481,6 +481,7 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             _texture_min_filter: vk::Filter::LINEAR,
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
     ];

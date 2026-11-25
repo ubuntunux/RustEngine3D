@@ -126,8 +126,9 @@ void main() {
     vec4 material = texture(texture_material, vs_output.texCoord.xy);
     float Roughness = material.x;
     vec4 normal = texture(texture_normal, vs_output.texCoord.xy);
-    vec3 vertexNormal = vec3(material.z, material.w, normal.w);
-    vec3 N = normalize(mix(vertexNormal, normal.xyz, Roughness) * 2.0 - 1.0);
+    vec3 vertexNormal = oct_decode_normal(material.zw);
+    vec3 worldNormal = normalize(normal.xyz * 2.0 - 1.0);
+    vec3 N = normalize(mix(vertexNormal, worldNormal, Roughness));
     vec3 V = normalize(-relative_pos.xyz);
     float NdotV = dot(V, N);
 

@@ -29,14 +29,14 @@ void main() {
     vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
 
 #if (BlendMode_Opaque == RenderMode)
-    // xyz: albedo, w: emissive_intensity
+    // xyz: albedo, w: encoded emissive_intensity
     outAlbedo.xyz = base_color.xyz * pushConstant._color.xyz;
     outAlbedo.w = material.z;
-    // x: roughness y: metalic, zw: vertex_normal
+    // x: roughness, y: metallic, zw: octahedral vertex_normal
     outMaterial.xy = material.xy;
-    outMaterial.zw = vertex_normal.xy * 0.5 + 0.5;
+    outMaterial.zw = oct_encode_normal(vertex_normal);
     outNormal.xyz = normal * 0.5 + 0.5;
-    outNormal.w = vertex_normal.z * 0.5 + 0.5;
+    outNormal.w = encode_shading_model(ShadingModel_Default);
     outVelocity = ((vs_output.projection_pos.xy / vs_output.projection_pos.w) - (vs_output.projection_pos_prev.xy / vs_output.projection_pos_prev.w)) * 0.5;
     outVelocity -= view_constants.JITTER_DELTA;
 #elif (BlendMode_AlphaBlend == BlendMode) || (BlendMode_Additive == BlendMode)
@@ -49,6 +49,8 @@ void main() {
     float metallic = material.y;
     float reflectance = 0.0;
     float shadow_factor = 1.0;
+    float ao_factor = 1.0;
+    uint shading_model = ShadingModel_Default;
     vec4 scene_reflect_color = vec4(0.0);
     vec3 V = normalize(-vs_output.relative_position.xyz);
     const bool IS_COMBINED_SHADOW = false;
@@ -70,6 +72,8 @@ void main() {
         roughness,
         reflectance,
         shadow_factor,
+        ao_factor,
+        shading_model,
         scene_reflect_color,
         texture_probe,
         textureShadow,

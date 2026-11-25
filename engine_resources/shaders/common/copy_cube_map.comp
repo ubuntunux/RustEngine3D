@@ -3,18 +3,18 @@
 #extension GL_GOOGLE_include_directive : enable
 
 layout(local_size_x = 1, local_size_y = 1) in;
-layout(rgba32f, binding = 0) uniform readonly image2D img_input_0;
-layout(rgba32f, binding = 1) uniform readonly image2D img_input_1;
-layout(rgba32f, binding = 2) uniform readonly image2D img_input_2;
-layout(rgba32f, binding = 3) uniform readonly image2D img_input_3;
-layout(rgba32f, binding = 4) uniform readonly image2D img_input_4;
-layout(rgba32f, binding = 5) uniform readonly image2D img_input_5;
-layout(rgba32f, binding = 6) uniform image2D img_output_0;
-layout(rgba32f, binding = 7) uniform image2D img_output_1;
-layout(rgba32f, binding = 8) uniform image2D img_output_2;
-layout(rgba32f, binding = 9) uniform image2D img_output_3;
-layout(rgba32f, binding = 10) uniform image2D img_output_4;
-layout(rgba32f, binding = 11) uniform image2D img_output_5;
+layout(rgba16f, binding = 0) uniform readonly image2D img_input_0;
+layout(rgba16f, binding = 1) uniform readonly image2D img_input_1;
+layout(rgba16f, binding = 2) uniform readonly image2D img_input_2;
+layout(rgba16f, binding = 3) uniform readonly image2D img_input_3;
+layout(rgba16f, binding = 4) uniform readonly image2D img_input_4;
+layout(rgba16f, binding = 5) uniform readonly image2D img_input_5;
+layout(rgba16f, binding = 6) uniform image2D img_output_0;
+layout(rgba16f, binding = 7) uniform image2D img_output_1;
+layout(rgba16f, binding = 8) uniform image2D img_output_2;
+layout(rgba16f, binding = 9) uniform image2D img_output_3;
+layout(rgba16f, binding = 10) uniform image2D img_output_4;
+layout(rgba16f, binding = 11) uniform image2D img_output_5;
 
 void main()
 {

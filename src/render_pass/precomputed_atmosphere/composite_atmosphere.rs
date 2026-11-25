@@ -68,11 +68,25 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
+                _descriptor_binding_index: 0,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
                 _descriptor_semantic: String::from("VIEW_CONSTANTS"),
                 _descriptor_binding_index: 1,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 2,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::LightData),
+                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
