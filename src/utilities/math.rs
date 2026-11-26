@@ -37,6 +37,25 @@ pub fn hammersley_2d(sample_idx: u32, num_samples: u32) -> Vector2<f32> {
     )
 }
 
+// Radical inverse in an arbitrary prime base (used for Halton low-discrepancy sequences)
+pub fn radical_inverse(base: u32, mut index: u32) -> f32 {
+    let inv_base = 1.0 / (base as f32);
+    let mut f = inv_base;
+    let mut result = 0.0;
+    while index > 0 {
+        result += f * ((index % base) as f32);
+        index /= base;
+        f *= inv_base;
+    }
+    result
+}
+
+// 1-indexed Halton(2, 3) 2D sequence in (0, 1)^2 for temporal jittering (TAA / TAAU)
+pub fn halton_2d(sample_idx: u32) -> Vector2<f32> {
+    let idx = sample_idx + 1;
+    Vector2::new(radical_inverse_base2(idx), radical_inverse(3, idx))
+}
+
 pub fn get_min(lhs: &Vector3<f32>, rhs: &Vector3<f32>) -> Vector3<f32> {
     Vector3::new(lhs.x.min(rhs.x), lhs.y.min(rhs.y), lhs.z.min(rhs.z))
 }

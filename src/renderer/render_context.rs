@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use strum::IntoEnumIterator;
 
 use ash::ext;
 use ash::{Device, vk};
@@ -7,10 +8,12 @@ use rand;
 
 use crate::constants;
 use crate::render_pass::common::{
-    composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy, render_gaussian_blur, render_taa,
+    composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy, render_final, render_gaussian_blur,
+    render_taa,
 };
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer_data::ColorGradingLut;
 use crate::renderer::shader_buffer_data::ShadowAOConstants;
 use crate::renderer::utility;
 use crate::renderer::utility::DescriptorResourceInfoBySemantic;
@@ -104,6 +107,12 @@ impl Default for RenderContext_CompositeGBuffer {
             _descriptor_sets1: Vec::new(),
         }
     }
+}
+
+#[derive(Clone, Default)]
+#[allow(non_camel_case_types)]
+pub struct RenderContext_RenderFinal {
+    pub _lut_descriptor_sets: HashMap<ColorGradingLut, SwapchainArray<vk::DescriptorSet>>,
 }
 
 #[derive(Clone)]
@@ -639,6 +648,41 @@ impl RenderContext_CompositeGBuffer {
     pub fn destroy(&mut self, _device: &Device) {
         self._descriptor_sets0.clear();
         self._descriptor_sets1.clear();
+    }
+}
+
+impl RenderContext_RenderFinal {
+    pub fn initialize<'a>(
+        &mut self,
+        device: &Device,
+        debug_utils_device: &ext::debug_utils::Device,
+        engine_resources: &EngineResources<'a>,
+    ) {
+        self._lut_descriptor_sets.clear();
+        let render_final_material_instance =
+            engine_resources.get_material_instance_data("common/render_final").borrow();
+        let pipeline_binding_data = render_final_material_instance.get_default_pipeline_binding_data();
+        for lut in ColorGradingLut::iter() {
+            let lut_texture = engine_resources.get_texture_data(lut.texture_name()).borrow();
+            let descriptor_sets = utility::create_descriptor_sets_by_semantic(
+                device,
+                debug_utils_device,
+                pipeline_binding_data,
+                &[(
+                    render_final::SEMANTIC_TEXTURE_COLOR_GRADING_LUT.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(lut_texture.get_default_image_info()),
+                )],
+            );
+            self._lut_descriptor_sets.insert(lut, descriptor_sets);
+        }
+    }
+
+    pub fn get_descriptor_sets(&self, lut: ColorGradingLut) -> Option<&SwapchainArray<vk::DescriptorSet>> {
+        self._lut_descriptor_sets.get(&lut)
+    }
+
+    pub fn destroy(&mut self, _device: &Device) {
+        self._lut_descriptor_sets.clear();
     }
 }
 

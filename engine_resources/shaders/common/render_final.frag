@@ -9,13 +9,14 @@
 
 layout(binding = 0) uniform sampler2D textureColor;
 layout(binding = 1) uniform sampler2D textureBloom0;
+layout(binding = 2) uniform sampler2D textureColorGradingLut;
 
 layout(push_constant) uniform PushConstant_RenderFinal
 {
     uint _tone_mapping_mode;
     float _exposure;
-    uint _reserved0;
-    uint _reserved1;
+    float _rcas_sharpness;
+    float _color_grading_strength;
 } pushConstant;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
@@ -28,6 +29,68 @@ layout(location = 0) out vec4 outColor;
 // Runtime selection uses pushConstant._tone_mapping_mode; define FORCE_TONEMAP_MODE to force compile-time selection.
 #define TONEMAP_MODE_AGX 0u
 #define TONEMAP_MODE_ACES_FILMIC 1u
+
+// Compress HDR [0, inf) into [0, 1) so AMD RCAS operates cleanly without specular ringing
+vec3 RcasCompress(vec3 hdr)
+{
+    vec3 c = max(hdr, vec3(0.0));
+    return c / (1.0 + c);
+}
+
+vec3 RcasExpand(vec3 comp)
+{
+    vec3 c = clamp(comp, vec3(0.0), vec3(0.9999));
+    return c / (1.0 - c);
+}
+
+// AMD FidelityFX RCAS (Robust Contrast Adaptive Sharpening) with noise suppression
+vec3 SampleRCAS(vec2 texCoord, float sharpness)
+{
+    if (sharpness <= 0.001)
+    {
+        return max(textureLod(textureColor, texCoord, 0.0).rgb, vec3(0.0));
+    }
+
+    ivec2 tex_size = textureSize(textureColor, 0);
+    ivec2 max_px = max(tex_size - ivec2(1), ivec2(0));
+    ivec2 p = clamp(ivec2(texCoord * vec2(tex_size)), ivec2(0), max_px);
+
+    vec3 b = RcasCompress(texelFetch(textureColor, clamp(p + ivec2( 0, -1), ivec2(0), max_px), 0).rgb);
+    vec3 d = RcasCompress(texelFetch(textureColor, clamp(p + ivec2(-1,  0), ivec2(0), max_px), 0).rgb);
+    vec3 e = RcasCompress(texelFetch(textureColor, p, 0).rgb);
+    vec3 f = RcasCompress(texelFetch(textureColor, clamp(p + ivec2( 1,  0), ivec2(0), max_px), 0).rgb);
+    vec3 h = RcasCompress(texelFetch(textureColor, clamp(p + ivec2( 0,  1), ivec2(0), max_px), 0).rgb);
+
+    // Approximate perceptual luminance (2*G + R + B) * 0.25
+    float bL = b.g * 0.5 + (b.r + b.b) * 0.25;
+    float dL = d.g * 0.5 + (d.r + d.b) * 0.25;
+    float eL = e.g * 0.5 + (e.r + e.b) * 0.25;
+    float fL = f.g * 0.5 + (f.r + f.b) * 0.25;
+    float hL = h.g * 0.5 + (h.r + h.b) * 0.25;
+
+    // Noise detection attenuates sharpening on isolated 1-pixel spikes
+    float nz = 0.25 * (bL + dL + fL + hL) - eL;
+    float luma_range = max(max(max(bL, dL), max(fL, hL)), eL) - min(min(min(bL, dL), min(fL, hL)), eL);
+    nz = saturate(abs(nz) / max(luma_range, 1e-5));
+    nz = -0.5 * nz + 1.0;
+
+    // Min and max of 4-neighbor ring + center per channel
+    vec3 mn4 = min(min(b, d), min(f, h));
+    vec3 mx4 = max(max(b, d), max(f, h));
+    vec3 mn = min(mn4, e);
+    vec3 mx = max(mx4, e);
+
+    // Maximum negative sharpening lobe that stays strictly within [0, 1]
+    vec3 hit_min = mn / max(4.0 * mx4, vec3(1e-5));
+    vec3 hit_max = (1.0 - mx) / max(4.0 * (1.0 - mn4), vec3(1e-5));
+    vec3 lobe_rgb = max(-hit_min, -hit_max);
+    float lobe = max(lobe_rgb.r, max(lobe_rgb.g, lobe_rgb.b));
+
+    const float FSR_RCAS_LIMIT = 0.1875; // 0.25 - 1/16
+    float w = clamp(lobe, -FSR_RCAS_LIMIT, 0.0) * saturate(sharpness) * nz;
+    vec3 sharpened_comp = (e + w * (b + d + f + h)) / (1.0 + 4.0 * w);
+    return RcasExpand(sharpened_comp);
+}
 
 vec3 agxDefaultContrastApprox(vec3 x)
 {
@@ -102,39 +165,37 @@ vec3 ACESFilmicTonemap(vec3 hdrColor, float exposure)
     return saturate(v);
 }
 
-vec3 Uncharted2TonemapFunction(vec3 x)
+// 32x32x32 2D-strip (1024x32) color grading LUT lookup in perceptual sRGB space
+vec3 ApplyColorGradingLUT(vec3 linearColor, float strength)
 {
-    const float A = 0.15;
-    const float B = 0.50;
-    const float C = 0.10;
-    const float D = 0.20;
-    const float E = 0.02;
-    const float F = 0.30;
-    return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
-}
+    if (strength <= 0.001)
+    {
+        return linearColor;
+    }
 
-vec3 Uncharted2Tonemap(vec3 hdrColor, float exposure)
-{
-    const float W = 11.2;
-    const float ExposureBias = 2.0f;
-    hdrColor *= exposure;
-    hdrColor = Uncharted2TonemapFunction(hdrColor * ExposureBias);
-    vec3 whiteScale = 1.0f / Uncharted2TonemapFunction(vec3(W));
-    return hdrColor * whiteScale;
-}
+    vec3 srgb = pow(saturate(linearColor), vec3(1.0 / 2.2));
 
-vec3 ReinhardTonemap(vec3 hdrColor, float exposure)
-{
-    hdrColor *= exposure;
-    float L = get_luminance(hdrColor);
-    float Ld = L / (1.0 + L);
-    return clamp(Ld * hdrColor / max(L, 0.0001), 0.0, 1.0);
-}
+    const float LUT_SIZE = 32.0;
+    const float MAX_IDX = LUT_SIZE - 1.0;
 
-vec3 SimpleTonemap(vec3 hdrColor, float exposure)
-{
-    // Exposure tone mapping
-    return vec3(1.0) - exp(-hdrColor * exposure);
+    float b_scaled = srgb.b * MAX_IDX;
+    float slice0 = floor(b_scaled);
+    float slice1 = min(slice0 + 1.0, MAX_IDX);
+    float b_frac = b_scaled - slice0;
+
+    // Half-texel inset avoids cross-slice bleeding and sampler wrap artifacts
+    float u_in_slice = (0.5 + srgb.r * MAX_IDX) / LUT_SIZE;
+    float v = (0.5 + srgb.g * MAX_IDX) / LUT_SIZE;
+
+    float u0 = (slice0 + u_in_slice) / LUT_SIZE;
+    float u1 = (slice1 + u_in_slice) / LUT_SIZE;
+
+    vec3 c0 = textureLod(textureColorGradingLut, vec2(u0, v), 0.0).rgb;
+    vec3 c1 = textureLod(textureColorGradingLut, vec2(u1, v), 0.0).rgb;
+    vec3 graded_srgb = mix(c0, c1, b_frac);
+
+    vec3 graded_linear = pow(saturate(graded_srgb), vec3(2.2));
+    return mix(linearColor, graded_linear, saturate(strength));
 }
 
 float vignetting(vec2 uv, float inner_value, float outter_value)
@@ -143,15 +204,16 @@ float vignetting(vec2 uv, float inner_value, float outter_value)
     return mix(inner_value, outter_value, f * f);
 }
 
-void main() {
-    // Tonemapping
+void main()
+{
     const vec2 texCoord = vs_output.texCoord;
-    vec4 color = texture(textureColor, texCoord);
+    vec4 color = vec4(SampleRCAS(texCoord, pushConstant._rcas_sharpness), 1.0);
+
     vec3 bloom = vec3(0.0);
-    bool is_render_bloom = true;
+    const bool is_render_bloom = true;
     const float bloom_intensity = 0.12;
     const float bloom_weight[5] = float[] (0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
-    if(is_render_bloom)
+    if (is_render_bloom)
     {
         bloom += textureLod(textureBloom0, texCoord, 0.0).xyz * bloom_weight[0];
         bloom += textureLod(textureBloom0, texCoord, 1.0).xyz * bloom_weight[1];
@@ -179,6 +241,8 @@ void main() {
         color.xyz = AgXTonemap(color.xyz, exposure);
     }
 #endif
+
+    color.xyz = ApplyColorGradingLUT(color.xyz, pushConstant._color_grading_strength);
     color.xyz *= vignetting(texCoord, 1.0, 0.85);
     outColor = color;
 }

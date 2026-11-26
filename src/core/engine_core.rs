@@ -1144,7 +1144,7 @@ impl<'a> EngineCore<'a> {
                             rt_total_bytes as f32 / (1024.0 * 1024.0)
                         ));
                         font_manager.log(format!(
-                            "RenderQualityLevel: {:?}, Upscale: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, HalfLambert: {:?}, ToneMap: {:?}, Exp: {:.2}",
+                            "RenderQualityLevel: {:?}, Upscale: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, HalfLambert: {:?}, ToneMap: {:?}, Exp: {:.2}, LUT: {:?}",
                              { constants::RENDER_QUALITY_LEVEL },
                              { constants::ENABLE_UPSCALE },
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
@@ -1157,6 +1157,7 @@ impl<'a> EngineCore<'a> {
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderHalfLambert),
                             renderer_context._renderer_data._tone_mapping_mode,
                             renderer_context._renderer_data._exposure,
+                            renderer_context._renderer_data._color_grading_lut,
                         ));
 
                         let metrics = self._engine_resources.get_resource_metrics();

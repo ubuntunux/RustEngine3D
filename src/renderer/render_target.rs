@@ -68,20 +68,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
     let swapchain_data = &renderer_context._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
-    let render_viewport_width = unsafe {
-        if constants::ENABLE_UPSCALE {
-            ((window_width as f32 * 0.75) as u32 / 4) * 4
-        } else {
-            window_width
-        }
-    };
-    let render_viewport_height = unsafe {
-        if constants::ENABLE_UPSCALE {
-            ((window_height as f32 * 0.75) as u32 / 4) * 4
-        } else {
-            window_height
-        }
-    };
+    let (render_viewport_width, render_viewport_height) =
+        constants::get_render_viewport_size(window_width, window_height);
 
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_context._render_features._msaa_samples);

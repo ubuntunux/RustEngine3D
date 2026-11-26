@@ -1,4 +1,4 @@
-use crate::renderer::renderer_data::{RenderOption, RenderQualityLevel, ToneMappingMode};
+use crate::renderer::renderer_data::{ColorGradingLut, RenderOption, RenderQualityLevel, ToneMappingMode};
 use ash::vk;
 
 pub static mut DEVELOPMENT: bool = false;
@@ -64,10 +64,25 @@ pub static mut SHADOW_DEPTH_SLOPE_BIAS: f32 = 2.5;
 pub static mut SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
+pub const UPSCALE_FACTOR: f32 = 0.75;
+pub const RCAS_SHARPNESS_NATIVE: f32 = 0.25;
+pub const RCAS_SHARPNESS_UPSCALE: f32 = 0.65;
 pub static mut ENABLE_UPSCALE: bool = false;
 pub static mut RENDER_QUALITY_LEVEL: RenderQualityLevel = RenderQualityLevel::Medium;
 pub static mut TONE_MAPPING_MODE: ToneMappingMode = ToneMappingMode::AgX;
+pub static mut COLOR_GRADING_LUT: ColorGradingLut = ColorGradingLut::None;
 pub static mut EXPOSURE: f32 = 0.90;
+
+pub fn get_render_viewport_size(window_width: u32, window_height: u32) -> (u32, u32) {
+    let is_upscale = unsafe { ENABLE_UPSCALE };
+    if is_upscale {
+        let w = (((window_width as f32 * UPSCALE_FACTOR) as u32) / 4) * 4;
+        let h = (((window_height as f32 * UPSCALE_FACTOR) as u32) / 4) * 4;
+        (w.max(4), h.max(4))
+    } else {
+        (window_width.max(1), window_height.max(1))
+    }
+}
 pub static mut CURRENT_RENDER_OPTION: u32 = RenderOption::ALL as u32;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;

@@ -16,8 +16,8 @@ use crate::renderer::push_constants::{
 };
 use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
-    RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SceneColorDownSampling,
-    RenderContext_ShadowAO, RenderContext_TAA, RenderContext_TAA_Simple,
+    RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_RenderFinal,
+    RenderContext_SceneColorDownSampling, RenderContext_ShadowAO, RenderContext_TAA, RenderContext_TAA_Simple,
 };
 use crate::renderer::render_target::{self, RenderTargetType};
 use crate::renderer::renderer_context::RendererContext;
@@ -127,6 +127,44 @@ impl ToneMappingMode {
     }
 }
 
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumCount, EnumIter, FromRepr, Default,
+)]
+#[repr(usize)]
+pub enum ColorGradingLut {
+    #[default]
+    None = 0,
+    Vibrant = 1,
+    WarmGolden = 2,
+    CoolCrisp = 3,
+    Filmic = 4,
+    Pastel = 5,
+}
+
+impl ColorGradingLut {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            ColorGradingLut::None => "Off",
+            ColorGradingLut::Vibrant => "Stylized Vibrant",
+            ColorGradingLut::WarmGolden => "Warm Golden",
+            ColorGradingLut::CoolCrisp => "Cool Crisp",
+            ColorGradingLut::Filmic => "Filmic",
+            ColorGradingLut::Pastel => "Soft Pastel",
+        }
+    }
+
+    pub fn texture_name(&self) -> &'static str {
+        match self {
+            ColorGradingLut::None => "lut/lut_neutral",
+            ColorGradingLut::Vibrant => "lut/lut_vibrant",
+            ColorGradingLut::WarmGolden => "lut/lut_warm_golden",
+            ColorGradingLut::CoolCrisp => "lut/lut_cool_crisp",
+            ColorGradingLut::Filmic => "lut/lut_filmic",
+            ColorGradingLut::Pastel => "lut/lut_pastel",
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum RenderOption {
     RenderSSR = 1 << 0,
@@ -158,12 +196,14 @@ pub struct RendererData<'a> {
     pub _render_context_ssr: RenderContext_TAA_Simple<'a>,
     pub _render_context_ssgi: RenderContext_TAA_Simple<'a>,
     pub _render_context_composite_gbuffer: RenderContext_CompositeGBuffer,
+    pub _render_context_render_final: RenderContext_RenderFinal,
     pub _render_context_clear_render_targets: RenderContext_ClearRenderTargets<'a>,
     pub _render_context_light_probe: RenderContext_LightProbe<'a>,
     pub _fft_ocean: FFTOcean<'a>,
     pub _atmosphere: Atmosphere<'a>,
     pub _render_option: u32,
     pub _tone_mapping_mode: ToneMappingMode,
+    pub _color_grading_lut: ColorGradingLut,
     pub _exposure: f32,
     pub _is_render_scene: bool,
 }
@@ -265,6 +305,9 @@ impl<'a> RendererData<'a> {
             self._render_target_data_map.get(&RenderTargetType::SSGIResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSGIResolvedPrev).as_ref().unwrap(),
         );
+
+        // Render Final (Color Grading LUT descriptors)
+        self._render_context_render_final.initialize(device, debug_utils_device, engine_resources);
 
         // RenderContext_LightProbe
         self._render_context_light_probe.initialize(
@@ -438,6 +481,7 @@ impl<'a> RendererData<'a> {
         self._render_context_ssr.destroy(device);
         self._render_context_ssgi.destroy(device);
         self._render_context_composite_gbuffer.destroy(device);
+        self._render_context_render_final.destroy(device);
         self._render_context_clear_render_targets.destroy(device);
         self._render_context_light_probe.destroy(device);
     }
@@ -621,12 +665,14 @@ impl<'a> RendererData<'a> {
             _render_context_ssr: RenderContext_TAA_Simple::default(),
             _render_context_ssgi: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
+            _render_context_render_final: RenderContext_RenderFinal::default(),
             _render_context_clear_render_targets: RenderContext_ClearRenderTargets::default(),
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
             _render_option: unsafe { CURRENT_RENDER_OPTION },
             _tone_mapping_mode: unsafe { constants::TONE_MAPPING_MODE },
+            _color_grading_lut: unsafe { constants::COLOR_GRADING_LUT },
             _exposure: unsafe { constants::EXPOSURE },
             _is_render_scene: true,
         }
@@ -2245,13 +2291,24 @@ impl<'a> RendererData<'a> {
             );
         }
 
-        // Render Final
+        // Render Final (RCAS + Bloom + Tone Mapping + Color Grading LUT)
         {
             let _label_render_final = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
                 "render_final",
             );
+            let rcas_sharpness = if unsafe { constants::ENABLE_UPSCALE } {
+                constants::RCAS_SHARPNESS_UPSCALE
+            } else {
+                constants::RCAS_SHARPNESS_NATIVE
+            };
+            let color_grading_strength = if self._color_grading_lut == ColorGradingLut::None {
+                0.0
+            } else {
+                1.0
+            };
+            let descriptor_sets = self._render_context_render_final.get_descriptor_sets(self._color_grading_lut);
             renderer_context.render_material_instance(
                 command_buffer,
                 swapchain_index,
@@ -2259,11 +2316,12 @@ impl<'a> RendererData<'a> {
                 DEFAULT_PIPELINE,
                 &quad_geometry_data,
                 None,
-                None,
+                descriptor_sets,
                 Some(&PushConstant_RenderFinal {
                     _tone_mapping_mode: self._tone_mapping_mode as u32,
                     _exposure: self._exposure,
-                    ..Default::default()
+                    _rcas_sharpness: rcas_sharpness,
+                    _color_grading_strength: color_grading_strength,
                 }),
             );
         }

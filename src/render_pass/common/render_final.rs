@@ -16,6 +16,8 @@ use crate::renderer::push_constants::PushConstant_RenderFinal;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
+pub const SEMANTIC_TEXTURE_COLOR_GRADING_LUT: &str = "TEXTURE_COLOR_GRADING_LUT";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let swapchain_data = renderer_data.get_renderer_context().get_swap_chain_data();
     let (width, height) = (
@@ -97,6 +99,14 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_binding_index: 1,
                 _descriptor_name: enum_to_string(&RenderTargetType::Bloom0),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_COLOR_GRADING_LUT.to_string(),
+                _descriptor_binding_index: 2,
+                _descriptor_name: String::from("lut/lut_neutral"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },

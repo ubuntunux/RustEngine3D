@@ -143,12 +143,10 @@ impl CameraObjectData {
                 math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
         }
         for i in 0..8 {
-            camera_object_data._jitter_mode_hammersley8x[i] =
-                math::hammersley_2d(i as u32, 8) * 2.0 - Vector2::new(1.0, 1.0);
+            camera_object_data._jitter_mode_hammersley8x[i] = math::halton_2d(i as u32) * 2.0 - Vector2::new(1.0, 1.0);
         }
         for i in 0..16 {
-            camera_object_data._jitter_mode_hammersley16x[i] =
-                math::hammersley_2d(i as u32, 16) * 2.0 - Vector2::new(1.0, 1.0);
+            camera_object_data._jitter_mode_hammersley16x[i] = math::halton_2d(i as u32) * 2.0 - Vector2::new(1.0, 1.0);
         }
         camera_object_data
     }
@@ -254,13 +252,27 @@ impl CameraObjectData {
         let current_frame = crate::core::engine_core::get_current_frame();
         if self._updated_frame != current_frame {
             if self._enable_jitter {
-                self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
-                // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
+                let is_upscale = unsafe { constants::ENABLE_UPSCALE };
+                let phase_count = if is_upscale {
+                    self._jitter_mode_hammersley16x.len() as i32
+                } else {
+                    self._jitter_mode_hammersley8x.len() as i32
+                };
+                self._jitter_frame = (self._jitter_frame + 1) % phase_count;
+                // Offset of camera projection matrix in NDC space [-1.0, 1.0] divided by render viewport size
+                let (render_w, render_h) = constants::get_render_viewport_size(
+                    self._window_size.x.max(1) as u32,
+                    self._window_size.y.max(1) as u32,
+                );
                 self._jitter_prev = self._jitter.into();
-                self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
-                self._jitter[0] /= self._window_size.x as f32;
-                self._jitter[1] /= self._window_size.y as f32;
-                // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
+                self._jitter = if is_upscale {
+                    self._jitter_mode_hammersley16x[self._jitter_frame as usize].into()
+                } else {
+                    self._jitter_mode_hammersley8x[self._jitter_frame as usize].into()
+                };
+                self._jitter[0] /= render_w as f32;
+                self._jitter[1] /= render_h as f32;
+                // Multiplies by 0.5 because velocity is in UV space [0.0, 1.0]
                 self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
             }
 

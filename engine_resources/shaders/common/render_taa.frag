@@ -6,35 +6,6 @@
 #include "utility.glsl"
 #include "render_quad_common.glsl"
 
-const float Pi = 3.141592f;
-
-const int ClampModes_Disabled = 0;
-const int ClampModes_RGB_Clamp = 1;
-const int ClampModes_RGB_Clip = 2;
-const int ClampModes_Variance_Clip = 3;
-
-const int DilationModes_CenterAverage = 0;
-const int DilationModes_DilateNearestDepth = 1;
-const int DilationModes_DilateGreatestVelocity = 2;
-
-const int ResolveFilterType = FilterTypes_CatmullRom;
-const float ResolveFilterDiameter = 2.0;  // 0.0 ~ 6.0
-const float ExposureFilterOffset = 2.0;     // -16.0 ~ 16.0
-const float TemporalAABlendFactor = 0.95;    // default: 0.9, 0.0 ~ 1.0
-const int NeighborhoodClampMode = ClampModes_Variance_Clip;
-const float VarianceClipGamma = 1.5;    // 0.0 ~ 2.0
-const float LowFreqWeight = 0.25;   // 0.0 ~ 100.0
-const float HiFreqWeight = 0.85;    // 0.0 ~ 100.0
-const int DilationMode = DilationModes_DilateNearestDepth;
-const int ReprojectionFilter = FilterTypes_CatmullRom;
-const float ExposureScale = 0.0;    // -16.0 ~ 16.0
-const float ManualExposure = -2.5;  // -10.0 ~ 10.0
-
-const bool UseStandardReprojection = false;
-const bool UseTemporalColorWeighting = false;
-const bool InverseLuminanceFiltering = true;
-const bool UseExposureFiltering = false;
-
 layout(binding = 0) uniform SceneConstants
 {
     SCENE_CONSTANTS scene_constants;
@@ -53,17 +24,30 @@ layout(binding = 6) uniform sampler2D texture_hiz;
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 outColor;
 
-// From "Temporal Reprojection Anti-Aliasing"
-// https://github.com/playdeadgames/temporal
-vec3 ClipAABB(vec3 aabbMin, vec3 aabbMax, vec3 prevSample, vec3 avg)
+vec3 RGBToYCoCg(vec3 rgb)
 {
-#if 1
-    // note: only clips towards aabb center (but fast!)
+    float Y  = dot(rgb, vec3( 0.25,  0.50,  0.25));
+    float Co = dot(rgb, vec3( 0.50,  0.00, -0.50));
+    float Cg = dot(rgb, vec3(-0.25,  0.50, -0.25));
+    return vec3(Y, Co, Cg);
+}
+
+vec3 YCoCgToRGB(vec3 ycocg)
+{
+    float Y  = ycocg.x;
+    float Co = ycocg.y;
+    float Cg = ycocg.z;
+    return max(vec3(Y + Co - Cg, Y + Cg, Y - Co - Cg), vec3(0.0));
+}
+
+// Fast AABB clipping toward box center (Playdead / Salvi variance clipping)
+vec3 ClipAABB(vec3 aabbMin, vec3 aabbMax, vec3 prevSample)
+{
     vec3 p_clip = 0.5 * (aabbMax + aabbMin);
-    vec3 e_clip = 0.5 * (aabbMax - aabbMin);
+    vec3 e_clip = max(0.5 * (aabbMax - aabbMin), vec3(1e-5));
 
     vec3 v_clip = prevSample - p_clip;
-    vec3 v_unit = v_clip.xyz / e_clip;
+    vec3 v_unit = v_clip / e_clip;
     vec3 a_unit = abs(v_unit);
     float ma_unit = max(a_unit.x, max(a_unit.y, a_unit.z));
 
@@ -71,232 +55,203 @@ vec3 ClipAABB(vec3 aabbMin, vec3 aabbMax, vec3 prevSample, vec3 avg)
     {
         return p_clip + v_clip / ma_unit;
     }
+    return prevSample;
+}
+
+// 3x3 closest-foreground depth dilation (Reverse-Z: larger device depth = closer to camera)
+vec2 DilateClosestVelocity(vec2 jitteredUV)
+{
+    vec2 depth_size = vec2(textureSize(texture_scene_depth, 0));
+    vec2 inv_depth_size = 1.0 / max(depth_size, vec2(1.0));
+    vec2 min_uv = 0.5 * inv_depth_size;
+    vec2 max_uv = 1.0 - min_uv;
+
+    vec2 base_uv = clamp((floor(jitteredUV * depth_size) + 0.5) * inv_depth_size, min_uv, max_uv);
+    float best_depth = -1.0;
+    vec2 best_uv = base_uv;
+
+    for (int y = -1; y <= 1; ++y)
+    {
+        for (int x = -1; x <= 1; ++x)
+        {
+            vec2 sample_uv = clamp(base_uv + vec2(x, y) * inv_depth_size, min_uv, max_uv);
+            float d = textureLod(texture_scene_depth, sample_uv, 0.0).x;
+            if (d > best_depth)
+            {
+                best_depth = d;
+                best_uv = sample_uv;
+            }
+        }
+    }
+
+    return textureLod(texture_velocity, best_uv, 0.0).xy;
+}
+
+// 5-tap bilinear Catmull-Rom history filter with anti-ringing neighborhood clamp
+vec3 SampleHistoryCatmullRom(vec2 uv, vec2 tex_size, vec2 inv_tex_size)
+{
+    vec2 sample_pos = uv * tex_size;
+    vec2 tex_pos1 = floor(sample_pos - 0.5) + 0.5;
+    vec2 f = sample_pos - tex_pos1;
+
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    vec2 w3 = f * f * (-0.5 + 0.5 * f);
+
+    vec2 w12 = w1 + w2;
+    vec2 offset12 = w2 / max(w12, vec2(1e-5));
+
+    vec2 min_uv = 0.5 * inv_tex_size;
+    vec2 max_uv = 1.0 - min_uv;
+    vec2 tex_pos0 = clamp((tex_pos1 - 1.0) * inv_tex_size, min_uv, max_uv);
+    vec2 tex_pos3 = clamp((tex_pos1 + 2.0) * inv_tex_size, min_uv, max_uv);
+    vec2 tex_pos12 = clamp((tex_pos1 + offset12) * inv_tex_size, min_uv, max_uv);
+
+    vec3 c0 = max(textureLod(texture_prev_resolve, vec2(tex_pos12.x, tex_pos0.y), 0.0).rgb, vec3(0.0));
+    vec3 c1 = max(textureLod(texture_prev_resolve, vec2(tex_pos0.x, tex_pos12.y), 0.0).rgb, vec3(0.0));
+    vec3 c2 = max(textureLod(texture_prev_resolve, vec2(tex_pos12.x, tex_pos12.y), 0.0).rgb, vec3(0.0));
+    vec3 c3 = max(textureLod(texture_prev_resolve, vec2(tex_pos3.x, tex_pos12.y), 0.0).rgb, vec3(0.0));
+    vec3 c4 = max(textureLod(texture_prev_resolve, vec2(tex_pos12.x, tex_pos3.y), 0.0).rgb, vec3(0.0));
+
+    float cw0 = w12.x * w0.y;
+    float cw1 = w0.x * w12.y;
+    float cw2 = w12.x * w12.y;
+    float cw3 = w3.x * w12.y;
+    float cw4 = w12.x * w3.y;
+
+    vec3 filtered = (c0 * cw0 + c1 * cw1 + c2 * cw2 + c3 * cw3 + c4 * cw4) / max(cw0 + cw1 + cw2 + cw3 + cw4, 1e-5);
+    vec3 min_tap = min(c2, min(min(c0, c1), min(c3, c4)));
+    vec3 max_tap = max(c2, max(max(c0, c1), max(c3, c4)));
+    return clamp(filtered, min_tap, max_tap);
+}
+
+vec4 ResolveTAAU(vec2 texCoord)
+{
+    vec2 input_size = vec2(textureSize(texture_input, 0));
+    vec2 output_size = vec2(textureSize(texture_prev_resolve, 0));
+    vec2 inv_input_size = 1.0 / max(input_size, vec2(1.0));
+    vec2 inv_output_size = 1.0 / max(output_size, vec2(1.0));
+
+    float upscale_ratio = output_size.x / max(input_size.x, 1.0);
+    bool is_upscaling = upscale_ratio > 1.05;
+
+    // Projection jitter shifts rasterized UV by +JITTER_OFFSET * 0.5
+    vec2 jitter_uv = view_constants.JITTER_OFFSET * 0.5;
+    vec2 jittered_uv = texCoord + jitter_uv;
+
+    // Subpixel jitter-compensated 3x3 spatial reconstruction + YCoCg neighborhood statistics
+    vec2 input_sample_pos = jittered_uv * input_size;
+    vec2 base_texel = floor(input_sample_pos) + 0.5;
+    vec2 min_input_uv = 0.5 * inv_input_size;
+    vec2 max_input_uv = 1.0 - min_input_uv;
+
+    float kernel_sharpness = is_upscaling ? 2.80 : 2.29;
+    vec3 sum_color = vec3(0.0);
+    float total_color_weight = 0.0;
+    float sum_alpha = 0.0;
+    float total_alpha_weight = 0.0;
+    float alpha_min = 1.0;
+    float alpha_max = 0.0;
+    float min_dist_sq = 1e6;
+
+    vec3 m1 = vec3(0.0);
+    vec3 m2 = vec3(0.0);
+
+    for (int y = -1; y <= 1; ++y)
+    {
+        for (int x = -1; x <= 1; ++x)
+        {
+            vec2 tap_pos = base_texel + vec2(x, y);
+            vec2 tap_uv = clamp(tap_pos * inv_input_size, min_input_uv, max_input_uv);
+            vec4 tap_rgba = textureLod(texture_input, tap_uv, 0.0);
+            vec3 tap_rgb = clamp(tap_rgba.rgb, vec3(0.0), vec3(65000.0));
+            float tap_alpha = saturate(tap_rgba.a);
+
+            vec2 delta = tap_pos - input_sample_pos;
+            float dist_sq = dot(delta, delta);
+            min_dist_sq = min(min_dist_sq, dist_sq);
+
+            float spatial_w = exp(-kernel_sharpness * dist_sq);
+            float karis_w = 1.0 / (1.0 + get_luminance(tap_rgb));
+            float w = spatial_w * karis_w;
+
+            sum_color += tap_rgb * w;
+            total_color_weight += w;
+
+            sum_alpha += tap_alpha * spatial_w;
+            total_alpha_weight += spatial_w;
+            alpha_min = min(alpha_min, tap_alpha);
+            alpha_max = max(alpha_max, tap_alpha);
+
+            vec3 tap_ycocg = RGBToYCoCg(tap_rgb);
+            m1 += tap_ycocg;
+            m2 += tap_ycocg * tap_ycocg;
+        }
+    }
+
+    vec3 curr_color = sum_color / max(total_color_weight, 1e-5);
+    float curr_alpha = sum_alpha / max(total_alpha_weight, 1e-5);
+
+    // Closest-foreground depth-dilated velocity reprojection
+    vec2 velocity = DilateClosestVelocity(jittered_uv);
+    vec2 reprojected_uv = texCoord - velocity;
+    bool offscreen = any(lessThan(reprojected_uv, vec2(0.0))) || any(greaterThan(reprojected_uv, vec2(1.0)));
+
+    if (offscreen || scene_constants.ELAPSED_FRAME <= 1u)
+    {
+        return vec4(curr_color, curr_alpha);
+    }
+
+    // Catmull-Rom history reprojection (anti-ringing clamped)
+    vec3 prev_color = SampleHistoryCatmullRom(reprojected_uv, output_size, inv_output_size);
+    float prev_alpha = saturate(textureLod(texture_prev_resolve, reprojected_uv, 0.0).a);
+
+    // YCoCg variance clipping with velocity-adaptive tightness
+    const float inv_sample_count = 1.0 / 9.0;
+    vec3 mu = m1 * inv_sample_count;
+    vec3 sigma = sqrt(max(m2 * inv_sample_count - mu * mu, vec3(0.0)));
+
+    float vel_px = length(velocity * output_size);
+    float motion_factor = saturate(vel_px / 12.0);
+    float base_gamma = is_upscaling ? 1.25 : 1.15;
+    float gamma = mix(base_gamma, 0.85, motion_factor);
+
+    vec3 aabb_min = mu - gamma * sigma;
+    vec3 aabb_max = mu + gamma * sigma;
+    vec3 prev_ycocg = RGBToYCoCg(prev_color);
+    vec3 clipped_ycocg = ClipAABB(aabb_min, aabb_max, prev_ycocg);
+    vec3 clipped_prev = YCoCgToRGB(clipped_ycocg);
+
+    // Disocclusion responsiveness from YCoCg clip distance
+    float clip_delta = length(prev_ycocg - clipped_ycocg) / max(abs(mu.x) + 0.15, 0.15);
+    float disocclusion = saturate(clip_delta * 0.45);
+
+    // TAAU subpixel proximity weighting: lock in sharp new samples that land close to this display pixel
+    float curr_blend;
+    if (is_upscaling)
+    {
+        float sample_proximity = exp(-3.5 * min_dist_sq);
+        float base_curr_blend = mix(0.045, 0.14, sample_proximity);
+        curr_blend = mix(base_curr_blend, 0.28, motion_factor);
+    }
     else
     {
-        return prevSample;// point inside aabb
+        curr_blend = mix(0.10, 0.28, motion_factor);
     }
-#else
-    vec3 r = prevSample - avg;
-    vec3 rmax = aabbMax - avg.xyz;
-    vec3 rmin = aabbMin - avg.xyz;
+    curr_blend = mix(curr_blend, max(curr_blend, 0.35), disocclusion);
+    float history_weight = saturate(1.0 - curr_blend);
 
-    const float eps = 0.000001f;
+    // Karis luminance-weighted temporal resolve to suppress HDR specular fireflies
+    float w_curr = curr_blend / (1.0 + get_luminance(curr_color));
+    float w_prev = history_weight / (1.0 + get_luminance(clipped_prev));
+    vec3 resolved_rgb = (curr_color * w_curr + clipped_prev * w_prev) / max(w_curr + w_prev, 1e-5);
+    float resolved_alpha = mix(curr_alpha, clamp(prev_alpha, alpha_min, alpha_max), history_weight);
 
-    if (r.x > rmax.x + eps)
-    r *= (rmax.x / r.x);
-    if (r.y > rmax.y + eps)
-    r *= (rmax.y / r.y);
-    if (r.z > rmax.z + eps)
-    r *= (rmax.z / r.z);
-
-    if (r.x < rmin.x - eps)
-    r *= (rmin.x / r.x);
-    if (r.y < rmin.y - eps)
-    r *= (rmin.y / r.y);
-    if (r.z < rmin.z - eps)
-    r *= (rmin.z / r.z);
-
-    return avg + r;
-#endif
+    return vec4(max(resolved_rgb, vec3(0.0)), resolved_alpha);
 }
 
-vec3 Reproject(vec2 texCoord)
+void main()
 {
-    vec2 inv_velocity_tex_size = 1.0 / textureSize(texture_velocity, 0).xy;
-    vec2 velocity = vec2(0.0, 0.0);
-
-    if(DilationMode == DilationModes_CenterAverage)
-    {
-        velocity = texture(texture_velocity, texCoord).xy;
-    }
-    else if(DilationMode == DilationModes_DilateNearestDepth)
-    {
-        const int sample_count = 4;
-        const vec2 offsets[4] = {
-            vec2(0.0, 0.0),
-            vec2(1.0, 0.0),
-            vec2(0.0, 1.0),
-            vec2(1.0, 1.0)
-        };
-
-        int frame_index = int(scene_constants.ELAPSED_FRAME) % 4;
-        ivec2 offset_dir = ivec2(frame_index & 1, frame_index / 2) * 2 - 1;
-
-        vec2 inv_depth_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
-        float average_depth = 0.0;
-        float depths[sample_count];
-        for(int i=0; i<sample_count; ++i)
-        {
-            float depth = texture(texture_scene_depth, texCoord + offsets[i] * offset_dir * inv_depth_size).x;
-            float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
-            average_depth += linear_depth / float(sample_count);
-            depths[i] = linear_depth;
-        }
-
-        int offset_index = 0;
-        float closest_depth = view_constants.NEAR_FAR.y;
-        for(int i=0; i<sample_count; ++i)
-        {
-            float depth_diff = abs(depths[i] - average_depth);
-            if(depth_diff < closest_depth)
-            {
-                offset_index = i;
-                closest_depth = depth_diff;
-            }
-        }
-
-        vec2 inv_velocity_size = 1.0 / textureSize(texture_velocity, 0).xy;
-        velocity = texture(texture_velocity, texCoord + offsets[offset_index] * offset_dir * inv_velocity_size).xy;
-    }
-    else if(DilationMode == DilationModes_DilateGreatestVelocity)
-    {
-        float greatestVelocity = -1.0f;
-        for(int vy = -1; vy <= 1; ++vy)
-        {
-            for(int vx = -1; vx <= 1; ++vx)
-            {
-                vec2 neighborVelocity = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
-                float neighborVelocityMag = dot(neighborVelocity, neighborVelocity);
-                if(dot(neighborVelocity, neighborVelocity) > greatestVelocity)
-                {
-                    velocity = neighborVelocity;
-                    greatestVelocity = neighborVelocityMag;
-                }
-            }
-        }
-    }
-
-    vec2 texture_size = textureSize(texture_prev_resolve, 0).xy;
-    vec2 reprojectedUV = texCoord - velocity;
-    vec2 reprojectedPos = reprojectedUV * texture_size;
-
-    if(UseStandardReprojection)
-    {
-        return texture(texture_prev_resolve, reprojectedUV).xyz;
-    }
-
-    vec3 sum = vec3(0.0f);
-    float totalWeight = 0.0f;
-
-    for(int ty = -1; ty <= 2; ++ty)
-    {
-        for(int tx = -1; tx <= 2; ++tx)
-        {
-            vec2 samplePos = floor(reprojectedPos + vec2(tx, ty)) + 0.5f;
-            vec3 reprojectedSample = texture(texture_prev_resolve, samplePos / texture_size).xyz;
-
-            vec2 sampleDist = abs(samplePos - reprojectedPos);
-            float filterWeight = Filter(sampleDist.x, ReprojectionFilter, 1.0f, false) *
-            Filter(sampleDist.y, ReprojectionFilter, 1.0f, false);
-
-            if(InverseLuminanceFiltering)
-            {
-                float sampleLum = get_luminance(reprojectedSample);
-                if(UseExposureFiltering)
-                {
-                    sampleLum *= exp2(ManualExposure - ExposureScale + ExposureFilterOffset);
-                }
-                filterWeight /= (1.0f + sampleLum);
-            }
-
-            sum += reprojectedSample * filterWeight;
-            totalWeight += filterWeight;
-        }
-    }
-    return max(sum / totalWeight, 0.0f);
-}
-
-vec4 ResolvePS(vec2 texCoord, vec2 pixelPos)
-{
-    vec3 sum = vec3(0.0f);
-    float totalWeight = 0.0f;
-
-    vec3 clrMin = vec3(99999999.0f);
-    vec3 clrMax = vec3(-99999999.0f);
-
-    vec3 m1 = vec3(0.0f);
-    vec3 m2 = vec3(0.0f);
-    float mWeight = 0.0f;
-
-    vec2 texture_input_size = textureSize(texture_input, 0).xy;
-    const float filterRadius = ResolveFilterDiameter / 2.0f;
-    for(int y = -1; y <= 1; ++y)
-    {
-        for(int x = -1; x <= 1; ++x)
-        {
-            vec2 sampleOffset = vec2(x, y);
-            vec2 sampleUV = texCoord + sampleOffset / texture_input_size;
-            sampleUV = clamp(sampleUV, 0.0, 1.0);
-
-            vec3 sample_color = texture(texture_input, sampleUV).xyz;
-            vec2 sampleDist = abs(sampleOffset) / (ResolveFilterDiameter / 2.0f);
-            float weight = Filter(sampleDist.x, ResolveFilterType, filterRadius, true) * Filter(sampleDist.y, ResolveFilterType, filterRadius, true);
-            clrMin = min(clrMin, sample_color);
-            clrMax = max(clrMax, sample_color);
-
-            if(InverseLuminanceFiltering)
-            {
-                float sampleLum = get_luminance(sample_color);
-                if(UseExposureFiltering)
-                {
-                    sampleLum *= exp2(ManualExposure - ExposureScale + ExposureFilterOffset);
-                }
-                weight /= (1.0f + sampleLum);
-            }
-
-            sum += sample_color * weight;
-            totalWeight += weight;
-
-            m1 += sample_color;
-            m2 += sample_color * sample_color;
-            mWeight += 1.0f;
-        }
-    }
-
-    vec4 result = texture(texture_input, texCoord);
-
-    vec3 currColor = result.xyz;
-    vec3 prevColor = Reproject(texCoord);
-
-    if(NeighborhoodClampMode == ClampModes_RGB_Clamp)
-    {
-        prevColor = clamp(prevColor, clrMin, clrMax);
-    }
-    else if(NeighborhoodClampMode == ClampModes_RGB_Clip)
-    {
-        prevColor = ClipAABB(clrMin, clrMax, prevColor, m1 / mWeight);
-    }
-    else if(NeighborhoodClampMode == ClampModes_Variance_Clip)
-    {
-        vec3 mu = m1 / mWeight;
-        vec3 sigma = sqrt(abs(m2 / mWeight - mu * mu));
-        vec3 minc = mu - VarianceClipGamma * sigma;
-        vec3 maxc = mu + VarianceClipGamma * sigma;
-        prevColor = ClipAABB(minc, maxc, prevColor, mu);
-    }
-
-    vec3 weightA = vec3(clamp(1.0f - TemporalAABlendFactor, 0.0, 1.0));
-    vec3 weightB = vec3(clamp(TemporalAABlendFactor, 0.0, 1.0));
-
-    if(UseTemporalColorWeighting)
-    {
-        vec3 temporalWeight = clamp(abs(clrMax - clrMin) / currColor, 0.0, 1.0);
-        weightB = clamp(mix(vec3(LowFreqWeight), vec3(HiFreqWeight), temporalWeight), 0.0, 1.0);
-        weightA = 1.0f - weightB;
-    }
-
-    if(InverseLuminanceFiltering)
-    {
-        weightA /= (1.0f + get_luminance(currColor));
-        weightB /= (1.0f + get_luminance(prevColor));
-    }
-
-    result.xyz = (currColor * weightA + prevColor * weightB) / (weightA + weightB);
-
-    return result;
-}
-
-
-void main() {
-    outColor = ResolvePS(vs_output.texCoord.xy, gl_FragCoord.xy);
+    outColor = ResolveTAAU(vs_output.texCoord.xy);
 }
