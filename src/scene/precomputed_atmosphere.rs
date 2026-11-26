@@ -1065,17 +1065,17 @@ impl<'a> Atmosphere<'a> {
             _atmosphere_constants: AtmosphereConstants::default(),
             _atmosphere_exposure: 0.0001,
             _cloud_exposure: 0.1,
-            _cloud_altitude: 350.0,
-            _cloud_height: 500.0,
-            _cloud_speed: 0.001,
-            _cloud_absorption: 0.15,
+            _cloud_altitude: 2200.0,
+            _cloud_height: 1800.0,
+            _cloud_speed: 0.0005,
+            _cloud_absorption: 0.14,
             _cloud_contrast: 2.0,
             _cloud_coverage: 0.8,
-            _cloud_tiling: 0.0004,
+            _cloud_tiling: 0.00012,
             _inscatter_power: 0.25,
             _noise_contrast: 1.0,
             _noise_coverage: 1.0,
-            _noise_tiling: 0.0003,
+            _noise_tiling: 0.00010,
             _ground_bounce_albedo: Vector3::new(0.48, 0.40, 0.27),
             _fog_density: 0.0020,
             _fog_tint: Vector3::new(0.42, 0.62, 0.88),
@@ -1457,7 +1457,10 @@ impl<'a> Atmosphere<'a> {
             quad_geometry_data,
             None,
             composite_descriptor_sets,
-            None,
+            Some(&PushConstant_PrecomputedAtmosphere {
+                _render_light_probe_mode: if render_light_probe_mode { 1 } else { 0 },
+                ..Default::default()
+            }),
         );
     }
 }

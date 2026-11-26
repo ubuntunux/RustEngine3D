@@ -5,7 +5,7 @@ use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorReso
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
-    ImageAttachmentDescription, PipelineDataCreateInfo, RenderPassDataCreateInfo,
+    ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
@@ -13,6 +13,9 @@ use ash::vk;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
+use crate::scene::precomputed_atmosphere::{
+    PushConstant_PrecomputedAtmosphere, USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES,
+};
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
@@ -66,6 +69,11 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
         _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
         _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+        _push_constant_data_list: vec![PipelinePushConstantData {
+            _stage_flags: vk::ShaderStageFlags::ALL,
+            _offset: 0,
+            _push_constant: Box::new(PushConstant_PrecomputedAtmosphere::default()),
+        }],
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 0,
@@ -104,6 +112,23 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
+            if USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 8,
+                    _descriptor_name: String::from("transmittance_texture"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                }
+            } else {
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 8,
+                    _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                }
+            },
             DescriptorDataCreateInfo {
                 _descriptor_semantic: String::from("TEXTURE_ATMOSPHERE"),
                 _descriptor_binding_index: 15,
@@ -117,6 +142,20 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_binding_index: 16,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 17,
+                _descriptor_name: String::from("texture_moon"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 18,
+                _descriptor_name: String::from("texture_milky_way"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },

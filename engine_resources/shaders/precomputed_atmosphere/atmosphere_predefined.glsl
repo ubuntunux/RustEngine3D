@@ -80,7 +80,7 @@ const int SCATTERING_TEXTURE_NU_SIZE = 8;
 const int IRRADIANCE_TEXTURE_WIDTH = 64;
 const int IRRADIANCE_TEXTURE_HEIGHT = 16;
 const vec2 IRRADIANCE_TEXTURE_SIZE = vec2(64, 16);
-const float ATMOSPHERE_RATIO = 0.01;
+const float ATMOSPHERE_RATIO = 0.001;
 
 const AtmosphereParameters ATMOSPHERE = AtmosphereParameters(
 vec3(1.474, 1.8504, 1.91198),
@@ -878,14 +878,20 @@ out vec3 transmittance
 {
     float r = length(camera);
     float rmu = dot(camera, view_ray);
-    float distance_to_top_atmosphere_boundary = -rmu - sqrt(rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius);
+    float disc = rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius;
+    if (disc < 0.0)
+    {
+        transmittance = vec3(1.0);
+        return vec3(0.0);
+    }
+    float distance_to_top_atmosphere_boundary = -rmu - sqrt(disc);
     if (distance_to_top_atmosphere_boundary > 0.0)
     {
         camera = camera + view_ray * distance_to_top_atmosphere_boundary;
         r = atmosphere.top_radius;
         rmu += distance_to_top_atmosphere_boundary;
     }
-    else if(r > atmosphere.top_radius)
+    else if (r > atmosphere.top_radius)
     {
         transmittance = vec3(1.0);
         return vec3(0.0);
@@ -950,21 +956,44 @@ vec3 ComputeSkyRadianceToPoint(
     out vec3 transmittance
 )
 {
-    vec3 view_ray = normalize(point - camera);
+    vec3 delta = point - camera;
+    float seg_len = length(delta);
+    if (seg_len < 1e-5)
+    {
+        transmittance = vec3(1.0);
+        return vec3(0.0);
+    }
+    vec3 view_ray = delta / seg_len;
     float r = length(camera);
     float rmu = dot(camera, view_ray);
-    float distance_to_top_atmosphere_boundary = -rmu - sqrt(rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius);
+    float disc = rmu * rmu - r * r + atmosphere.top_radius * atmosphere.top_radius;
+    if (disc < 0.0)
+    {
+        transmittance = vec3(1.0);
+        return vec3(0.0);
+    }
+    float distance_to_top_atmosphere_boundary = -rmu - sqrt(disc);
     if (distance_to_top_atmosphere_boundary > 0.0)
     {
         camera = camera + view_ray * distance_to_top_atmosphere_boundary;
         r = atmosphere.top_radius;
         rmu += distance_to_top_atmosphere_boundary;
     }
+    else if (r > atmosphere.top_radius)
+    {
+        transmittance = vec3(1.0);
+        return vec3(0.0);
+    }
 
     float mu = rmu / r;
     float mu_s = dot(camera, sun_direction) / r;
     float nu = dot(view_ray, sun_direction);
-    float d = length(point - camera);
+    float d = dot(point - camera, view_ray);
+    if (d <= 0.0)
+    {
+        transmittance = vec3(1.0);
+        return vec3(0.0);
+    }
     bool ray_r_mu_intersects_ground = RayIntersectsGround(atmosphere, r, mu);
 
     transmittance = GetTransmittance(atmosphere, transmittance_texture, r, mu, d, ray_r_mu_intersects_ground);

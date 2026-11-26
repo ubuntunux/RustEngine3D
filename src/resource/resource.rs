@@ -3063,7 +3063,7 @@ impl<'a> EngineResources<'a> {
                 continue;
             }
             let meta_data = MetaData::new(texture_src_file, texture_src_file);
-            let entry = if texture_data_name.starts_with("lut/") {
+            let entry = if texture_data_name.starts_with("lut/") || texture_data_name.starts_with("sky/") {
                 ResourceEntry::new_pinned(texture_data_name.clone(), meta_data)
             } else {
                 ResourceEntry::new(texture_data_name.clone(), meta_data)

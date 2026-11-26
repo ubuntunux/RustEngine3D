@@ -1134,7 +1134,7 @@ impl<'a> RendererData<'a> {
                     &self._render_context_light_probe._composite_atmosphere_framebuffer_data_list_only_sky[layer_index],
                 ),
                 Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
-                None,
+                Some(&render_atmosphere_push_constants),
             );
 
             // Ensure mip 0 color attachment write completes before compute downsampling reads it
@@ -1245,7 +1245,7 @@ impl<'a> RendererData<'a> {
                     quad_geometry_data,
                     Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_data_list[layer_index]),
                     Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
-                    None,
+                    Some(&render_atmosphere_push_constants),
                 );
 
                 // render forward for light probe
@@ -2269,6 +2269,21 @@ impl<'a> RendererData<'a> {
                 &renderer_context,
                 render_light_probe_mode,
             );
+
+            // Refresh SceneColor mip chain after atmosphere/sky so God Rays, Auto-Exposure, and next-frame SSR/SSGI see sky + sun + clouds
+            let atmosphere_to_compute_barrier = vk::MemoryBarrier::default()
+                .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+                .dst_access_mask(vk::AccessFlags::SHADER_READ);
+            renderer_context.pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::empty(),
+                &[atmosphere_to_compute_barrier],
+                &[],
+                &[],
+            );
+            self.scene_color_downsampling(command_buffer, swapchain_index, renderer_context);
         }
 
         // render translucent

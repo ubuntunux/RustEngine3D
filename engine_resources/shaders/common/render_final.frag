@@ -186,47 +186,61 @@ vec3 ApplyDepthOfField(vec2 texCoord, vec3 sharpColor, float dof_intensity)
     return mix(sharpColor, sum_color / max(sum_weight, 1e-5), saturate(coc * clamp(dof_intensity, 0.0, 1.5)));
 }
 
-// Screen-Space Radial God Rays (Light Shafts) occluded by SceneDepth
+// Screen-Space Radial God Rays (Sun & Night Moon Light Shafts) occluded by SceneDepth
 vec3 ComputeGodRays(vec2 texCoord)
 {
-    vec3 L = normalize(-light_data.LIGHT_DIRECTION);
-    if (L.y <= -0.02)
+    // Fade out atmospheric shafts in upper atmosphere / outer space
+    float cam_alt_fade = 1.0 - smoothstep(8000.0, 35000.0, max(view_constants.CAMERA_POSITION.y, 0.0));
+    if (cam_alt_fade <= 0.005)
     {
         return vec3(0.0);
     }
 
-    vec4 sun_clip = view_constants.PROJECTION * view_constants.VIEW_ORIGIN * vec4(L, 0.0);
-    if (sun_clip.w <= 0.001)
+    vec3 sun_dir = normalize(-light_data.LIGHT_DIRECTION);
+    vec3 moon_dir = -sun_dir;
+    bool is_moon_shaft = (sun_dir.y <= -0.02);
+    vec3 L = is_moon_shaft ? moon_dir : sun_dir;
+
+    if (is_moon_shaft && moon_dir.y <= 0.04)
     {
         return vec3(0.0);
     }
 
-    vec2 sun_uv = (sun_clip.xy / sun_clip.w) * 0.5 + 0.5;
+    vec4 light_clip = view_constants.PROJECTION * view_constants.VIEW_ORIGIN * vec4(L, 0.0);
+    if (light_clip.w <= 0.001)
+    {
+        return vec3(0.0);
+    }
+
+    vec2 light_uv = (light_clip.xy / light_clip.w) * 0.5 + 0.5;
     vec3 cam_forward = normalize(vec3(
         view_constants.VIEW_ORIGIN[0][2],
         view_constants.VIEW_ORIGIN[1][2],
         view_constants.VIEW_ORIGIN[2][2]
     ));
-    float sun_facing = saturate(dot(cam_forward, L));
-    float sun_angle_weight = pow(sun_facing, 2.5) * smoothstep(-0.02, 0.12, L.y);
-    if (sun_angle_weight <= 0.005)
+    float facing = saturate(dot(cam_forward, L));
+    float elev_weight = is_moon_shaft
+        ? (smoothstep(0.04, 0.20, moon_dir.y) * smoothstep(-0.02, -0.10, sun_dir.y))
+        : smoothstep(-0.02, 0.12, sun_dir.y);
+    float angle_weight = pow(facing, 2.5) * elev_weight * cam_alt_fade;
+    if (angle_weight <= 0.005)
     {
         return vec3(0.0);
     }
 
-    // Clamp radial march length so off-screen sun positions still cast soft edge shafts
-    vec2 delta_to_sun = sun_uv - texCoord;
-    float ray_len = length(delta_to_sun);
+    // Clamp radial march length so off-screen light positions still cast soft edge shafts
+    vec2 delta_to_light = light_uv - texCoord;
+    float ray_len = length(delta_to_light);
     const float MAX_RAY_UV = 0.75;
     if (ray_len > MAX_RAY_UV)
     {
-        delta_to_sun *= (MAX_RAY_UV / ray_len);
+        delta_to_light *= (MAX_RAY_UV / ray_len);
     }
 
     const int SHAFT_SAMPLES = 20;
     const float DENSITY = 0.92;
     const float DECAY = 0.93;
-    vec2 step_uv = (delta_to_sun * DENSITY) / float(SHAFT_SAMPLES);
+    vec2 step_uv = (delta_to_light * DENSITY) / float(SHAFT_SAMPLES);
     float jitter = interleaved_gradient_noise(ivec2(gl_FragCoord.xy));
     vec2 sample_uv = texCoord + step_uv * jitter;
 
@@ -243,7 +257,7 @@ vec3 ComputeGodRays(vec2 texCoord)
         // Reverse-Z: sky has depth == 0.0
         if (d <= 0.00001)
         {
-            vec3 sky_sample = clamp(textureLod(textureSceneColor, sample_uv, 2.0).rgb, vec3(0.0), vec3(8.0));
+            vec3 sky_sample = clamp(textureLod(textureSceneColor, sample_uv, 1.5).rgb, vec3(0.0), vec3(12.0));
             vec2 edge_fade = smoothstep(vec2(0.0), vec2(0.08), sample_uv) * smoothstep(vec2(1.0), vec2(0.92), sample_uv);
             shaft_accum += sky_sample * illumination_decay * edge_fade.x * edge_fade.y;
         }
@@ -251,8 +265,11 @@ vec3 ComputeGodRays(vec2 texCoord)
         sample_uv += step_uv;
     }
 
-    vec3 sun_tint = mix(vec3(1.0, 0.94, 0.82), normalize(max(light_data.LIGHT_COLOR, vec3(0.1))) * 1.4, 0.35);
-    return (shaft_accum / float(SHAFT_SAMPLES)) * sun_tint * sun_angle_weight * 0.28;
+    vec3 shaft_tint = is_moon_shaft
+        ? mix(vec3(0.72, 0.84, 1.0), normalize(max(scene_constants.MOON_LIGHT_COLOR, vec3(0.1))) * 1.35, 0.45)
+        : mix(vec3(1.0, 0.94, 0.82), normalize(max(light_data.LIGHT_COLOR, vec3(0.1))) * 1.4, 0.35);
+    float shaft_strength = is_moon_shaft ? 0.24 : 0.34;
+    return (shaft_accum / float(SHAFT_SAMPLES)) * shaft_tint * angle_weight * shaft_strength;
 }
 
 // Center-weighted Auto-Exposure (Eye Adaptation) using pre-downsampled SceneColor mip chain

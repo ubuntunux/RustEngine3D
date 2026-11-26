@@ -654,13 +654,26 @@ vec4 surface_shading(
         }
     }
 
-    // Moon Light (only active at dusk/night)
+    // Moon Light (only active at dusk/night, with elevation fade and subtle Cook-Torrance specular)
     float night_factor = smoothstep(0.15, -0.1, L.y);
     if (night_factor > 0.0)
     {
         vec3 moon_light_dir = -L;
+        float moon_elevation = smoothstep(-0.05, 0.20, moon_light_dir.y);
+        float moon_weight = night_factor * moon_elevation * mix(0.30, 1.0, sky_visibility) * ao_factor;
         const float moon_light_NoL = saturate(dot(N, moon_light_dir) * 0.5 + 0.5);
-        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR * night_factor * mix(0.30, 1.0, sky_visibility) * ao_factor;
+        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR * moon_weight;
+
+        float raw_moon_NoL = saturate(dot(N, moon_light_dir));
+        if (raw_moon_NoL > 0.001 && moon_weight > 0.001)
+        {
+            vec3 moon_H = normalize(V + moon_light_dir);
+            float moon_NoH = clamp(dot(N, moon_H), 0.001, 1.0);
+            float moon_VoH = clamp(dot(V, moon_H), 0.001, 1.0);
+            vec3 moon_F = fresnelSchlick(moon_VoH, F0);
+            specular_light += cooktorrance_specular(moon_F, raw_moon_NoL, NoV, moon_NoH, roughness)
+                * raw_moon_NoL * scene_constants.MOON_LIGHT_COLOR * moon_weight * 0.45;
+        }
     }
 
     // Final PBR energy-conserving combination (F0 is already applied in specular_light)
