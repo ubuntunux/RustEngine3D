@@ -145,11 +145,14 @@ void main()
 
     // Image based lighting
     apply_image_based_lighting(
+        scene_constants.RENDER_OPTION,
         texture_probe,
         scene_reflect_color,
         vec4(0.0),
         sky_irradiance,
         water_color,
+        vs_output.shadow_factor,
+        dot(N, L),
         1.0,
         sky_visibility,
         roughness,

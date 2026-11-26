@@ -175,6 +175,17 @@ pub enum RenderOption {
     RenderSSAO = 1 << 5,
     RenderSSGI = 1 << 6,
     RenderHalfLambert = 1 << 7,
+    RenderShadowTint = 1 << 8,
+    RenderRimLight = 1 << 9,
+    RenderFoliageSSS = 1 << 10,
+    RenderPCSS = 1 << 11,
+    RenderContactShadow = 1 << 12,
+    RenderBloom = 1 << 13,
+    RenderHeightFog = 1 << 14,
+    RenderAutoExposure = 1 << 15,
+    RenderGodRays = 1 << 16,
+    RenderDepthOfField = 1 << 17,
+    RenderStylizedOutline = 1 << 18,
     ALL = 0xffffffff,
 }
 
@@ -205,6 +216,11 @@ pub struct RendererData<'a> {
     pub _tone_mapping_mode: ToneMappingMode,
     pub _color_grading_lut: ColorGradingLut,
     pub _exposure: f32,
+    pub _dof_intensity: f32,
+    pub _bloom_intensity: f32,
+    pub _god_rays_intensity: f32,
+    pub _height_fog_intensity: f32,
+    pub _motion_blur_intensity: f32,
     pub _is_render_scene: bool,
 }
 
@@ -583,6 +599,11 @@ impl<'a> RendererData<'a> {
             get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
             scene_manager.get_render_point_light_count(),
             self._render_option,
+            self._dof_intensity,
+            self._bloom_intensity,
+            self._god_rays_intensity,
+            self._height_fog_intensity,
+            self._motion_blur_intensity,
         );
         self._view_constants.update_view_constants(&main_camera, capture_height_map);
 
@@ -674,6 +695,11 @@ impl<'a> RendererData<'a> {
             _tone_mapping_mode: unsafe { constants::TONE_MAPPING_MODE },
             _color_grading_lut: unsafe { constants::COLOR_GRADING_LUT },
             _exposure: unsafe { constants::EXPOSURE },
+            _dof_intensity: unsafe { constants::DOF_INTENSITY },
+            _bloom_intensity: unsafe { constants::BLOOM_INTENSITY },
+            _god_rays_intensity: unsafe { constants::GOD_RAYS_INTENSITY },
+            _height_fog_intensity: unsafe { constants::HEIGHT_FOG_INTENSITY },
+            _motion_blur_intensity: unsafe { constants::MOTION_BLUR_INTENSITY },
             _is_render_scene: true,
         }
     }
@@ -1886,7 +1912,9 @@ impl<'a> RendererData<'a> {
         self.render_taa(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // Bloom
-        self.render_bloom(command_buffer, swapchain_index, quad_geometry_data, renderer_context);
+        if self.has_render_option(RenderOption::RenderBloom) && self._bloom_intensity > 0.001 {
+            self.render_bloom(command_buffer, swapchain_index, quad_geometry_data, renderer_context);
+        }
 
         // Motion Blur
         renderer_context.render_material_instance(

@@ -30,6 +30,11 @@ impl SceneConstants {
         gpu_particle_update_buffer_offset: i32,
         render_point_light_count: i32,
         render_option: u32,
+        dof_intensity: f32,
+        bloom_intensity: f32,
+        god_rays_intensity: f32,
+        height_fog_intensity: f32,
+        motion_blur_intensity: f32,
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._back_buffer_size = self._screen_size.into();
@@ -48,6 +53,11 @@ impl SceneConstants {
         self._render_point_light_count = render_point_light_count;
         self._elapsed_frame = elapsed_frame as u32;
         self._render_option = render_option as u32;
+        self._dof_intensity = dof_intensity;
+        self._bloom_intensity = bloom_intensity;
+        self._god_rays_intensity = god_rays_intensity;
+        self._height_fog_intensity = height_fog_intensity;
+        self._motion_blur_intensity = motion_blur_intensity;
     }
 }
 

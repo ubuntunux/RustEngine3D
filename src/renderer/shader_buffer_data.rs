@@ -58,6 +58,11 @@ pub struct SceneConstants {
     pub _render_point_light_count: i32,
     pub _elapsed_frame: u32,
     pub _render_option: u32,
+    pub _dof_intensity: f32,
+    pub _bloom_intensity: f32,
+    pub _god_rays_intensity: f32,
+    pub _height_fog_intensity: f32,
+    pub _motion_blur_intensity: f32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS

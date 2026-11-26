@@ -35,16 +35,18 @@ float get_shadow_factor_func(
     shadow_world_pos.xyz /= shadow_world_pos.w;
     const float shadow_dist = length(world_position.xyz - shadow_world_pos.xyz);
     */
-    const vec2 shadow_noise_radius = shadow_texel_size * 4.0;
+    const vec2 shadow_noise_radius = shadow_texel_size * 3.0;
+    const float rot_angle = interleaved_gradient_noise(screen_pos) * TWO_PI;
+    const float cs = cos(rot_angle);
+    const float sn = sin(rot_angle);
+    const mat2 rot = mat2(cs, -sn, sn, cs);
 
-    const float shadow_noise_size = 0.25;
-    const int timeIndex = int(mod(time, 1.0) * 128);
-    const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * shadow_noise_size;
     float total_shadow_factor = 0.0;
     for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {
-        const vec2 shadow_uv = shadow_proj.xy + (PoissonSamples[sample_index % PoissonSampleCount] + noise) * shadow_noise_radius;
-        const float sample_shadow_depth = texture(texture_shadow, shadow_uv).x;
+        const vec2 offset = (sample_count > 4) ? (rot * PoissonSamples[sample_index % PoissonSampleCount]) : PoissonSamples[sample_index % PoissonSampleCount];
+        const vec2 shadow_uv = clamp(shadow_proj.xy + offset * shadow_noise_radius, vec2(0.0), vec2(1.0));
+        const float sample_shadow_depth = textureLod(texture_shadow, shadow_uv, 0.0).x;
         float shadow_factor = shadow_proj.z < (sample_shadow_depth + depth_bias) ? 0.0 : 1.0;
         total_shadow_factor += shadow_factor;
     }
@@ -76,6 +78,82 @@ float get_shadow_factor(
 )
 {
     return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, inv_shadow_view_projection, sample_count, depth_bias, texture_shadow);
+}
+
+// Percentage-Closer Soft Shadows (PCSS): blocker search -> world-space penumbra width -> rotated Poisson PCF
+float get_shadow_factor_pcss(
+    const float time,
+    const in ivec2 screen_pos,
+    const in vec3 world_position,
+    const in mat4 shadow_view_projection,
+    const in mat4 inv_shadow_view_projection,
+    const int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
+)
+{
+    const vec2 shadow_texture_size = vec2(textureSize(texture_shadow, 0));
+    const vec2 shadow_texel_size = 1.0 / max(shadow_texture_size, vec2(1.0));
+    vec4 shadow_proj = shadow_view_projection * vec4(world_position, 1.0);
+    shadow_proj.xyz /= shadow_proj.w;
+    shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
+
+    if (1.0 < shadow_proj.x || shadow_proj.x < 0.0 || 1.0 < shadow_proj.y || shadow_proj.y < 0.0 || 1.0 < shadow_proj.z || shadow_proj.z < 0.0)
+    {
+        return 1.0;
+    }
+
+    // Purely spatial IGN rotation eliminates temporal shadow strobing while bilateral filtering removes spatial dither
+    const float rot_angle = interleaved_gradient_noise(screen_pos) * TWO_PI;
+    const float cs = cos(rot_angle);
+    const float sn = sin(rot_angle);
+    const mat2 rot = mat2(cs, -sn, sn, cs);
+
+    // Step 1: 8-tap rotated Poisson blocker search (Reverse-Z: larger depth = closer to sun)
+    const int BLOCKER_SAMPLES = 8;
+    const vec2 blocker_search_radius = shadow_texel_size * 4.5;
+    float blocker_depth_sum = 0.0;
+    int blocker_count = 0;
+    for (int i = 0; i < BLOCKER_SAMPLES; ++i)
+    {
+        vec2 offset = rot * PoissonSamples[(i * 2) % PoissonSampleCount];
+        vec2 uv = clamp(shadow_proj.xy + offset * blocker_search_radius, vec2(0.0), vec2(1.0));
+        float sample_depth = textureLod(texture_shadow, uv, 0.0).x;
+        if (shadow_proj.z < (sample_depth + depth_bias))
+        {
+            blocker_depth_sum += sample_depth;
+            blocker_count += 1;
+        }
+    }
+
+    if (blocker_count == 0)
+    {
+        return 1.0;
+    }
+
+    // Step 2: Estimate world-space receiver-to-blocker distance and penumbra radius in shadow texels
+    float avg_blocker_depth = blocker_depth_sum / float(blocker_count);
+    vec4 blocker_ndc = vec4(shadow_proj.xy * 2.0 - 1.0, avg_blocker_depth, 1.0);
+    vec4 blocker_world = inv_shadow_view_projection * blocker_ndc;
+    blocker_world.xyz /= max(abs(blocker_world.w), 1e-5);
+    float blocker_dist = length(world_position - blocker_world.xyz);
+    float penumbra_texels = clamp(1.10 + blocker_dist * 0.35, 1.10, 5.5);
+
+    // Step 3: 16-tap Vogel-disk variable-radius PCF (uniform angular coverage avoids Poisson clumping)
+    const int VOGEL_SAMPLES = 16;
+    const float GOLDEN_ANGLE = 2.39996323;
+    const vec2 filter_radius = shadow_texel_size * penumbra_texels;
+    float total_shadow = 0.0;
+    for (int i = 0; i < VOGEL_SAMPLES; ++i)
+    {
+        float r = sqrt((float(i) + 0.5) / float(VOGEL_SAMPLES));
+        float theta = float(i) * GOLDEN_ANGLE + rot_angle;
+        vec2 offset = vec2(cos(theta), sin(theta)) * r;
+        vec2 uv = clamp(shadow_proj.xy + offset * filter_radius, vec2(0.0), vec2(1.0));
+        float sample_depth = textureLod(texture_shadow, uv, 0.0).x;
+        total_shadow += (shadow_proj.z < (sample_depth + depth_bias)) ? 0.0 : 1.0;
+    }
+    return saturate(total_shadow / float(VOGEL_SAMPLES));
 }
 
 // [Burley 2012, "Physically-Based Shading at Disney"]
@@ -205,11 +283,14 @@ float compute_specular_occlusion(float NoV, float ao, float roughness)
 }
 
 void apply_image_based_lighting(
+    const uint render_option,
     const in samplerCube texture_probe,
     const in vec4 scene_reflect_color,
     const in vec4 scene_gi_color,
     const in vec3 scene_sky_irradiance,
     const in vec3 base_color,
+    float shadow_factor,
+    float raw_NoL,
     float ao_factor,
     const float sky_visibility,
     float roughness,
@@ -254,6 +335,19 @@ void apply_image_based_lighting(
     vec3 diffuse_ao = multi_bounce_ao(ao_factor, base_color);
     float specular_ao = compute_specular_occlusion(NoV, ao_factor, roughness);
 
+    // Cube Map-based Shadow Tint: enrich sky-colored chromatic ambient inside shadowed areas (ToD & biome aware)
+    if ((render_option & RenderOption_RenderShadowTint) != 0u)
+    {
+        float shadow_mask = saturate(1.0 - shadow_factor * saturate(raw_NoL));
+        vec3 zenith_sky = textureLod(texture_probe, vec3(0.0, 1.0, 0.0), diffuse_irradiance_mipmap).xyz * IBL_DIFFUSE_INTENSITY;
+        float zenith_luma = max(get_luminance(zenith_sky), 1e-4);
+        vec3 zenith_hue = clamp(zenith_sky / zenith_luma, vec3(0.65), vec3(1.55));
+        float tint_weight = shadow_mask * mix(0.25, 1.0, sky_visibility);
+        float diff_luma = get_luminance(ibl_diffuse_light);
+        vec3 saturated_diff = max(vec3(0.0), vec3(diff_luma) + (ibl_diffuse_light - vec3(diff_luma)) * (1.0 + 0.45 * tint_weight));
+        ibl_diffuse_light = mix(ibl_diffuse_light, saturated_diff * mix(vec3(1.0), zenith_hue, 0.35), tint_weight * 0.70);
+    }
+
     ibl_diffuse_light *= sky_vis_factor * diffuse_ao;
     ibl_specular_light *= sky_vis_factor * specular_ao;
 
@@ -267,6 +361,20 @@ void apply_image_based_lighting(
 
     diffuse_light += ibl_diffuse_light * kD;
     specular_light.xyz += ibl_specular_light * specular_brdf;
+
+    // Cube Map-based Stylized Rim Light: broad prefiltered env sample along grazing silhouette (ToD & roughness aware)
+    if ((render_option & RenderOption_RenderRimLight) != 0u)
+    {
+        vec3 rim_dir = safe_normalize(mix(R, N + vec3(0.0, 0.35, 0.0), 0.35));
+        vec3 rim_env = textureLod(texture_probe, rim_dir, max_spec_mipmap * 0.65).xyz;
+        // Soft HDR clamp so direct sun-disk pixels in the cube map do not blow out silhouette edges
+        rim_env = rim_env / (1.0 + get_luminance(rim_env) * 0.65);
+        float rim_fresnel = pow(1.0 - NoV, 3.2);
+        float rim_facing = smoothstep(-0.35, 0.55, N.y) * (0.45 + 0.55 * saturate(raw_NoL * 0.5 + 0.5));
+        float rim_roughness_mask = mix(0.25, 1.0, roughness);
+        float rim_cave_mask = mix(0.28, 1.0, sky_visibility) * ao_factor;
+        specular_light.xyz += rim_env * rim_fresnel * rim_facing * rim_roughness_mask * rim_cave_mask * 0.55;
+    }
 }
 
 
@@ -366,17 +474,39 @@ vec4 surface_shading(
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
 
-    if(!IS_COMBINED_SHADOW && ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0)) {
-        shadow_factor *= get_shadow_factor(
-            scene_constants.TIME,
-            ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
-            world_position,
-            light_data.SHADOW_VIEW_PROJECTION,
-            light_data.INV_SHADOW_VIEW_PROJECTION,
-            light_data.SHADOW_SAMPLES,
-            SHADOW_BIAS,
-            texture_shadow
-        );
+    #if SHADER_STAGE_FLAG == FRAGMENT
+    const ivec2 frag_pixel_pos = ivec2(gl_FragCoord.xy);
+    #else
+    const ivec2 frag_pixel_pos = ivec2(screen_texcoord * scene_constants.SCREEN_SIZE);
+    #endif
+
+    if(!IS_COMBINED_SHADOW && ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)) {
+        if ((scene_constants.RENDER_OPTION & RenderOption_RenderPCSS) != 0u)
+        {
+            shadow_factor *= get_shadow_factor_pcss(
+                scene_constants.TIME,
+                frag_pixel_pos,
+                world_position,
+                light_data.SHADOW_VIEW_PROJECTION,
+                light_data.INV_SHADOW_VIEW_PROJECTION,
+                light_data.SHADOW_SAMPLES,
+                SHADOW_BIAS,
+                texture_shadow
+            );
+        }
+        else
+        {
+            shadow_factor *= get_shadow_factor(
+                scene_constants.TIME,
+                frag_pixel_pos,
+                world_position,
+                light_data.SHADOW_VIEW_PROJECTION,
+                light_data.INV_SHADOW_VIEW_PROJECTION,
+                light_data.SHADOW_SAMPLES,
+                SHADOW_BIAS,
+                texture_shadow
+            );
+        }
     }
 
     // Physical direct sun visibility: zero in complete shadow or below horizon
@@ -385,7 +515,7 @@ vec4 surface_shading(
 
     float sky_visibility = get_shadow_factor(
         scene_constants.TIME,
-        ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
+        frag_pixel_pos,
         world_position,
         view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
         view_constants.INV_CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
@@ -399,11 +529,14 @@ vec4 surface_shading(
 
     // Image based lighting (indirect sky + ground bounce + SSGI, modulated by AO & sky_visibility, NOT direct shadow)
     apply_image_based_lighting(
+        scene_constants.RENDER_OPTION,
         texture_probe,
         scene_reflect_color,
         scene_gi_color,
         scene_sky_irradiance,
         base_color,
+        shadow_factor,
+        raw_NoL,
         ao_factor,
         sky_visibility,
         roughness,
@@ -448,15 +581,32 @@ vec4 surface_shading(
     }
 
     // Stylized Shading Models (Foliage backlit SSS & Character skin wrap + soft rim)
-    if (shading_model == ShadingModel_Foliage)
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderFoliageSSS) != 0u)
     {
-        vec3 back_lit_dir = normalize(L + N * 0.35);
-        float back_scatter = pow(saturate(dot(V, -back_lit_dir)), 3.0);
-        float wrap_diffuse = saturate((raw_NoL + 0.4) / 1.4) * 0.22;
-        vec3 foliage_tint = vec3(1.12, 1.22, 0.65);
-        diffuse_light += (back_scatter * 0.65 + wrap_diffuse) * (1.0 / PI) * light_color * foliage_tint;
+        float foliage_mask = 0.0;
+        if (shading_model == ShadingModel_Foliage)
+        {
+            foliage_mask = 1.0;
+        }
+        else if (shading_model == ShadingModel_Default)
+        {
+            // Automatically detect matte green vegetation (trees, bushes, vines, grass) even without explicit ShadingModel tag
+            float green_dominance = base_color.g - max(base_color.r * 0.92, base_color.b * 1.05);
+            foliage_mask = saturate(green_dominance * 5.0) * smoothstep(0.30, 0.70, roughness) * (1.0 - metallic);
+        }
+        if (foliage_mask > 0.01)
+        {
+            vec3 back_lit_dir = normalize(L + N * 0.35);
+            float back_scatter = pow(saturate(dot(V, -back_lit_dir)), 3.0);
+            float wrap_diffuse = saturate((raw_NoL + 0.45) / 1.45) * 0.24;
+            // Allow transmitted sunlight through thin leaves even on back-facing shaded side of canopy
+            vec3 sss_sun = unshadowed_sun_color * mix(0.35, 1.0, shadow_factor) * mix(0.40, 1.0, sky_visibility);
+            vec3 foliage_tint = vec3(1.15, 1.28, 0.62);
+            diffuse_light += foliage_mask * (back_scatter * 0.75 + wrap_diffuse) * (1.0 / PI) * sss_sun * foliage_tint;
+        }
     }
-    else if (shading_model == ShadingModel_Character)
+
+    if (shading_model == ShadingModel_Character)
     {
         // Warm skin wrap lighting across the shadow terminator
         float wrap_NoL = saturate((raw_NoL + 0.35) / 1.35);
@@ -516,6 +666,39 @@ vec4 surface_shading(
     // Final PBR energy-conserving combination (F0 is already applied in specular_light)
     result = diffuse_light * base_color * (1.0 - max(reflectance, metallic));
     result += specular_light;
+
+    // Exponential Height Fog (analytic height-falloff optical depth + cube-map horizon color + Mie sun in-scattering)
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderHeightFog) != 0u && scene_constants.HEIGHT_FOG_INTENSITY > 0.001)
+    {
+        const float fog_start_dist = 18.0;
+        float eff_dist = max(0.0, scene_linear_depth - fog_start_dist);
+        if (eff_dist > 0.01)
+        {
+            const float fog_intensity = max(scene_constants.HEIGHT_FOG_INTENSITY, 0.0);
+            const float fog_density = 0.0022 * fog_intensity;
+            const float fog_height_falloff = 0.045;
+            float cam_y = max(view_constants.CAMERA_POSITION.y - scene_constants.SEA_HEIGHT, 0.0);
+            float frag_y = max(world_position.y - scene_constants.SEA_HEIGHT, 0.0);
+            float dy = frag_y - cam_y;
+            float c_cam = exp(-fog_height_falloff * cam_y);
+            float height_integral = (abs(dy) > 0.001)
+                ? (1.0 - exp(-fog_height_falloff * dy)) / (fog_height_falloff * dy)
+                : 1.0;
+            float fog_max_opacity = saturate(0.65 * min(fog_intensity, 1.45));
+            float fog_amount = saturate((1.0 - exp(-fog_density * eff_dist * c_cam * height_integral)) * fog_max_opacity);
+            fog_amount *= mix(0.25, 1.0, sky_visibility);
+
+            const vec2 env_size = vec2(textureSize(texture_probe, 0));
+            const float fog_mip = max(1.0, min(8.0, log2(max(env_size.x, env_size.y)) - 1.0) - 1.0);
+            vec3 horizon_dir = safe_normalize(vec3(-V.x, 0.14, -V.z));
+            vec3 fog_color = textureLod(texture_probe, horizon_dir, fog_mip).xyz * 1.15;
+            float sun_scatter = pow(saturate(dot(-V, L)), 6.0);
+            fog_color += unshadowed_sun_color * (0.18 / PI) * sun_scatter;
+            fog_color = max(fog_color, vec3(0.04, 0.05, 0.065));
+            result = mix(result, fog_color, fog_amount);
+        }
+    }
+
     return vec4(max(vec3(0.0), result), opacity);
 }
 

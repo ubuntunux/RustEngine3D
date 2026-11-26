@@ -77,14 +77,42 @@ void main() {
     float shadow_resolved = 1.0;
     float ao_resolved = 1.0;
     vec3 bent_normal = N;
-    if ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0)
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)
     {
-        vec4 shadow_ao_bent = texture(textureShadowResolved, vs_output.texCoord);
-        shadow_resolved = shadow_ao_bent.x;
-        ao_resolved = shadow_ao_bent.y;
-        if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0)
+        vec4 shadow_ao_center = textureLod(textureShadowResolved, vs_output.texCoord, 0.0);
+        // 5-tap depth-aware bilateral filter on ShadowAO.xy removes PCSS/Contact/GTAO dither while preserving sharp edges
+        vec2 inv_shadow_ao_size = 1.0 / max(vec2(textureSize(textureShadowResolved, 0)), vec2(1.0));
+        float center_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
+        float inv_depth_sigma = 1.0 / max(0.035 * center_linear, 0.04);
+
+        vec2 filtered_xy = shadow_ao_center.xy * 2.0;
+        float weight_sum = 2.0;
+        const vec2 offsets[4] = vec2[4](
+            vec2(-1.0,  0.0),
+            vec2( 1.0,  0.0),
+            vec2( 0.0, -1.0),
+            vec2( 0.0,  1.0)
+        );
+        for (int i = 0; i < 4; ++i)
         {
-            bent_normal = normalize(oct_decode_normal(shadow_ao_bent.zw));
+            vec2 tap_uv = clamp(vs_output.texCoord + offsets[i] * inv_shadow_ao_size, vec2(0.0), vec2(1.0));
+            float tap_depth = textureLod(textureSceneDepth, tap_uv, 0.0).x;
+            if (tap_depth > 0.0)
+            {
+                float tap_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, tap_depth);
+                float depth_delta = abs(tap_linear - center_linear) * inv_depth_sigma;
+                float w = exp(-depth_delta * depth_delta);
+                vec2 tap_xy = textureLod(textureShadowResolved, tap_uv, 0.0).xy;
+                filtered_xy += tap_xy * w;
+                weight_sum += w;
+            }
+        }
+        filtered_xy /= max(weight_sum, 1e-5);
+        shadow_resolved = filtered_xy.x;
+        ao_resolved = filtered_xy.y;
+        if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0u)
+        {
+            bent_normal = normalize(oct_decode_normal(shadow_ao_center.zw));
         }
     }
     uint shading_model = decode_shading_model(normal.w);

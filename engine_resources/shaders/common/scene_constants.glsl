@@ -53,14 +53,25 @@ const uint MAX_UI_INSTANCE_COUNT = 65536; // NOTE: Ensure enum values match in c
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
 // enum RenderOption
-const uint RenderOption_RenderSSR = 1 << 0;
-const uint RenderOption_RenderOcean = 1 << 1;
-const uint RenderOption_RenderAtmosphere = 1 << 2;
-const uint RenderOption_RenderSky = 1 << 3;
-const uint RenderOption_RenderShadow = 1 << 4;
-const uint RenderOption_RenderSSAO = 1 << 5;
-const uint RenderOption_RenderSSGI = 1 << 6;
-const uint RenderOption_RenderHalfLambert = 1 << 7;
+const uint RenderOption_RenderSSR = 1u << 0u;
+const uint RenderOption_RenderOcean = 1u << 1u;
+const uint RenderOption_RenderAtmosphere = 1u << 2u;
+const uint RenderOption_RenderSky = 1u << 3u;
+const uint RenderOption_RenderShadow = 1u << 4u;
+const uint RenderOption_RenderSSAO = 1u << 5u;
+const uint RenderOption_RenderSSGI = 1u << 6u;
+const uint RenderOption_RenderHalfLambert = 1u << 7u;
+const uint RenderOption_RenderShadowTint = 1u << 8u;
+const uint RenderOption_RenderRimLight = 1u << 9u;
+const uint RenderOption_RenderFoliageSSS = 1u << 10u;
+const uint RenderOption_RenderPCSS = 1u << 11u;
+const uint RenderOption_RenderContactShadow = 1u << 12u;
+const uint RenderOption_RenderBloom = 1u << 13u;
+const uint RenderOption_RenderHeightFog = 1u << 14u;
+const uint RenderOption_RenderAutoExposure = 1u << 15u;
+const uint RenderOption_RenderGodRays = 1u << 16u;
+const uint RenderOption_RenderDepthOfField = 1u << 17u;
+const uint RenderOption_RenderStylizedOutline = 1u << 18u;
 
 // uniform_buffer_data_list.rs - struct SceneConstants
 struct SCENE_CONSTANTS
@@ -80,6 +91,11 @@ struct SCENE_CONSTANTS
     int RENDER_POINT_LIGHT_COUNT;
     uint ELAPSED_FRAME;
     uint RENDER_OPTION;
+    float DOF_INTENSITY;
+    float BLOOM_INTENSITY;
+    float GOD_RAYS_INTENSITY;
+    float HEIGHT_FOG_INTENSITY;
+    float MOTION_BLUR_INTENSITY;
 };
 
 // uniform_buffer_data_list.rs - struct ViewConstants

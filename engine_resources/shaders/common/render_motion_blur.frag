@@ -34,13 +34,20 @@ const vec2 gaussFilter[7] =
 
 
 void main() {
+    float intensity = max(scene_constants.MOTION_BLUR_INTENSITY, 0.0);
+    if (intensity <= 0.001)
+    {
+        outColor = vec4(textureLod(textureSceneColor, vs_output.texCoord, 0.0).rgb, 1.0);
+        return;
+    }
+
     outColor = vec4(0.0);
-    float motion_blur_scale = 0.002 / scene_constants.DELTA_TIME;
+    float motion_blur_scale = (0.002 / max(scene_constants.DELTA_TIME, 0.0001)) * intensity;
     vec2 velocity = texture(textureSceneVelocity, vs_output.texCoord).xy * motion_blur_scale;
     float weights = 0.0;
     for( int i = 0; i < 7; i++ )
 	{
-	    vec2 uv = vec2(vs_output.texCoord.x + gaussFilter[i].x * velocity.x, vs_output.texCoord.y + gaussFilter[i].x * velocity.y);
+	    vec2 uv = clamp(vec2(vs_output.texCoord.x + gaussFilter[i].x * velocity.x, vs_output.texCoord.y + gaussFilter[i].x * velocity.y), vec2(0.0), vec2(1.0));
         outColor += texture(textureSceneColor, uv) * gaussFilter[i].yyyy;
 		weights += gaussFilter[i].y;
 	}

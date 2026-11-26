@@ -15,6 +15,7 @@ use ash::vk;
 use crate::renderer::push_constants::PushConstant_RenderFinal;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub const SEMANTIC_TEXTURE_COLOR_GRADING_LUT: &str = "TEXTURE_COLOR_GRADING_LUT";
 
@@ -59,10 +60,15 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let subpass_dependencies = vec![vk::SubpassDependency {
         src_subpass: vk::SUBPASS_EXTERNAL,
         dst_subpass: 0,
-        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+            | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+            | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS
+            | vk::PipelineStageFlags::COMPUTE_SHADER,
+        src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
+            | vk::AccessFlags::SHADER_WRITE,
+        dst_stage_mask: vk::PipelineStageFlags::FRAGMENT_SHADER | vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
@@ -107,6 +113,48 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_binding_index: 2,
                 _descriptor_name: String::from("lut/lut_neutral"),
                 _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 3,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 4,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
+                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 5,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::LightData),
+                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 6,
+                _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 7,
+                _descriptor_name: enum_to_string(&RenderTargetType::SceneNormal),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 8,
+                _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },

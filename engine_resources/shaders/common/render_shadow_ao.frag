@@ -54,7 +54,8 @@ void main() {
 
     const vec2 depth_size = vec2(textureSize(textureSceneDepth, 0).xy);
     const vec2 inv_depth_size = 1.0 / depth_size;
-    const ivec2 screen_pos = ivec2(texCoord * scene_constants.SCREEN_SIZE);
+    // Use exact integer pixel coordinates of this render target (avoids 1.333x integer-skipping moire/checkerboard during Upscale)
+    const ivec2 screen_pos = ivec2(gl_FragCoord.xy);
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
     const vec3 N = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
     const vec3 V = normalize(-relative_pos.xyz);
@@ -71,10 +72,10 @@ void main() {
 
         const int SLICE_COUNT = 4;
         const int STEP_COUNT = 4;
-        const float frame_rot = fract(float(scene_constants.ELAPSED_FRAME % 64u) * 0.61803398875);
+        const float frame_rot = float(scene_constants.ELAPSED_FRAME & 3u) * 0.25;
         const float spatial_noise = interleaved_gradient_noise(screen_pos);
         const float base_phi = fract(spatial_noise + frame_rot) * PI;
-        const float step_jitter = fract(interleaved_gradient_noise(screen_pos + ivec2(37, 17)) + frame_rot * 1.6180339);
+        const float step_jitter = fract(interleaved_gradient_noise(screen_pos + ivec2(37, 17)) + frame_rot * 0.5);
 
         const vec3 cam_right = normalize(view_constants.INV_VIEW_ORIGIN[0].xyz);
         const vec3 cam_up = normalize(view_constants.INV_VIEW_ORIGIN[1].xyz);
@@ -172,16 +173,81 @@ void main() {
     }
 
     const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
-    const float shadow_factor = get_shadow_factor(
-        scene_constants.TIME,
-        screen_pos,
-        world_position,
-        light_data.SHADOW_VIEW_PROJECTION,
-        light_data.INV_SHADOW_VIEW_PROJECTION,
-        light_data.SHADOW_SAMPLES,
-        SHADOW_BIAS,
-        texture_shadow
-    );
+    float shadow_factor = 1.0;
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderPCSS) != 0u)
+    {
+        shadow_factor = get_shadow_factor_pcss(
+            scene_constants.TIME,
+            screen_pos,
+            world_position,
+            light_data.SHADOW_VIEW_PROJECTION,
+            light_data.INV_SHADOW_VIEW_PROJECTION,
+            light_data.SHADOW_SAMPLES,
+            SHADOW_BIAS,
+            texture_shadow
+        );
+    }
+    else
+    {
+        shadow_factor = get_shadow_factor(
+            scene_constants.TIME,
+            screen_pos,
+            world_position,
+            light_data.SHADOW_VIEW_PROJECTION,
+            light_data.INV_SHADOW_VIEW_PROJECTION,
+            light_data.SHADOW_SAMPLES,
+            SHADOW_BIAS,
+            texture_shadow
+        );
+    }
+
+    // Screen-Space Contact Shadows: short 8-step ray march toward sun for crisp grounding on grass, rocks, and feet
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderContactShadow) != 0u && shadow_factor > 0.01)
+    {
+        const vec3 L = normalize(-light_data.LIGHT_DIRECTION);
+        const float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
+        if (L.y > 0.05 && linear_depth < 25.0 && dot(N, L) > 0.02)
+        {
+            const int CONTACT_STEPS = 8;
+            const float max_ray_len = mix(0.28, 0.85, saturate(linear_depth / 20.0));
+            const float thickness = 0.045 + linear_depth * 0.012;
+            const float frame_jitter = fract(interleaved_gradient_noise(screen_pos + ivec2(13, 29)) + float(scene_constants.ELAPSED_FRAME & 3u) * 0.25);
+            const vec3 ray_origin = relative_pos.xyz + N * (0.015 + linear_depth * 0.002);
+
+            float contact_occlusion = 0.0;
+            for (int step_i = 0; step_i < CONTACT_STEPS; ++step_i)
+            {
+                float t = (float(step_i) + 0.35 + 0.65 * frame_jitter) / float(CONTACT_STEPS);
+                vec3 sample_rel_pos = ray_origin + L * (t * max_ray_len);
+                vec4 proj = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(sample_rel_pos, 1.0);
+                if (proj.w <= 0.0)
+                {
+                    break;
+                }
+                proj.xyz /= proj.w;
+                vec2 sample_uv = proj.xy * 0.5 + 0.5;
+                if (sample_uv.x <= 0.0 || sample_uv.x >= 1.0 || sample_uv.y <= 0.0 || sample_uv.y >= 1.0)
+                {
+                    break;
+                }
+                float sample_depth = textureLod(textureSceneDepth, sample_uv, 0.0).x;
+                if (sample_depth <= 0.0)
+                {
+                    continue;
+                }
+                float ray_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, proj.z);
+                float scene_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, sample_depth);
+                float depth_diff = ray_linear - scene_linear;
+                if (depth_diff > 0.015 && depth_diff < thickness)
+                {
+                    contact_occlusion = 1.0 - t * 0.35;
+                    break;
+                }
+            }
+            float dist_fade = smoothstep(25.0, 14.0, linear_depth);
+            shadow_factor *= (1.0 - contact_occlusion * dist_fade * 0.85);
+        }
+    }
 
     outColor = vec4(saturate(shadow_factor), gtao_visibility, oct_encode_normal(bent_normal));
 }

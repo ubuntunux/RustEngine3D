@@ -66,12 +66,17 @@ pub static mut SSAO_NOISE_DIM: i32 = 4;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
 pub const UPSCALE_FACTOR: f32 = 0.75;
 pub const RCAS_SHARPNESS_NATIVE: f32 = 0.25;
-pub const RCAS_SHARPNESS_UPSCALE: f32 = 0.65;
+pub const RCAS_SHARPNESS_UPSCALE: f32 = 0.45;
 pub static mut ENABLE_UPSCALE: bool = false;
 pub static mut RENDER_QUALITY_LEVEL: RenderQualityLevel = RenderQualityLevel::Medium;
 pub static mut TONE_MAPPING_MODE: ToneMappingMode = ToneMappingMode::AgX;
 pub static mut COLOR_GRADING_LUT: ColorGradingLut = ColorGradingLut::None;
 pub static mut EXPOSURE: f32 = 0.90;
+pub static mut DOF_INTENSITY: f32 = 1.0;
+pub static mut BLOOM_INTENSITY: f32 = 1.0;
+pub static mut GOD_RAYS_INTENSITY: f32 = 1.0;
+pub static mut HEIGHT_FOG_INTENSITY: f32 = 1.0;
+pub static mut MOTION_BLUR_INTENSITY: f32 = 1.0;
 
 pub fn get_render_viewport_size(window_width: u32, window_height: u32) -> (u32, u32) {
     let is_upscale = unsafe { ENABLE_UPSCALE };
