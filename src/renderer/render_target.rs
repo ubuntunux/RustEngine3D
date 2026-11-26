@@ -82,6 +82,7 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             window_height
         }
     };
+
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_context._render_features._msaa_samples);
     let hdr_texture_create_info = TextureCreateInfo {

@@ -100,6 +100,7 @@ pub struct RendererContext<'a> {
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
+    _need_recreate_render_targets: bool,
     // last present result, used to log only when the result changes (avoid per-frame log spam)
     _last_present_result: vk::Result,
     // prevents an infinite recreate loop while the swapchain stays SUBOPTIMAL (e.g. alt+tab, focus lost)
@@ -336,6 +337,7 @@ impl<'a> RendererContext<'a> {
                 _frame_index: 0,
                 _swapchain_index: 0,
                 _need_recreate_swapchain: false,
+                _need_recreate_render_targets: false,
                 _last_present_result: vk::Result::SUCCESS,
                 _is_suboptimal_recreate_requested: false,
                 _entry: entry,
@@ -374,6 +376,7 @@ impl<'a> RendererContext<'a> {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
+        self._need_recreate_render_targets = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
         get_renderer_data_mut().initialize_renderer_data(self, effect_manager);
 
@@ -404,6 +407,17 @@ impl<'a> RendererContext<'a> {
     pub fn set_need_recreate_swapchain(&mut self, value: bool) {
         log::info!("set_need_recreate_swapchain: {}", value);
         self._need_recreate_swapchain = value;
+    }
+    pub fn get_need_recreate_render_targets(&self) -> bool {
+        self._need_recreate_render_targets
+    }
+    pub fn set_need_recreate_render_targets(&mut self, value: bool) {
+        log::info!("set_need_recreate_render_targets: {}", value);
+        self._need_recreate_render_targets = value;
+    }
+    pub fn request_recreate_render_targets(&mut self) {
+        self.set_need_recreate_render_targets(true);
+        self.set_need_recreate_swapchain(true);
     }
     pub fn get_instance(&self) -> &Instance {
         &self._instance

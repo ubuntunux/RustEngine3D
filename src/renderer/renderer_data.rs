@@ -88,6 +88,7 @@ pub enum RenderQualityLevel {
     Low,
     Medium,
     High,
+    Custom,
 }
 
 impl RenderQualityLevel {
@@ -96,6 +97,7 @@ impl RenderQualityLevel {
             RenderQualityLevel::Low => "Low",
             RenderQualityLevel::Medium => "Medium",
             RenderQualityLevel::High => "High",
+            RenderQualityLevel::Custom => "Custom",
         }
     }
 }
@@ -134,6 +136,7 @@ pub enum RenderOption {
     RenderShadow = 1 << 4,
     RenderSSAO = 1 << 5,
     RenderSSGI = 1 << 6,
+    RenderHalfLambert = 1 << 7,
     ALL = 0xffffffff,
 }
 

@@ -327,8 +327,10 @@ vec4 surface_shading(
 
     const float raw_NoL = dot(N, L);
     float NoL = raw_NoL;
-    if(HALF_LAMBERT_LIGHTING)
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderHalfLambert) != 0u)
+    {
         NoL = pow(saturate(NoL * 0.5 + 0.5), 2.0);
+    }
     const float clampled_NoL = saturate(NoL);
     const float specular_clampled_NoL = saturate(raw_NoL);
     const float NoV = clamp(dot(N, V), 0.001, 1.0);

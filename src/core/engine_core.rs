@@ -818,7 +818,9 @@ impl<'a> EngineCore<'a> {
         }
 
         let swapchain_extent = self._renderer_context.get_swap_chain_data()._swapchain_extent;
-        let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
+        let need_recreate_swapchain = swapchain_extent.width != size.width
+            || swapchain_extent.height != size.height
+            || self._renderer_context.get_need_recreate_render_targets();
         log::info!(
             "need_recreate_swapchain: {}, swapchain_extent: {:?}, window_size: {:?}",
             need_recreate_swapchain,
@@ -987,12 +989,14 @@ impl<'a> EngineCore<'a> {
                 let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
                 let is_window_size_changed = swapchain_extent.width != self._window_size.x as u32
                     || swapchain_extent.height != self._window_size.y as u32;
+                let need_recreate_render_targets = renderer_context.get_need_recreate_render_targets();
 
-                if is_window_size_changed {
+                if is_window_size_changed || need_recreate_render_targets {
                     log::info!(
-                        "Window size changed (swapchain: {:?}, window: {:?}), full resize_window.",
+                        "Full resize_window (swapchain: {:?}, window: {:?}, recreate_render_targets: {}).",
                         swapchain_extent,
-                        self._window_size
+                        self._window_size,
+                        need_recreate_render_targets
                     );
                     // destroy
                     ui_manager.destroy_ui_graphics_data();
@@ -1010,6 +1014,7 @@ impl<'a> EngineCore<'a> {
                     renderer_context.recreate_swapchain_only(self._window_size.x as u32, self._window_size.y as u32);
                 }
 
+                renderer_context.set_need_recreate_render_targets(false);
                 renderer_context.set_need_recreate_swapchain(false);
 
                 self._time_data.reset_time_data();
@@ -1139,7 +1144,7 @@ impl<'a> EngineCore<'a> {
                             rt_total_bytes as f32 / (1024.0 * 1024.0)
                         ));
                         font_manager.log(format!(
-                            "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, ToneMap: {:?}, Exp: {:.2}",
+                            "RenderQualityLevel: {:?}, Upscale: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, HalfLambert: {:?}, ToneMap: {:?}, Exp: {:.2}",
                              { constants::RENDER_QUALITY_LEVEL },
                              { constants::ENABLE_UPSCALE },
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
@@ -1149,6 +1154,7 @@ impl<'a> EngineCore<'a> {
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
                             renderer_context._renderer_data.has_render_option(RenderOption::RenderSSGI),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderHalfLambert),
                             renderer_context._renderer_data._tone_mapping_mode,
                             renderer_context._renderer_data._exposure,
                         ));
@@ -1582,6 +1588,11 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                             ._renderer_context
                             .get_renderer_data_mut()
                             .toggle_render_option(RenderOption::RenderSSGI)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit8) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderHalfLambert)
                     }
                 }
             }

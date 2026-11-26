@@ -27,8 +27,6 @@
 #define MAX_BONES_PER_VERTEX 4
 #define MAX_TRANSFORM_COUNT 65536 // MAX_TRANSFORM_COUNT must match with constants.rs
 
-const bool HALF_LAMBERT_LIGHTING = false;
-
 // GBuffer Shading Model IDs (stored in SceneNormal.w via encode_shading_model)
 const uint ShadingModel_Default = 0u;
 const uint ShadingModel_Foliage = 1u;
@@ -62,6 +60,7 @@ const uint RenderOption_RenderSky = 1 << 3;
 const uint RenderOption_RenderShadow = 1 << 4;
 const uint RenderOption_RenderSSAO = 1 << 5;
 const uint RenderOption_RenderSSGI = 1 << 6;
+const uint RenderOption_RenderHalfLambert = 1 << 7;
 
 // uniform_buffer_data_list.rs - struct SceneConstants
 struct SCENE_CONSTANTS
