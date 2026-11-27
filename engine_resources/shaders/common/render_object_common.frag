@@ -10,10 +10,17 @@ void main() {
         tangent_normal
     );
 
+#if (RenderMode_Forward == RenderMode)
+    if(base_color.w < 0.05)
+    {
+        discard;
+    }
+#else
     if(base_color.w < 0.333)
     {
         discard;
     }
+#endif
 
     vec3 normal = normalize(in_vertex_output._tangent_to_world * tangent_normal);
     vec3 vertex_normal = normalize(in_vertex_output._tangent_to_world[2]);
@@ -80,7 +87,7 @@ void main() {
         IS_COMBINED_SHADOW
     );
     outColor.xyz += emissive_color;
-    outColor.w = 1.0;
+    outColor.w = opacity;
 #elif (RenderMode_CaptureHeightMap == RenderMode)
     outNormalWithDepth = vec4(normalize(in_vertex_output._tangent_to_world[2]), gl_FragCoord.z);
     outDepth = gl_FragCoord.z;

@@ -2769,28 +2769,40 @@ impl<'a> EngineResources<'a> {
     }
 
     // TextureLoader
+    pub fn convert_dynamic_image_to_rgba_raw(dynamic_image: &image::DynamicImage) -> (Vec<u8>, vk::Format) {
+        match dynamic_image {
+            image::DynamicImage::ImageRgb32F(_) | image::DynamicImage::ImageRgba32F(_) => {
+                let raw_f32 = dynamic_image.to_rgba32f().into_raw();
+                let mut raw_bytes = Vec::with_capacity(raw_f32.len() * std::mem::size_of::<f32>());
+                for value in raw_f32 {
+                    raw_bytes.extend_from_slice(&value.to_le_bytes());
+                }
+                (raw_bytes, vk::Format::R32G32B32A32_SFLOAT)
+            }
+            _ => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
+        }
+    }
+
     pub fn load_image_data(texture_file: &PathBuf) -> LoadImageInfoType {
         let loaded_contents = system::load(texture_file);
-        let image_format = image::ImageFormat::from_path(texture_file);
-        let image_file = image::load(loaded_contents, image_format.unwrap());
-        if image_file.is_err() {
-            log::error!("load_image_data error: {:?}", texture_file);
-            return (0, 0, 0, Vec::new(), vk::Format::UNDEFINED);
-        }
-        let dynamic_image: image::DynamicImage = image_file.unwrap();
-        let (image_width, image_height) = dynamic_image.dimensions();
-        let image_layer = 1;
-        let (image_data_raw, image_format): (Vec<u8>, vk::Format) = match dynamic_image {
-            image::DynamicImage::ImageRgba8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageRgb8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageLuma8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageRgb16(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R16G16B16A16_UNORM),
-            _ => {
-                log::error!("Unkown format: {:?}", texture_file);
-                (Vec::new(), vk::Format::UNDEFINED)
+        let image_format = match image::ImageFormat::from_path(texture_file) {
+            Ok(format) => format,
+            Err(err) => {
+                log::error!("load_image_data format error for {:?}: {:?}", texture_file, err);
+                return (0, 0, 0, Vec::new(), vk::Format::UNDEFINED);
             }
         };
-        (image_width, image_height, image_layer, image_data_raw, image_format)
+        let dynamic_image: image::DynamicImage = match image::load(loaded_contents, image_format) {
+            Ok(img) => img,
+            Err(err) => {
+                log::error!("load_image_data error for {:?}: {:?}", texture_file, err);
+                return (0, 0, 0, Vec::new(), vk::Format::UNDEFINED);
+            }
+        };
+        let (image_width, image_height) = dynamic_image.dimensions();
+        let image_layer = 1;
+        let (image_data_raw, vk_format) = Self::convert_dynamic_image_to_rgba_raw(&dynamic_image);
+        (image_width, image_height, image_layer, image_data_raw, vk_format)
     }
 
     pub fn load_image_data_list(texture_files: &Vec<PathBuf>) -> LoadImageInfoType {
@@ -3679,5 +3691,56 @@ impl<'a> EngineResources<'a> {
 
     pub fn get_scene_data(&self, resource_name: &str) -> &RcRefCell<SceneDataCreateInfo> {
         get_resource_data_must("scene_data", &self._scene_data_create_infos_map, resource_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::{DynamicImage, GrayAlphaImage, GrayImage, ImageBuffer, Luma, LumaA, Rgb, Rgba};
+
+    #[test]
+    fn test_convert_dynamic_image_to_rgba_raw_preserves_alpha_and_formats() {
+        // 8-bit RGBA
+        let rgba8 = DynamicImage::ImageRgba8(ImageBuffer::from_pixel(1, 1, Rgba([10, 20, 30, 40])));
+        let (raw, fmt) = EngineResources::convert_dynamic_image_to_rgba_raw(&rgba8);
+        assert_eq!(fmt, vk::Format::R8G8B8A8_UNORM);
+        assert_eq!(raw, vec![10, 20, 30, 40]);
+
+        // 8-bit Grayscale + Alpha (previously unsupported -> UNDEFINED)
+        let luma_a8 = DynamicImage::ImageLumaA8(GrayAlphaImage::from_pixel(1, 1, LumaA([128, 64])));
+        let (raw, fmt) = EngineResources::convert_dynamic_image_to_rgba_raw(&luma_a8);
+        assert_eq!(fmt, vk::Format::R8G8B8A8_UNORM);
+        assert_eq!(raw, vec![128, 128, 128, 64]);
+
+        // 16-bit RGB (previously mismatched 4B raw data with R16G16B16A16_UNORM)
+        let rgb16 = DynamicImage::ImageRgb16(ImageBuffer::from_pixel(1, 1, Rgb([65535, 32768, 0])));
+        let (raw, fmt) = EngineResources::convert_dynamic_image_to_rgba_raw(&rgb16);
+        assert_eq!(fmt, vk::Format::R8G8B8A8_UNORM);
+        assert_eq!(raw.len(), 4);
+        assert_eq!(raw[0], 255);
+        assert_eq!(raw[2], 0);
+        assert_eq!(raw[3], 255);
+
+        // 16-bit RGBA (previously unsupported -> UNDEFINED)
+        let rgba16 = DynamicImage::ImageRgba16(ImageBuffer::from_pixel(1, 1, Rgba([65535, 0, 32768, 16384])));
+        let (raw, fmt) = EngineResources::convert_dynamic_image_to_rgba_raw(&rgba16);
+        assert_eq!(fmt, vk::Format::R8G8B8A8_UNORM);
+        assert_eq!(raw.len(), 4);
+        assert_eq!(raw[0], 255);
+        assert_eq!(raw[1], 0);
+        assert!((raw[3] as i32 - 64).abs() <= 1);
+
+        // 8-bit Luma
+        let luma8 = DynamicImage::ImageLuma8(GrayImage::from_pixel(1, 1, Luma([200])));
+        let (raw, fmt) = EngineResources::convert_dynamic_image_to_rgba_raw(&luma8);
+        assert_eq!(fmt, vk::Format::R8G8B8A8_UNORM);
+        assert_eq!(raw, vec![200, 200, 200, 255]);
+
+        // 32-bit float RGBA
+        let rgba32f = DynamicImage::ImageRgba32F(ImageBuffer::from_pixel(1, 1, Rgba([1.0, 0.5, 0.25, 0.75])));
+        let (raw, fmt) = EngineResources::convert_dynamic_image_to_rgba_raw(&rgba32f);
+        assert_eq!(fmt, vk::Format::R32G32B32A32_SFLOAT);
+        assert_eq!(raw.len(), 16);
     }
 }

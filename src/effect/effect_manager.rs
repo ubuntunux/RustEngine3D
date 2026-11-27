@@ -286,7 +286,12 @@ impl<'a> EffectManager<'a> {
             if effect._is_alive {
                 for emitter in effect._emitters.iter() {
                     if emitter.as_ref()._is_alive {
-                        self._effect_render_group.push(emitter.clone());
+                        let emitter_data = emitter.as_ref().get_emitter_data();
+                        if emitter_data._material_instance_data.borrow().is_ready()
+                            && emitter_data._mesh_data.borrow().is_ready()
+                        {
+                            self._effect_render_group.push(emitter.clone());
+                        }
                     }
                 }
             }
@@ -743,6 +748,8 @@ impl<'a> EffectManager<'a> {
                 emitter._allocated_particle_count as u32,
             );
         }
-        renderer_context.end_render_pass(command_buffer);
+        if !prev_pipeline_data.is_null() {
+            renderer_context.end_render_pass(command_buffer);
+        }
     }
 }

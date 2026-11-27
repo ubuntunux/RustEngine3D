@@ -129,7 +129,7 @@ pub fn get_render_pass_data_create_info(
         _pipeline_cull_mode: cull_mode,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(BlendOperation::None);
+            vulkan_context::get_color_blend_operation(BlendOperation::AlphaBlend);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
