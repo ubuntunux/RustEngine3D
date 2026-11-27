@@ -1846,11 +1846,29 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "scene_color_downsampling",
         );
+
+        // Ensure prior SceneColor mip 0 color attachment writes are visible before compute downsampling
+        let pre_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ);
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::DependencyFlags::empty(),
+            &[pre_barrier],
+            &[],
+            &[],
+        );
+
         let engine_resources = get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data("common/downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._render_context_scene_color_downsampling._descriptor_sets.len();
+        let mip_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ);
         renderer_context.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
             let descriptor_sets = Some(&self._render_context_scene_color_downsampling._descriptor_sets[mip_level]);
@@ -1862,11 +1880,32 @@ impl<'a> RendererData<'a> {
             );
             renderer_context.dispatch_compute_pipeline(
                 command_buffer,
-                self._render_context_scene_color_downsampling._dispatch_group_x >> (mip_level + 1),
-                self._render_context_scene_color_downsampling._dispatch_group_y >> (mip_level + 1),
+                (self._render_context_scene_color_downsampling._dispatch_group_x >> (mip_level + 1)).max(1),
+                (self._render_context_scene_color_downsampling._dispatch_group_y >> (mip_level + 1)).max(1),
                 1,
             );
+            // Synchronize each mip level before the next compute dispatch reads it
+            renderer_context.pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::empty(),
+                &[mip_barrier],
+                &[],
+                &[],
+            );
         }
+
+        // Ensure all downsampled SceneColor mips are visible to subsequent fragment shaders (Ocean, God Rays, Auto-Exposure)
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::FRAGMENT_SHADER,
+            vk::DependencyFlags::empty(),
+            &[mip_barrier],
+            &[],
+            &[],
+        );
     }
 
     pub fn render_pre_process(
@@ -2271,18 +2310,6 @@ impl<'a> RendererData<'a> {
             );
 
             // Refresh SceneColor mip chain after atmosphere/sky so God Rays, Auto-Exposure, and next-frame SSR/SSGI see sky + sun + clouds
-            let atmosphere_to_compute_barrier = vk::MemoryBarrier::default()
-                .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
-                .dst_access_mask(vk::AccessFlags::SHADER_READ);
-            renderer_context.pipeline_barrier(
-                command_buffer,
-                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-                vk::PipelineStageFlags::COMPUTE_SHADER,
-                vk::DependencyFlags::empty(),
-                &[atmosphere_to_compute_barrier],
-                &[],
-                &[],
-            );
             self.scene_color_downsampling(command_buffer, swapchain_index, renderer_context);
         }
 

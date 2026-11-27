@@ -331,7 +331,7 @@ void main()
             }
 
             float max_enter_km = mix(110.0, 500000.0, space_factor);
-            float max_chord_km = mix(32.0, 220.0, space_factor);
+            float max_chord_km = mix(24.0, 220.0, space_factor);
             t_exit = min(t_exit, t_enter + max_chord_km);
 
             if (t_enter < max_enter_km && t_exit > t_enter + 0.005)
@@ -410,13 +410,15 @@ void main()
                 noise_scale = max(noise_scale.x, max(noise_scale.y, noise_scale.z)) / noise_scale;
                 noise_scale *= atmosphere_constants.noise_tiling;
 
-                const int march_count = 32;
+                const int march_count = 48;
                 const int light_march_count = 8;
                 const float absorption_exp = atmosphere_constants.cloud_absorption * -8.0;
                 float chord_km = t_exit - t_enter;
                 float march_step_km = chord_km / float(march_count);
                 float light_step_km = (cloud_height_km * 0.85) / float(light_march_count);
-                float step_jitter = interleaved_gradient_noise(ivec2(gl_FragCoord.xy)) * march_step_km;
+                // Golden-ratio temporal jitter lets atmosphere TAA integrate multiple raymarch offsets cleanly without static stipple
+                float temporal_phase = float(scene_constants.ELAPSED_FRAME % 64u) * 0.61803398875;
+                float step_jitter = fract(interleaved_gradient_noise(ivec2(gl_FragCoord.xy)) + temporal_phase) * march_step_km;
 
                 float visibility = 1.0;
                 for (int i = 0; i < march_count; ++i)

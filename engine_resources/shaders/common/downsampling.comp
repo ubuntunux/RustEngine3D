@@ -8,13 +8,18 @@ layout(rgba16f, binding = 1) uniform image2D img_output;
 
 void main()
 {
-    ivec2 input_image_bound = imageSize(img_input) - 1;
+    ivec2 output_size = imageSize(img_output);
     ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 input_pixel_coords0 = pixel_coords * 2;
-    ivec2 input_pixel_coords1 = input_pixel_coords0 + 1;
+    if (pixel_coords.x >= output_size.x || pixel_coords.y >= output_size.y)
+    {
+        return;
+    }
+    ivec2 input_image_bound = max(imageSize(img_input) - 1, ivec2(0));
+    ivec2 input_pixel_coords0 = min(pixel_coords * 2, input_image_bound);
+    ivec2 input_pixel_coords1 = min(input_pixel_coords0 + 1, input_image_bound);
     vec4 color = imageLoad(img_input, input_pixel_coords0);
     color += imageLoad(img_input, ivec2(input_pixel_coords1.x, input_pixel_coords0.y));
     color += imageLoad(img_input, ivec2(input_pixel_coords0.x, input_pixel_coords1.y));
     color += imageLoad(img_input, input_pixel_coords1);
-    imageStore(img_output, pixel_coords, color * 0.25);
+    imageStore(img_output, pixel_coords, max(color * 0.25, vec4(0.0)));
 }

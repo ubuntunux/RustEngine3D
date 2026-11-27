@@ -68,10 +68,10 @@ void main()
 
     vec3 color = (g0 * w0 + g1 * w1 + g2 * w2 + g3 * w3 + g4 * w4) / max(w0 + w1 + w2 + w3 + w4, 1e-5);
 
-    // Soft-knee HDR bloom extraction so only genuine bright highlights (sun/sky/emissives) bloom
+    // Soft-knee HDR bloom extraction so only genuine HDR highlights (Sun/fire/emissives/glints) bloom without washing out daytime clouds or terrain
     float luminance = get_luminance(color);
-    const float threshold = max(pushConstant._bloom_threshold_min, 1.55);
-    const float knee = 0.55;
+    const float threshold = max(pushConstant._bloom_threshold_min, 2.20);
+    const float knee = 0.60;
     float soft = clamp(luminance - threshold + knee, 0.0, 2.0 * knee);
     soft = (soft * soft) / (4.0 * knee + 1e-5);
     float contribution = max(soft, luminance - threshold) / max(luminance, 1e-5);

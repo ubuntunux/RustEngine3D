@@ -69,7 +69,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             | vk::AccessFlags::SHADER_WRITE,
         dst_stage_mask: vk::PipelineStageFlags::FRAGMENT_SHADER | vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
         dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-        dependency_flags: vk::DependencyFlags::BY_REGION,
+        dependency_flags: vk::DependencyFlags::empty(),
     }];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("render_final"),

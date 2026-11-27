@@ -1069,8 +1069,8 @@ impl<'a> Atmosphere<'a> {
             _cloud_height: 1800.0,
             _cloud_speed: 0.0005,
             _cloud_absorption: 0.14,
-            _cloud_contrast: 2.0,
-            _cloud_coverage: 0.8,
+            _cloud_contrast: 2.15,
+            _cloud_coverage: 0.58,
             _cloud_tiling: 0.00012,
             _inscatter_power: 0.25,
             _noise_contrast: 1.0,
@@ -1227,6 +1227,16 @@ impl<'a> Atmosphere<'a> {
         self._atmosphere_constants._fog_density = fog_density;
         self._atmosphere_constants._fog_tint = fog_tint;
         self._atmosphere_constants._fog_start_distance = fog_start_distance;
+    }
+
+    pub fn get_cloud_coverage(&self) -> f32 {
+        self._cloud_coverage
+    }
+
+    pub fn set_cloud_coverage(&mut self, cloud_coverage: f32) {
+        let clamped = cloud_coverage.clamp(0.0, 1.0);
+        self._cloud_coverage = clamped;
+        self._atmosphere_constants._cloud_coverage = clamped;
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData) {

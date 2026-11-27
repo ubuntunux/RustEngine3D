@@ -123,9 +123,12 @@ vec3 ApplyDepthOfField(vec2 texCoord, vec3 sharpColor, float dof_intensity)
         return sharpColor;
     }
     float center_raw = textureLod(textureSceneDepth, texCoord, 0.0).x;
-    float pixel_linear = (center_raw > 0.0)
-        ? device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, center_raw)
-        : 200.0;
+    // Reverse-Z: sky / celestial bodies (stars, Moon, Sun, outer space) have depth == 0.0; never blur them with DoF
+    if (center_raw <= 0.0)
+    {
+        return sharpColor;
+    }
+    float pixel_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, center_raw);
 
     // Stabilized 5-tap center-screen focus metering
     float focus_depth = 0.0;
@@ -222,8 +225,17 @@ vec3 ComputeGodRays(vec2 texCoord)
     float elev_weight = is_moon_shaft
         ? (smoothstep(0.04, 0.20, moon_dir.y) * smoothstep(-0.02, -0.10, sun_dir.y))
         : smoothstep(-0.02, 0.12, sun_dir.y);
-    float angle_weight = pow(facing, 2.5) * elev_weight * cam_alt_fade;
+    float angle_weight = pow(facing, 1.8) * elev_weight * cam_alt_fade;
     if (angle_weight <= 0.005)
+    {
+        return vec3(0.0);
+    }
+
+    vec2 scene_size = max(vec2(textureSize(textureSceneDepth, 0)), vec2(1.0));
+    float aspect = scene_size.x / scene_size.y;
+    float pixel_dist_to_light = length((texCoord - light_uv) * vec2(aspect, 1.0));
+    float pixel_radial_falloff = exp(-pixel_dist_to_light * 0.85);
+    if (pixel_radial_falloff <= 0.01)
     {
         return vec3(0.0);
     }
@@ -231,21 +243,23 @@ vec3 ComputeGodRays(vec2 texCoord)
     // Clamp radial march length so off-screen light positions still cast soft edge shafts
     vec2 delta_to_light = light_uv - texCoord;
     float ray_len = length(delta_to_light);
-    const float MAX_RAY_UV = 0.75;
+    const float MAX_RAY_UV = 0.78;
     if (ray_len > MAX_RAY_UV)
     {
         delta_to_light *= (MAX_RAY_UV / ray_len);
     }
 
     const int SHAFT_SAMPLES = 20;
-    const float DENSITY = 0.92;
-    const float DECAY = 0.93;
+    const float DENSITY = 0.94;
+    const float DECAY = 0.94;
     vec2 step_uv = (delta_to_light * DENSITY) / float(SHAFT_SAMPLES);
     float jitter = interleaved_gradient_noise(ivec2(gl_FragCoord.xy));
     vec2 sample_uv = texCoord + step_uv * jitter;
 
     float illumination_decay = 1.0;
     vec3 shaft_accum = vec3(0.0);
+    // Subtract ambient sky floor so bright Sun/corona (or Moon) drives crisp shafts without washing out distant shadows
+    float sky_threshold = is_moon_shaft ? 0.04 : 0.75;
 
     for (int i = 0; i < SHAFT_SAMPLES; ++i)
     {
@@ -258,8 +272,12 @@ vec3 ComputeGodRays(vec2 texCoord)
         if (d <= 0.00001)
         {
             vec3 sky_sample = clamp(textureLod(textureSceneColor, sample_uv, 1.5).rgb, vec3(0.0), vec3(12.0));
+            float sample_luma = get_luminance(sky_sample);
+            float excess = max(sample_luma - sky_threshold, 0.0) / max(sample_luma, 1e-4);
+            float sample_dist = length((sample_uv - light_uv) * vec2(aspect, 1.0));
+            float sun_radial = exp(-sample_dist * 2.2) * 0.75 + exp(-sample_dist * 0.9) * 0.25;
             vec2 edge_fade = smoothstep(vec2(0.0), vec2(0.08), sample_uv) * smoothstep(vec2(1.0), vec2(0.92), sample_uv);
-            shaft_accum += sky_sample * illumination_decay * edge_fade.x * edge_fade.y;
+            shaft_accum += (sky_sample * excess) * sun_radial * illumination_decay * edge_fade.x * edge_fade.y;
         }
         illumination_decay *= DECAY;
         sample_uv += step_uv;
@@ -268,15 +286,15 @@ vec3 ComputeGodRays(vec2 texCoord)
     vec3 shaft_tint = is_moon_shaft
         ? mix(vec3(0.72, 0.84, 1.0), normalize(max(scene_constants.MOON_LIGHT_COLOR, vec3(0.1))) * 1.35, 0.45)
         : mix(vec3(1.0, 0.94, 0.82), normalize(max(light_data.LIGHT_COLOR, vec3(0.1))) * 1.4, 0.35);
-    float shaft_strength = is_moon_shaft ? 0.24 : 0.34;
-    return (shaft_accum / float(SHAFT_SAMPLES)) * shaft_tint * angle_weight * shaft_strength;
+    float shaft_strength = is_moon_shaft ? 0.48 : 0.62;
+    return (shaft_accum / float(SHAFT_SAMPLES)) * shaft_tint * angle_weight * pixel_radial_falloff * shaft_strength;
 }
 
 // Center-weighted Auto-Exposure (Eye Adaptation) using pre-downsampled SceneColor mip chain
 float ComputeAutoExposureMultiplier()
 {
     int mip_levels = textureQueryLevels(textureSceneColor);
-    float meter_mip = float(max(mip_levels - 2, 0));
+    float meter_mip = float(max(mip_levels - 3, 0));
 
     const vec2 sample_uvs[9] = vec2[9](
         vec2(0.50, 0.50),
@@ -293,7 +311,8 @@ float ComputeAutoExposureMultiplier()
     float weight_sum = 0.0;
     for (int i = 0; i < 9; ++i)
     {
-        vec3 c = clamp(textureLod(textureSceneColor, sample_uvs[i], meter_mip).rgb, vec3(0.0), vec3(16.0));
+        // Cap extreme HDR spikes (e.g. Sun disc) during metering to prevent exposure pumping
+        vec3 c = clamp(textureLod(textureSceneColor, sample_uvs[i], meter_mip).rgb, vec3(0.0), vec3(4.0));
         float lum = max(get_luminance(c), 0.015);
         log_luma_sum += log2(lum) * sample_weights[i];
         weight_sum += sample_weights[i];
@@ -483,7 +502,7 @@ void main()
     // 3. Karis + CoD Dual-Filter Bloom (3x3 Tent multi-mip upsample)
     if ((render_option & RenderOption_RenderBloom) != 0u && scene_constants.BLOOM_INTENSITY > 0.001)
     {
-        const float bloom_intensity = 0.14 * max(scene_constants.BLOOM_INTENSITY, 0.0);
+        const float bloom_intensity = 0.11 * max(scene_constants.BLOOM_INTENSITY, 0.0);
         const float bloom_weight[5] = float[] (0.20, 0.22, 0.22, 0.20, 0.16);
         vec3 bloom = vec3(0.0);
         bloom += SampleBloomTent(texCoord, 0.0) * bloom_weight[0];

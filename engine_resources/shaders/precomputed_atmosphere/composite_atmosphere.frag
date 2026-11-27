@@ -80,6 +80,18 @@ void main()
     // Sky / Outer-Space pixels (depth == 0.0 in Reverse-Z): composite crisp full-res Sun, Textured Moon & Milky Way behind atmosphere & clouds
     if (device_depth == 0.0)
     {
+        // Smooth 5-tap tent upsample of 1/4-res atmosphere/clouds eliminates upscaling stipple on ground while preserving Earth's crisp limb in space
+        float cloud_smooth = 1.0 - smoothstep(15.0, 60.0, cam_alt_km);
+        if (cloud_smooth > 0.005)
+        {
+            vec2 atm_texel = 0.65 / max(vec2(textureSize(texture_atmosphere, 0)), vec2(1.0));
+            vec4 c_l = max(textureLod(texture_atmosphere, clamp(texcoord + vec2(-atm_texel.x, 0.0), vec2(0.0), vec2(1.0)), 0.0), vec4(0.0));
+            vec4 c_r = max(textureLod(texture_atmosphere, clamp(texcoord + vec2( atm_texel.x, 0.0), vec2(0.0), vec2(1.0)), 0.0), vec4(0.0));
+            vec4 c_u = max(textureLod(texture_atmosphere, clamp(texcoord + vec2(0.0, -atm_texel.y), vec2(0.0), vec2(1.0)), 0.0), vec4(0.0));
+            vec4 c_d = max(textureLod(texture_atmosphere, clamp(texcoord + vec2(0.0,  atm_texel.y), vec2(0.0), vec2(1.0)), 0.0), vec4(0.0));
+            vec4 smooth_color = color * 0.40 + (c_l + c_r + c_u + c_d) * 0.15;
+            color = mix(color, smooth_color, cloud_smooth);
+        }
         const bool is_light_probe = (0 != pushConstant._render_light_probe_mode);
         vec2 earth_hit = IntersectSphere(p_cam, eye_dir, ATMOSPHERE.bottom_radius);
         bool occluded_by_earth = (earth_hit.x > 0.0) && (cam_alt_km > 1.5) && !is_light_probe;
@@ -100,25 +112,31 @@ void main()
                 ? (1.0 - smoothstep(MOON_ANGULAR_RADIUS - moon_aa, MOON_ANGULAR_RADIUS + moon_aa, moon_angle))
                 : 0.0;
 
-            // 1. Milky Way & Deep-Space Stars (Equirectangular panorama behind atmosphere, clouds, and Moon)
+            // 1. Milky Way & Deep-Space Stars (Equirectangular 4K panorama behind atmosphere, clouds, and Moon)
             if (!is_light_probe && cloud_vis > 0.005)
             {
                 float sky_luma = get_luminance(color.rgb);
-                float star_vis = max(night_vis * exp(-sky_luma * 6.0), space_vis * exp(-sky_luma * 2.0));
+                float star_vis = max(night_vis * exp(-sky_luma * 6.5), space_vis * exp(-sky_luma * 2.0));
                 if (star_vis > 0.005)
                 {
                     float phi = atan(eye_dir.z, eye_dir.x);
                     float theta = asin(clamp(eye_dir.y, -1.0, 1.0));
                     vec2 mw_uv = vec2(phi * (1.0 / TWO_PI) + 0.5, 0.5 - theta * (1.0 / PI));
-                    vec3 mw_srgb = texture(texture_milky_way, mw_uv).rgb;
+                    // Explicit mip 0 avoids atan() wraparound derivative seam and keeps pinpoint stars crisp
+                    vec3 mw_srgb = textureLod(texture_milky_way, mw_uv, 0.0).rgb;
                     vec3 mw_linear = pow(max(mw_srgb, vec3(0.0)), vec3(2.2));
 
-                    // Subtle atmospheric scintillation (fades out in space vacuum)
+                    // Calm atmospheric scintillation (fades out in space vacuum)
                     float twinkle_phase = dot(floor(eye_dir * 420.0), vec3(12.9898, 78.233, 37.719));
-                    float twinkle = mix(0.84 + 0.16 * sin(scene_constants.TIME * 3.2 + twinkle_phase), 1.0, space_vis);
+                    float twinkle = mix(0.88 + 0.12 * sin(scene_constants.TIME * 2.4 + twinkle_phase), 1.0, space_vis);
+
+                    // Natural lunar glare dimming around the Moon and atmospheric horizon extinction on the ground
+                    float moon_glare_fade = mix(1.0 - exp(-moon_angle * 4.5) * 0.78, 1.0, space_vis);
+                    float horizon_star_fade = mix(smoothstep(0.01, 0.20, eye_dir.y), 1.0, space_vis);
 
                     vec3 star_trans = mix(T_atm, vec3(1.0), space_vis * step(0.999, T_atm.r));
-                    color.rgb += mw_linear * twinkle * star_vis * star_trans * cloud_vis * (1.0 - moon_disc_geom) * mix(1.15, 1.45, space_vis);
+                    color.rgb += mw_linear * twinkle * star_vis * star_trans * cloud_vis * (1.0 - moon_disc_geom)
+                        * moon_glare_fade * horizon_star_fade * mix(0.75, 1.25, space_vis);
                 }
             }
 
