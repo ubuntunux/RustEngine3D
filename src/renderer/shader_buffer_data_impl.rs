@@ -38,10 +38,11 @@ impl SceneConstants {
         wind_direction: Vector2<f32>,
         wind_strength: f32,
         wind_time: f32,
+        moon_light_color: Vector3<f32>,
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._back_buffer_size = self._screen_size.into();
-        self._moon_light_color = Vector3::new(0.6, 0.5, 0.85) * 0.2;
+        self._moon_light_color = moon_light_color;
         self._time = elapsed_time as f32;
         self._delta_time = delta_time as f32;
         self._sea_height = sea_height;

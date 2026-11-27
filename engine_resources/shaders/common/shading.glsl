@@ -527,6 +527,11 @@ vec4 surface_shading(
     vec3 unshadowed_sun_color = light_color * scene_sun_irradiance * sun_horizon_fade;
     light_color = unshadowed_sun_color * shadow_factor;
 
+    // Attenuate clear-sky irradiance fallback under heavy cloud cover and rain
+    float sky_weather_scale = clamp(get_luminance(light_data.LIGHT_COLOR.xyz) / 1.2, 0.35, 1.0);
+    float cloud_sky_dim = mix(1.0, 0.55, smoothstep(0.55, 1.0, atmosphere_constants.cloud_coverage));
+    scene_sky_irradiance *= min(sky_weather_scale, cloud_sky_dim);
+
     // Image based lighting (indirect sky + ground bounce + SSGI, modulated by AO & sky_visibility, NOT direct shadow)
     apply_image_based_lighting(
         scene_constants.RENDER_OPTION,

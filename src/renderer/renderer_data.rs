@@ -44,7 +44,7 @@ use crate::vulkan_context::texture::{self, TextureData};
 use crate::vulkan_context::vulkan_context::{self, MipLevels, SwapchainArray};
 use ash::ext;
 use ash::{Device, vk};
-use nalgebra::{Matrix4, Vector2, Vector4};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
@@ -225,6 +225,7 @@ pub struct RendererData<'a> {
     pub _wind_strength: f32,
     pub _wind_speed: f32,
     pub _wind_time: f32,
+    pub _moon_light_color: Vector3<f32>,
     pub _is_render_scene: bool,
 }
 
@@ -612,6 +613,7 @@ impl<'a> RendererData<'a> {
             self._wind_direction,
             self._wind_strength,
             self._wind_time,
+            self._moon_light_color,
         );
         self._view_constants.update_view_constants(&main_camera, capture_height_map);
 
@@ -715,8 +717,17 @@ impl<'a> RendererData<'a> {
             _wind_strength: 0.30,
             _wind_speed: 1.0,
             _wind_time: 0.0,
+            _moon_light_color: Vector3::new(0.6, 0.5, 0.85) * 0.2,
             _is_render_scene: true,
         }
+    }
+
+    pub fn set_moon_light_color(&mut self, color: Vector3<f32>) {
+        self._moon_light_color = Vector3::new(color.x.max(0.0), color.y.max(0.0), color.z.max(0.0));
+    }
+
+    pub fn get_moon_light_color(&self) -> Vector3<f32> {
+        self._moon_light_color
     }
 
     pub fn set_wind_params(&mut self, direction: Vector2<f32>, strength: f32, speed: f32) {
