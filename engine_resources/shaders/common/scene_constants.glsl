@@ -96,6 +96,9 @@ struct SCENE_CONSTANTS
     float GOD_RAYS_INTENSITY;
     float HEIGHT_FOG_INTENSITY;
     float MOTION_BLUR_INTENSITY;
+    vec2 WIND_DIRECTION;
+    float WIND_STRENGTH;
+    float WIND_TIME;
 };
 
 // uniform_buffer_data_list.rs - struct ViewConstants

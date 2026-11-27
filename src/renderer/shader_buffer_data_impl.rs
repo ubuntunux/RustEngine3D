@@ -35,6 +35,9 @@ impl SceneConstants {
         god_rays_intensity: f32,
         height_fog_intensity: f32,
         motion_blur_intensity: f32,
+        wind_direction: Vector2<f32>,
+        wind_strength: f32,
+        wind_time: f32,
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._back_buffer_size = self._screen_size.into();
@@ -58,6 +61,9 @@ impl SceneConstants {
         self._god_rays_intensity = god_rays_intensity;
         self._height_fog_intensity = height_fog_intensity;
         self._motion_blur_intensity = motion_blur_intensity;
+        self._wind_direction = wind_direction;
+        self._wind_strength = wind_strength;
+        self._wind_time = wind_time;
     }
 }
 

@@ -221,6 +221,10 @@ pub struct RendererData<'a> {
     pub _god_rays_intensity: f32,
     pub _height_fog_intensity: f32,
     pub _motion_blur_intensity: f32,
+    pub _wind_direction: Vector2<f32>,
+    pub _wind_strength: f32,
+    pub _wind_speed: f32,
+    pub _wind_time: f32,
     pub _is_render_scene: bool,
 }
 
@@ -588,6 +592,7 @@ impl<'a> RendererData<'a> {
         elapsed_frame: u64,
     ) {
         // update constants
+        self._wind_time += (delta_time as f32).max(0.0) * self._wind_speed;
         self._scene_constants.update_scene_constants(
             renderer_context._swapchain_data._swapchain_extent.width,
             renderer_context._swapchain_data._swapchain_extent.height,
@@ -604,6 +609,9 @@ impl<'a> RendererData<'a> {
             self._god_rays_intensity,
             self._height_fog_intensity,
             self._motion_blur_intensity,
+            self._wind_direction,
+            self._wind_strength,
+            self._wind_time,
         );
         self._view_constants.update_view_constants(&main_camera, capture_height_map);
 
@@ -700,8 +708,39 @@ impl<'a> RendererData<'a> {
             _god_rays_intensity: unsafe { constants::GOD_RAYS_INTENSITY },
             _height_fog_intensity: unsafe { constants::HEIGHT_FOG_INTENSITY },
             _motion_blur_intensity: unsafe { constants::MOTION_BLUR_INTENSITY },
+            _wind_direction: Vector2::new(1.0, 0.0),
+            _wind_strength: 0.30,
+            _wind_speed: 1.0,
+            _wind_time: 0.0,
             _is_render_scene: true,
         }
+    }
+
+    pub fn set_wind_params(&mut self, direction: Vector2<f32>, strength: f32, speed: f32) {
+        let dir_norm = direction.norm();
+        self._wind_direction = if dir_norm > 1e-4 {
+            direction / dir_norm
+        } else {
+            Vector2::new(1.0, 0.0)
+        };
+        self._wind_strength = strength.max(0.0);
+        self._wind_speed = speed.max(0.0);
+    }
+
+    pub fn get_wind_direction(&self) -> Vector2<f32> {
+        self._wind_direction
+    }
+
+    pub fn get_wind_strength(&self) -> f32 {
+        self._wind_strength
+    }
+
+    pub fn get_wind_speed(&self) -> f32 {
+        self._wind_speed
+    }
+
+    pub fn get_wind_time(&self) -> f32 {
+        self._wind_time
     }
 
     pub fn get_effect_manager(&self) -> &EffectManager<'a> {

@@ -63,6 +63,9 @@ pub struct SceneConstants {
     pub _god_rays_intensity: f32,
     pub _height_fog_intensity: f32,
     pub _motion_blur_intensity: f32,
+    pub _wind_direction: Vector2<f32>,
+    pub _wind_strength: f32,
+    pub _wind_time: f32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
