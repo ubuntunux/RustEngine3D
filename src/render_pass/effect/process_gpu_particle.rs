@@ -87,41 +87,55 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
-                    _descriptor_name: enum_to_string(&RenderTargetType::CaptureHeightMap),
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneNormal),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 4,
+                    _descriptor_name: enum_to_string(&RenderTargetType::CaptureHeightMap),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 5,
+                    _descriptor_name: enum_to_string(&RenderTargetType::CaptureNormalMap),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 6,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleStaticConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 5,
+                    _descriptor_binding_index: 7,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleDynamicConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 6,
+                    _descriptor_binding_index: 8,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 7,
+                    _descriptor_binding_index: 9,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleCountBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 8,
+                    _descriptor_binding_index: 10,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleUpdateBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,

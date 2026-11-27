@@ -47,7 +47,11 @@ struct GpuParticleStaticConstants
     vec3 _force_min;
     float _velocity_stretch;
     vec3 _force_max;
-    int _reserved1;
+    float _elasticity;
+    float _friction;
+    uint _death_on_collide;
+    uint _allow_indoor_spawn;
+    uint _reserved1;
 };
 
 struct GpuParticleDynamicConstants

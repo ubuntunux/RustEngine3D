@@ -44,7 +44,11 @@ pub struct GpuParticleStaticConstants {
     pub _force_min: Vector3<f32>,
     pub _velocity_stretch: f32,
     pub _force_max: Vector3<f32>,
-    pub _reserved1: i32,
+    pub _elasticity: f32,
+    pub _friction: f32,
+    pub _death_on_collide: u32,
+    pub _allow_indoor_spawn: u32,
+    pub _reserved1: u32,
 }
 
 #[repr(C)]
@@ -435,6 +439,10 @@ impl<'a> EffectManager<'a> {
                 gpu_particle_static_constant._force_min.clone_from(&emitter_data._force_min);
                 gpu_particle_static_constant._velocity_stretch = emitter_data._velocity_stretch;
                 gpu_particle_static_constant._force_max.clone_from(&emitter_data._force_max);
+                gpu_particle_static_constant._elasticity = emitter_data._elasticity;
+                gpu_particle_static_constant._friction = emitter_data._friction;
+                gpu_particle_static_constant._death_on_collide = u32::from(emitter_data._death_on_collide);
+                gpu_particle_static_constant._allow_indoor_spawn = u32::from(emitter_data._allow_indoor_spawn);
                 emitter._need_to_upload_static_constant_buffer = false;
             }
 
@@ -751,5 +759,16 @@ impl<'a> EffectManager<'a> {
         if !prev_pipeline_data.is_null() {
             renderer_context.end_render_pass(command_buffer);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gpu_particle_static_constants_std430_size() {
+        assert_eq!(std::mem::size_of::<GpuParticleStaticConstants>(), 224);
+        assert_eq!(std::mem::size_of::<GpuParticleStaticConstants>() % 16, 0);
     }
 }

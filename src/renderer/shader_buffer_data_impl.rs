@@ -92,10 +92,8 @@ impl ViewConstants {
         self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
         self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
         self._camera_position = camera_data._transform_object.get_position().clone() as Vector3<f32>;
-        if capture_height_map.need_to_render_height_map() {
-            self._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
-            self._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
-        }
+        self._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
+        self._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
         self._jitter_frame = camera_data._jitter_frame;
         self._camera_position_prev = camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
         self._view_constants_dummy0 = 0.0;

@@ -89,7 +89,7 @@ void main() {
     outColor.xyz += emissive_color;
     outColor.w = opacity;
 #elif (RenderMode_CaptureHeightMap == RenderMode)
-    outNormalWithDepth = vec4(normalize(in_vertex_output._tangent_to_world[2]), gl_FragCoord.z);
+    outNormalWithDepth = vec4(normalize(in_vertex_output._tangent_to_world[2]) * 0.5 + 0.5, gl_FragCoord.z);
     outDepth = gl_FragCoord.z;
 #elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode)
     outDepth = gl_FragCoord.z;

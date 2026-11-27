@@ -123,6 +123,10 @@ pub struct EmitterDataCreateInfo {
     pub _velocity_max: Vector3<f32>,
     pub _force_min: Vector3<f32>,
     pub _force_max: Vector3<f32>,
+    pub _elasticity: f32,
+    pub _friction: f32,
+    pub _death_on_collide: bool,
+    pub _allow_indoor_spawn: bool,
 }
 
 impl Default for EmitterDataCreateInfo {
@@ -159,6 +163,10 @@ impl Default for EmitterDataCreateInfo {
             _velocity_max: Vector3::zeros(),
             _force_min: Vector3::zeros(),
             _force_max: Vector3::zeros(),
+            _elasticity: 0.0,
+            _friction: 0.0,
+            _death_on_collide: false,
+            _allow_indoor_spawn: true,
         }
     }
 }
@@ -196,6 +204,10 @@ pub struct EmitterData<'a> {
     pub _velocity_max: Vector3<f32>,
     pub _force_min: Vector3<f32>,
     pub _force_max: Vector3<f32>,
+    pub _elasticity: f32,
+    pub _friction: f32,
+    pub _death_on_collide: bool,
+    pub _allow_indoor_spawn: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -306,6 +318,10 @@ impl<'a> EmitterData<'a> {
             _velocity_max: emitter_data_create_info._velocity_max.clone() as Vector3<f32>,
             _force_min: emitter_data_create_info._force_min.clone() as Vector3<f32>,
             _force_max: emitter_data_create_info._force_max.clone() as Vector3<f32>,
+            _elasticity: emitter_data_create_info._elasticity.max(0.0),
+            _friction: emitter_data_create_info._friction.max(0.0),
+            _death_on_collide: emitter_data_create_info._death_on_collide,
+            _allow_indoor_spawn: emitter_data_create_info._allow_indoor_spawn,
         }
     }
 }
@@ -496,5 +512,42 @@ impl<'a> EmitterInstance<'a> {
             }
         }
         self._elapsed_time += delta_time;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_emitter_collision_fields_defaults_and_serde() {
+        let default_info = EmitterDataCreateInfo::default();
+        assert_eq!(default_info._elasticity, 0.0);
+        assert_eq!(default_info._friction, 0.0);
+        assert!(!default_info._death_on_collide);
+        assert!(default_info._allow_indoor_spawn);
+
+        // Legacy JSON without collision fields deserializes cleanly with defaults
+        let legacy_json = r#"{"_emitter_data_name":"legacy"}"#;
+        let parsed_legacy: EmitterDataCreateInfo = serde_json::from_str(legacy_json).unwrap();
+        assert_eq!(parsed_legacy._emitter_data_name, "legacy");
+        assert_eq!(parsed_legacy._elasticity, 0.0);
+        assert_eq!(parsed_legacy._friction, 0.0);
+        assert!(!parsed_legacy._death_on_collide);
+        assert!(parsed_legacy._allow_indoor_spawn);
+
+        // JSON with explicit collision options round-trips cleanly
+        let collision_json = r#"{
+            "_emitter_data_name": "bounce",
+            "_elasticity": 0.65,
+            "_friction": 0.25,
+            "_death_on_collide": true,
+            "_allow_indoor_spawn": false
+        }"#;
+        let parsed: EmitterDataCreateInfo = serde_json::from_str(collision_json).unwrap();
+        assert!((parsed._elasticity - 0.65).abs() < 1e-6);
+        assert!((parsed._friction - 0.25).abs() < 1e-6);
+        assert!(parsed._death_on_collide);
+        assert!(!parsed._allow_indoor_spawn);
     }
 }

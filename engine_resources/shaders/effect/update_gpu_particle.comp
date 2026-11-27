@@ -15,30 +15,169 @@ layout(binding = 1) uniform ViewConstants
     VIEW_CONSTANTS view_constants;
 };
 layout(binding = 2) uniform sampler2D textureSceneDepth;
-layout(binding = 3) uniform sampler2D textureHeightMap;
-layout(binding = 4) buffer GpuParticleStaticConstantsBuffer
+layout(binding = 3) uniform sampler2D textureSceneNormal;
+layout(binding = 4) uniform sampler2D textureHeightMap;
+layout(binding = 5) uniform sampler2D textureHeightNormalMap;
+layout(binding = 6) buffer GpuParticleStaticConstantsBuffer
 {
     GpuParticleStaticConstants gpu_particle_static_constants[];
 };
-layout(binding = 5) buffer GpuParticleDynamicConstantsBuffer
+layout(binding = 7) buffer GpuParticleDynamicConstantsBuffer
 {
     GpuParticleDynamicConstants gpu_particle_dynamic_constants[];
 };
-layout(binding = 6) buffer GpuParticleEmitterIndexBuffer
+layout(binding = 8) buffer GpuParticleEmitterIndexBuffer
 {
     int gpu_particle_emitter_index_buffer[];
 };
-layout(binding = 7) buffer GpuParticleCountBuffer
+layout(binding = 9) buffer GpuParticleCountBuffer
 {
     GpuParticleCountBufferData gpu_particle_count_buffer[];
 };
-layout(binding = 8) buffer GpuParticleUpdateBuffer
+layout(binding = 10) buffer GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
+
+bool is_below_height_map(const in vec3 world_pos)
+{
+    if (abs(view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION[3][3]) > 1e-5)
+    {
+        const vec4 hm_clip = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(world_pos, 1.0);
+        if (abs(hm_clip.w) > 1e-5)
+        {
+            const vec3 hm_ndc = hm_clip.xyz / hm_clip.w;
+            const vec2 hm_uv = hm_ndc.xy * 0.5 + 0.5;
+            if (hm_uv.x >= 0.0 && hm_uv.x <= 1.0 && hm_uv.y >= 0.0 && hm_uv.y <= 1.0)
+            {
+                const float height_depth = textureLod(textureHeightMap, hm_uv, 0.0).x;
+                if (height_depth > 0.0 && hm_ndc.z <= height_depth)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool check_particle_collision(
+    const in vec3 prev_world_pos,
+    const in vec3 curr_world_pos,
+    const in vec3 world_velocity,
+    out vec3 out_hit_world_pos,
+    out vec3 out_hit_normal
+)
+{
+    const float SURFACE_BIAS = 0.02;
+    const float move_dist = length(curr_world_pos - prev_world_pos);
+    const vec3 prev_rel_pos = prev_world_pos - view_constants.CAMERA_POSITION;
+    const vec3 curr_rel_pos = curr_world_pos - view_constants.CAMERA_POSITION;
+
+    // 1. Check screen-space SceneDepth + SceneNormal around particle center
+    const vec4 curr_clip = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(curr_rel_pos, 1.0);
+    if (curr_clip.w > 0.0001)
+    {
+        const vec3 curr_ndc = curr_clip.xyz / curr_clip.w;
+        const vec2 screen_uv = curr_ndc.xy * 0.5 + 0.5;
+        if (screen_uv.x >= 0.0 && screen_uv.x <= 1.0
+            && screen_uv.y >= 0.0 && screen_uv.y <= 1.0
+            && curr_ndc.z > 0.0 && curr_ndc.z <= 1.0)
+        {
+            const float scene_depth = textureLod(textureSceneDepth, screen_uv, 0.0).x;
+            if (scene_depth > 0.0)
+            {
+                const float near_z = view_constants.NEAR_FAR.x;
+                const float far_z = view_constants.NEAR_FAR.y;
+                const float curr_linear = device_depth_to_linear_depth(near_z, far_z, curr_ndc.z);
+                const float scene_linear = device_depth_to_linear_depth(near_z, far_z, scene_depth);
+                const float penetration = curr_linear - scene_linear;
+                const float max_thickness = max(0.35, move_dist * 1.25 + 0.15);
+
+                bool prev_not_behind = true;
+                const vec4 prev_clip = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(prev_rel_pos, 1.0);
+                if (prev_clip.w > 0.0001)
+                {
+                    const float prev_ndc_z = prev_clip.z / prev_clip.w;
+                    if (prev_ndc_z > 0.0 && prev_ndc_z <= 1.0)
+                    {
+                        const float prev_linear = device_depth_to_linear_depth(near_z, far_z, prev_ndc_z);
+                        prev_not_behind = (prev_linear <= scene_linear + 0.25);
+                    }
+                }
+
+                if (prev_not_behind && penetration >= 0.0 && penetration <= max_thickness)
+                {
+                    const vec3 raw_normal = textureLod(textureSceneNormal, screen_uv, 0.0).xyz * 2.0 - 1.0;
+                    const vec3 hit_normal = (dot(raw_normal, raw_normal) > 1e-4)
+                        ? normalize(raw_normal)
+                        : vec3(0.0, 1.0, 0.0);
+                    if (dot(world_velocity, hit_normal) <= 0.0)
+                    {
+                        const vec3 surface_rel = relative_world_from_device_depth(
+                            view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER,
+                            screen_uv,
+                            scene_depth
+                        ).xyz;
+                        out_hit_normal = hit_normal;
+                        out_hit_world_pos = surface_rel + view_constants.CAMERA_POSITION + hit_normal * SURFACE_BIAS;
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Fallback: Check CaptureHeightMap + CaptureNormalMap
+    if (abs(view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION[3][3]) > 1e-5)
+    {
+        const vec4 hm_clip = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(curr_world_pos, 1.0);
+        if (abs(hm_clip.w) > 1e-5)
+        {
+            const vec3 hm_ndc = hm_clip.xyz / hm_clip.w;
+            const vec2 hm_uv = hm_ndc.xy * 0.5 + 0.5;
+            if (hm_uv.x >= 0.0 && hm_uv.x <= 1.0 && hm_uv.y >= 0.0 && hm_uv.y <= 1.0)
+            {
+                const float height_depth = textureLod(textureHeightMap, hm_uv, 0.0).x;
+                if (height_depth > 0.0 && hm_ndc.z <= height_depth)
+                {
+                    const vec3 raw_hm_normal = textureLod(textureHeightNormalMap, hm_uv, 0.0).xyz * 2.0 - 1.0;
+                    vec3 hit_normal = (dot(raw_hm_normal, raw_hm_normal) > 1e-4)
+                        ? normalize(raw_hm_normal)
+                        : vec3(0.0, 1.0, 0.0);
+                    if (hit_normal.y < 0.0)
+                    {
+                        hit_normal = vec3(0.0, 1.0, 0.0);
+                    }
+                    if (dot(world_velocity, hit_normal) <= 0.0)
+                    {
+                        vec4 hm_world = view_constants.INV_CAPTURE_HEIGHT_MAP_VIEW_PROJECTION
+                            * vec4(hm_ndc.xy, height_depth, 1.0);
+                        hm_world.xyz /= max(abs(hm_world.w), 1e-5);
+                        out_hit_normal = hit_normal;
+                        out_hit_world_pos = hm_world.xyz + hit_normal * SURFACE_BIAS;
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Fallback: Ocean water plane collision
+    if (((scene_constants.RENDER_OPTION & RenderOption_RenderOcean) != 0u)
+        && curr_world_pos.y <= scene_constants.SEA_HEIGHT
+        && world_velocity.y <= 0.0)
+    {
+        out_hit_normal = vec3(0.0, 1.0, 0.0);
+        out_hit_world_pos = vec3(curr_world_pos.x, scene_constants.SEA_HEIGHT + SURFACE_BIAS, curr_world_pos.z);
+        return true;
+    }
+
+    return false;
+}
 
 void update_particle_transform(
     inout GpuParticleUpdateBufferData particle_buffer,
@@ -59,18 +198,28 @@ void update_particle_transform(
     );
     vec3 euler = particle_buffer._particle_initial_rotation;
     mat3 rotation_matrix = mat3(make_rotation_matrix(euler.x, euler.y, euler.z));
-    mat3 alignment_matrix;
+    mat3 alignment_matrix = mat3(1.0);
     if(ParticleAlignMode_Billboard == align_mode)
     {
         alignment_matrix = mat3(view_constants.INV_VIEW_ORIGIN);
     }
     else if(ParticleAlignMode_VelocityAlign == align_mode)
     {
-        if(0.0 < world_velocity_length)
+        if(0.0001 < world_velocity_length)
         {
-            alignment_matrix[0] = cross(normalized_world_velocity.xyz, normalize(particle_relative_position));
+            vec3 view_dir = safe_normalize(particle_relative_position);
+            vec3 right_axis = cross(normalized_world_velocity.xyz, view_dir);
+            if(dot(right_axis, right_axis) < 1e-6)
+            {
+                vec3 fallback_up = (abs(normalized_world_velocity.y) < 0.99)
+                    ? vec3(0.0, 1.0, 0.0)
+                    : vec3(1.0, 0.0, 0.0);
+                right_axis = cross(normalized_world_velocity.xyz, fallback_up);
+            }
+            right_axis = safe_normalize(right_axis);
+            alignment_matrix[0] = right_axis;
             alignment_matrix[1] = normalized_world_velocity.xyz * (1.0 + world_velocity_length * velocity_stretch);
-            alignment_matrix[2] = cross(alignment_matrix[0], normalized_world_velocity.xyz);
+            alignment_matrix[2] = safe_normalize(cross(alignment_matrix[0], normalized_world_velocity.xyz));
         }
     }
     else
@@ -94,7 +243,7 @@ void update_particle_transform(
     particle_buffer._particle_relative_transform[0].xyz = rotation_matrix[0];
     particle_buffer._particle_relative_transform[1].xyz = rotation_matrix[1];
     particle_buffer._particle_relative_transform[2].xyz = rotation_matrix[2];
-    particle_buffer._particle_relative_transform[3].xyz = (emitter_relative_transform * vec4(particle_local_position, 1.0)).xyz;
+    particle_buffer._particle_relative_transform[3].xyz = particle_relative_position;
     particle_buffer._particle_relative_transform[3].w = 1.0;
 }
 
@@ -163,6 +312,16 @@ void spawn_particle_func(
         spawn_position = (gpu_particle_static_constant._spawn_volume_transform * vec4(spawn_position, 1.0)).xyz;
     }
 
+    uint initial_state = PARTICLE_STATE_ALIVE;
+    if (gpu_particle_static_constant._allow_indoor_spawn == 0u)
+    {
+        const vec3 spawn_world_pos = (gpu_particle_dynamic_constant._emitter_transform * vec4(spawn_position, 1.0)).xyz;
+        if (is_below_height_map(spawn_world_pos))
+        {
+            initial_state = PARTICLE_STATE_DEAD;
+        }
+    }
+
     particle_buffer._particle_emitter_transform = gpu_particle_dynamic_constant._emitter_transform;
     particle_buffer._particle_relative_transform = Mat4Identity;
     particle_buffer._particle_elapsed_time = 0.0;
@@ -172,7 +331,7 @@ void spawn_particle_func(
     particle_buffer._particle_initial_scale = initial_scale;
     particle_buffer._particle_velocity = initial_velocity;
     particle_buffer._particle_initial_force = initial_force;
-    particle_buffer._particle_state = PARTICLE_STATE_ALIVE;
+    particle_buffer._particle_state = initial_state;
 }
 
 void update_particle_func(
@@ -188,13 +347,50 @@ void update_particle_func(
         return;
     }
 
-    mat4 emitter_relative_transform = particle_buffer._particle_emitter_transform;
+    const mat4 emitter_world_transform = particle_buffer._particle_emitter_transform;
+    mat4 emitter_relative_transform = emitter_world_transform;
     emitter_relative_transform[3].xyz -= view_constants.CAMERA_POSITION;
 
     const float delta_time = scene_constants.DELTA_TIME;
+    const vec3 prev_local_position = particle_buffer._particle_local_position;
 
     particle_buffer._particle_velocity += particle_buffer._particle_initial_force * delta_time;
     particle_buffer._particle_local_position += particle_buffer._particle_velocity * delta_time;
+
+    const float elasticity = saturate(gpu_particle_static_constant._elasticity);
+    const float friction = saturate(gpu_particle_static_constant._friction);
+    const bool death_on_collide = (gpu_particle_static_constant._death_on_collide != 0u);
+    const bool collision_enabled = death_on_collide || elasticity > 0.0 || friction > 0.0;
+
+    if (collision_enabled)
+    {
+        const vec3 prev_world_pos = (emitter_world_transform * vec4(prev_local_position, 1.0)).xyz;
+        const vec3 curr_world_pos = (emitter_world_transform * vec4(particle_buffer._particle_local_position, 1.0)).xyz;
+        const vec3 world_velocity = mat3(emitter_world_transform) * particle_buffer._particle_velocity;
+
+        vec3 hit_world_pos;
+        vec3 hit_normal;
+        if (check_particle_collision(prev_world_pos, curr_world_pos, world_velocity, hit_world_pos, hit_normal))
+        {
+            if (death_on_collide)
+            {
+                particle_buffer._particle_state &= ~PARTICLE_STATE_ALIVE;
+                particle_buffer._particle_state |= PARTICLE_STATE_DEAD;
+                return;
+            }
+
+            const float BOUNCE_STOP_THRESHOLD = 0.25;
+            const float vn = dot(world_velocity, hit_normal);
+            const vec3 v_normal = hit_normal * vn;
+            const vec3 v_tangent = world_velocity - v_normal;
+            const vec3 bounced_normal = (abs(vn) < BOUNCE_STOP_THRESHOLD) ? vec3(0.0) : (-v_normal * elasticity);
+            const vec3 new_world_velocity = v_tangent * (1.0 - friction) + bounced_normal;
+
+            const mat4 inv_emitter_world = inverse(emitter_world_transform);
+            particle_buffer._particle_local_position = (inv_emitter_world * vec4(hit_world_pos, 1.0)).xyz;
+            particle_buffer._particle_velocity = mat3(inv_emitter_world) * new_world_velocity;
+        }
+    }
 
     vec3 normalized_world_velocity = mat3(emitter_relative_transform) * particle_buffer._particle_velocity;
     float world_velocity_length = length(normalized_world_velocity);
