@@ -431,6 +431,11 @@ impl<'a> RenderObjectData<'a> {
         self._is_render_height_map = render;
     }
 
+    pub fn is_render_scene_top_view(&self) -> bool {
+        self._is_render_height_map
+            || (self._is_visible && self._is_render_shadow && self._scene_object_type != SceneObjectType::NoCollision)
+    }
+
     pub fn get_position(&self) -> &Vector3<f32> {
         &self.get_transform_object_data()._position
     }
@@ -934,5 +939,53 @@ impl<'a> RenderObjectData<'a> {
                 self._animation_buffer.clone_from(&save_data._animation_buffer);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scene::mesh::MeshData;
+
+    #[test]
+    fn test_is_render_scene_top_view_excludes_no_collision_and_collision() {
+        let dummy_mesh = newRcRefCell(MeshData {
+            _name: String::from("test_mesh"),
+            _bound_box: BoundingBox::default(),
+            _skeleton_data_list: Vec::new(),
+            _animation_data_list: Vec::new(),
+            _geometry_data_list: Vec::new(),
+        });
+        let dummy_model = newRcRefCell(ModelData {
+            _model_data_name: String::from("test_model"),
+            _mesh_name: String::from("test_mesh"),
+            _local_transform: Matrix4::identity(),
+            _mesh_data: dummy_mesh,
+            _is_render_camera: true,
+            _is_render_shadow: true,
+            _material_instance_data_list: Vec::new(),
+            _collision: CollisionData::default(),
+            _socket_data_map: HashMap::new(),
+        });
+
+        let make_obj = |scene_object_type: SceneObjectType| {
+            let create_info = RenderObjectCreateInfo {
+                _scene_object_type: scene_object_type,
+                ..Default::default()
+            };
+            let (obj, _) = RenderObjectData::create_render_object_data(
+                uuid::Uuid::new_v4(),
+                &String::from("obj"),
+                &dummy_model,
+                &create_info,
+                None,
+            );
+            obj
+        };
+
+        assert!(make_obj(SceneObjectType::Terrain).is_render_scene_top_view());
+        assert!(make_obj(SceneObjectType::Default).is_render_scene_top_view());
+        assert!(!make_obj(SceneObjectType::NoCollision).is_render_scene_top_view());
+        assert!(!make_obj(SceneObjectType::Collision).is_render_scene_top_view());
     }
 }

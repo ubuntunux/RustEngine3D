@@ -663,9 +663,12 @@ impl<'a> RendererData<'a> {
                 &ShaderBufferDataType::TransformMatrices,
                 transform_matrices,
             );
+        }
 
+        let transform_offset_count = scene_manager.get_render_element_transform_offset_count();
+        if 0 < transform_offset_count {
             let transform_offsets: &[Vector4<i32>] =
-                &scene_manager.get_render_element_transform_offsets()[..transform_matrix_count];
+                &scene_manager.get_render_element_transform_offsets()[..transform_offset_count];
             self.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,

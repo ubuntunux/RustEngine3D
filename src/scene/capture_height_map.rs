@@ -15,15 +15,28 @@ use crate::vulkan_context::texture::TextureRawData;
 use ash::vk;
 use nalgebra::{Matrix4, Vector4};
 
+const SCENE_TOP_VIEW_HEIGHT_MARGIN: f32 = 1.0;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CaptureHeightMapState {
+    #[default]
+    Idle,
+    PendingTerrainCapture,
+    RenderingTerrain,
+    WaitingTerrainReadback {
+        _target_frame: u64,
+    },
+    PendingSceneTopView,
+    RenderingSceneTopView,
+}
+
 #[derive(Default)]
 pub struct CaptureHeightMap<'a> {
-    pub _is_capture_height_map_complete: bool,
-    pub _start_capture_height_map: bool,
+    pub _state: CaptureHeightMapState,
     pub _enable_capture_normal_map: bool,
     pub _capture_height_map_view: DirectionalLight,
     pub _static_render_elements: Vec<RenderElementData<'a>>,
     pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
-    pub _read_back_frames: Vec<u64>,
     pub _dead_zone: f32,
     pub _stretch_height_map_xz: bool,
     pub _bounding_box: BoundingBox,
@@ -42,54 +55,66 @@ impl<'a> CaptureHeightMap<'a> {
         );
 
         CaptureHeightMap {
-            _is_capture_height_map_complete: true,
-            _start_capture_height_map: false,
+            _state: CaptureHeightMapState::Idle,
             _enable_capture_normal_map: false,
             _capture_height_map_view: capture_height_map_view,
             _static_render_elements: Vec::new(),
             _skeletal_render_elements: Vec::new(),
-            _read_back_frames: Vec::new(),
             _dead_zone: 0.0,
             _stretch_height_map_xz: false,
             _bounding_box: BoundingBox::default(),
             _height_map_data: HeightMapData::default(),
         }
     }
+    pub fn get_state(&self) -> CaptureHeightMapState {
+        self._state
+    }
     pub fn is_capture_height_map_complete(&self) -> bool {
-        self._is_capture_height_map_complete
-            && !self._start_capture_height_map
-            && self._static_render_elements.is_empty()
-            && self._read_back_frames.is_empty()
+        matches!(
+            self._state,
+            CaptureHeightMapState::Idle
+                | CaptureHeightMapState::PendingSceneTopView
+                | CaptureHeightMapState::RenderingSceneTopView
+        )
     }
-    pub fn set_capture_height_map_complete(&mut self) {
-        self._is_capture_height_map_complete = true;
+    pub fn request_terrain_capture(&mut self) {
+        self._static_render_elements.clear();
+        self._state = CaptureHeightMapState::PendingTerrainCapture;
     }
-    pub fn is_start_capture_height_map(&self) -> bool {
-        self._start_capture_height_map
-    }
-    pub fn set_start_capture_height_map(&mut self, start: bool) {
-        if start {
-            self._is_capture_height_map_complete = false;
+    pub fn request_scene_top_view(&mut self) {
+        // Stage 1 automatically chains into PendingSceneTopView once terrain readback finishes
+        if self.is_capture_height_map_complete() {
+            self._static_render_elements.clear();
+            self._state = CaptureHeightMapState::PendingSceneTopView;
         }
-        self._start_capture_height_map = start;
+    }
+    pub fn finish_terrain_gather(&mut self, bounding_box: BoundingBox, dead_zone: f32) {
+        self.update_capture_height_map(bounding_box, dead_zone);
+        if self._static_render_elements.is_empty() {
+            self._state = CaptureHeightMapState::PendingSceneTopView;
+        } else {
+            self._state = CaptureHeightMapState::RenderingTerrain;
+        }
+    }
+    pub fn finish_scene_top_view_gather(&mut self, bounding_box: BoundingBox) {
+        if self._static_render_elements.is_empty() {
+            self._state = CaptureHeightMapState::Idle;
+        } else {
+            self.update_scene_top_view(bounding_box);
+            self._state = CaptureHeightMapState::RenderingSceneTopView;
+        }
     }
     pub fn need_to_render_height_map(&self) -> bool {
-        !self._static_render_elements.is_empty()
+        matches!(
+            self._state,
+            CaptureHeightMapState::RenderingTerrain | CaptureHeightMapState::RenderingSceneTopView
+        ) && !self._static_render_elements.is_empty()
     }
-    pub fn need_to_read_back_height_map(&mut self, current_render_frame: u64) -> bool {
-        let mut need_to_read_back: bool = false;
-        if self._read_back_frames.is_empty() == false {
-            let mut read_back_frames: Vec<u64> = Vec::new();
-            for read_back_frame in self._read_back_frames.iter() {
-                if *read_back_frame <= current_render_frame {
-                    need_to_read_back = true;
-                } else {
-                    read_back_frames.push(*read_back_frame);
-                }
-            }
-            self._read_back_frames = read_back_frames;
-        }
-        need_to_read_back
+    pub fn need_to_read_back_height_map(&self, current_render_frame: u64) -> bool {
+        matches!(
+            self._state,
+            CaptureHeightMapState::WaitingTerrainReadback { _target_frame } if _target_frame <= current_render_frame
+        )
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_render_elements
@@ -97,15 +122,10 @@ impl<'a> CaptureHeightMap<'a> {
     pub fn clear_static_render_elements(&mut self) {
         self._static_render_elements.clear();
     }
-    pub fn clear_read_back_frames(&mut self) {
-        self._read_back_frames.clear();
-    }
     pub fn reset_capture_height_map(&mut self) {
         self._static_render_elements.clear();
         self._skeletal_render_elements.clear();
-        self._read_back_frames.clear();
-        self._start_capture_height_map = false;
-        self._is_capture_height_map_complete = true;
+        self._state = CaptureHeightMapState::Idle;
     }
     pub fn add_static_render_elements(&mut self, render_element: RenderElementData<'a>) {
         self._static_render_elements.push(render_element);
@@ -151,10 +171,13 @@ impl<'a> CaptureHeightMap<'a> {
         );
         self.clear_static_render_elements();
 
-        // Replace any superseded pending readback so _bounding_box stays 1:1 with the latest rendered height map
-        self._read_back_frames.clear();
-        self._is_capture_height_map_complete = false;
-        self._read_back_frames.push(renderer_context.get_render_frame() + 1);
+        self._state = match self._state {
+            CaptureHeightMapState::RenderingTerrain => CaptureHeightMapState::WaitingTerrainReadback {
+                _target_frame: renderer_context.get_render_frame() + 1,
+            },
+            CaptureHeightMapState::RenderingSceneTopView => CaptureHeightMapState::Idle,
+            other => other,
+        };
     }
 
     pub fn read_back_height_map(
@@ -205,29 +228,94 @@ impl<'a> CaptureHeightMap<'a> {
             &height_map_raw_data,
             self._dead_zone,
         );
-        self.set_capture_height_map_complete();
+        // CPU terrain readback finished; transition to GPU-only full-scene top-view pass
+        self._state = CaptureHeightMapState::PendingSceneTopView;
     }
 
-    pub fn update_capture_height_map(&mut self, bounding_box: BoundingBox, dead_zone: f32) {
-        self._dead_zone = dead_zone;
-        self._bounding_box = bounding_box;
+    fn apply_capture_view_projection(&mut self, mut bounding_box: BoundingBox) -> BoundingBox {
         if self._stretch_height_map_xz == false {
-            let mut bounding_box_min = self._bounding_box._min.clone();
-            let mut bounding_box_max = self._bounding_box._max.clone();
+            let mut bounding_box_min = bounding_box._min.clone();
+            let mut bounding_box_max = bounding_box._max.clone();
             bounding_box_min.x = bounding_box_min.x.min(bounding_box_min.z);
             bounding_box_max.x = bounding_box_max.x.max(bounding_box_max.z);
             bounding_box_min.z = bounding_box_min.x;
             bounding_box_max.z = bounding_box_max.x;
-            self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+            bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
         }
 
         let shadow_dimensions = Vector4::new(
-            self._bounding_box._extents.x,
-            self._bounding_box._extents.z,
-            -self._bounding_box._extents.y,
-            self._bounding_box._extents.y,
+            bounding_box._extents.x,
+            bounding_box._extents.z,
+            -bounding_box._extents.y,
+            bounding_box._extents.y,
         );
         self._capture_height_map_view.update_shadow_orthogonal(&shadow_dimensions);
-        self._capture_height_map_view.update_light_data(&self._bounding_box._center);
+        self._capture_height_map_view.update_light_data(&bounding_box._center);
+        bounding_box
+    }
+
+    pub fn update_capture_height_map(&mut self, bounding_box: BoundingBox, dead_zone: f32) {
+        self._dead_zone = dead_zone;
+        self._bounding_box = self.apply_capture_view_projection(bounding_box);
+    }
+
+    pub fn update_scene_top_view(&mut self, bounding_box: BoundingBox) {
+        let mut expanded_min = bounding_box._min.clone();
+        let mut expanded_max = bounding_box._max.clone();
+        expanded_min.y -= SCENE_TOP_VIEW_HEIGHT_MARGIN;
+        expanded_max.y += SCENE_TOP_VIEW_HEIGHT_MARGIN;
+        let expanded_box = BoundingBox::create_bounding_box(&expanded_min, &expanded_max);
+        // Update GPU view projection only; keep self._bounding_box intact for CPU HeightMapData
+        let _ = self.apply_capture_view_projection(expanded_box);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nalgebra::Vector3;
+
+    #[test]
+    fn test_scene_top_view_lifecycle_and_projection_isolation() {
+        let mut capture = CaptureHeightMap::create_capture_height_map(uuid::Uuid::new_v4());
+        assert_eq!(capture.get_state(), CaptureHeightMapState::Idle);
+        assert!(capture.is_capture_height_map_complete());
+
+        // Stage 1: Terrain capture requested -> not complete while pending or waiting readback
+        capture.request_terrain_capture();
+        assert_eq!(capture.get_state(), CaptureHeightMapState::PendingTerrainCapture);
+        assert!(!capture.is_capture_height_map_complete());
+
+        // Requesting scene top-view while Stage 1 is active must not clobber Stage 1
+        capture.request_scene_top_view();
+        assert_eq!(capture.get_state(), CaptureHeightMapState::PendingTerrainCapture);
+
+        let terrain_bbox =
+            BoundingBox::create_bounding_box(&Vector3::new(-50.0, 0.0, -50.0), &Vector3::new(50.0, 20.0, 50.0));
+        capture.update_capture_height_map(terrain_bbox.clone(), -10.0);
+        assert_eq!(capture._bounding_box._min, terrain_bbox._min);
+        assert_eq!(capture._bounding_box._max, terrain_bbox._max);
+        let terrain_vp = capture.get_shadow_view_projection().clone();
+
+        // Waiting readback gates completion and readback frame cleanly
+        capture._state = CaptureHeightMapState::WaitingTerrainReadback { _target_frame: 10 };
+        assert!(!capture.is_capture_height_map_complete());
+        assert!(!capture.need_to_read_back_height_map(9));
+        assert!(capture.need_to_read_back_height_map(10));
+
+        // Stage 2: Scene top-view updates GPU view projection without clobbering terrain _bounding_box
+        capture._state = CaptureHeightMapState::PendingSceneTopView;
+        assert!(capture.is_capture_height_map_complete());
+        let full_scene_bbox =
+            BoundingBox::create_bounding_box(&Vector3::new(-50.0, 0.0, -50.0), &Vector3::new(50.0, 45.0, 50.0));
+        capture.update_scene_top_view(full_scene_bbox);
+        assert_eq!(capture._bounding_box._max.y, 20.0);
+        assert_ne!(*capture.get_shadow_view_projection(), terrain_vp);
+
+        // Reset returns cleanly to Idle
+        capture.reset_capture_height_map();
+        assert_eq!(capture.get_state(), CaptureHeightMapState::Idle);
+        assert!(capture.is_capture_height_map_complete());
+        assert!(!capture.need_to_read_back_height_map(100));
     }
 }

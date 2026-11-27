@@ -14,7 +14,7 @@ use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_data::RenderObjectType;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
-use crate::scene::capture_height_map::CaptureHeightMap;
+use crate::scene::capture_height_map::{CaptureHeightMap, CaptureHeightMapState};
 use crate::scene::collision::CollisionType;
 use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{
@@ -116,6 +116,7 @@ pub struct SceneManager<'a> {
     pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
     pub _skeletal_shadow_render_elements: Vec<RenderElementData<'a>>,
     pub _render_element_transform_count: usize,
+    pub _render_element_transform_offset_count: usize,
     pub _render_element_transform_matrices: Vec<Matrix4<f32>>,
     pub _render_element_transform_offsets: Vec<Vector4<i32>>,
     pub _bound_boxes: Vec<BoundBoxInstanceData>,
@@ -220,8 +221,11 @@ impl<'a> SceneManager<'a> {
     pub fn get_capture_height_map_mut(&self) -> &mut CaptureHeightMap<'a> {
         ptr_as_mut(self._capture_height_map.as_ref())
     }
-    pub fn set_start_capture_height_map(&mut self, start: bool) {
-        self._capture_height_map.set_start_capture_height_map(start)
+    pub fn request_terrain_height_map_capture(&mut self) {
+        self._capture_height_map.request_terrain_capture();
+    }
+    pub fn request_scene_top_view_capture(&mut self) {
+        self._capture_height_map.request_scene_top_view();
     }
     pub fn get_height_map_data(&self) -> &HeightMapData {
         &self._capture_height_map._height_map_data
@@ -263,6 +267,9 @@ impl<'a> SceneManager<'a> {
     pub fn get_render_element_transform_count(&self) -> usize {
         self._render_element_transform_count
     }
+    pub fn get_render_element_transform_offset_count(&self) -> usize {
+        self._render_element_transform_offset_count
+    }
     pub fn get_render_element_transform_matrices(&self) -> &Vec<Matrix4<f32>> {
         &self._render_element_transform_matrices
     }
@@ -297,6 +304,7 @@ impl<'a> SceneManager<'a> {
             _skeletal_render_elements: Vec::new(),
             _skeletal_shadow_render_elements: Vec::new(),
             _render_element_transform_count: 0,
+            _render_element_transform_offset_count: 0,
             _render_element_transform_matrices: vec![Matrix4::identity(); MAX_TRANSFORM_COUNT],
             _render_element_transform_offsets: vec![Vector4::zeros(); MAX_TRANSFORM_COUNT],
             _bound_boxes: Vec::new(),
@@ -609,6 +617,10 @@ impl<'a> SceneManager<'a> {
             instancing_render_object.borrow_mut().register_instancing_render_object(&render_object_data);
         }
 
+        if !is_terrain && render_object_data.borrow().is_render_scene_top_view() {
+            self.request_scene_top_view_capture();
+        }
+
         render_object_data
     }
     pub fn add_skeletal_render_object(
@@ -663,7 +675,14 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn remove_static_render_object(&mut self, object_id: SceneObjectID) {
-        self._static_render_object_map.remove(&object_id);
+        if let Some(removed_obj) = self._static_render_object_map.remove(&object_id) {
+            let obj_ref = removed_obj.borrow();
+            if obj_ref._is_render_height_map {
+                self.request_terrain_height_map_capture();
+            } else if obj_ref.is_render_scene_top_view() {
+                self.request_scene_top_view_capture();
+            }
+        }
         self.unregister_collision_object(&object_id);
         self.unregister_dynamic_update_object(&object_id);
     }
@@ -684,6 +703,7 @@ impl<'a> SceneManager<'a> {
 
     pub fn notify_mesh_loaded(&mut self, mesh_name: &str, loaded_mesh: &RcRefCell<MeshData>) {
         let mut need_recapture_height_map = false;
+        let mut need_recapture_scene_top_view = false;
         let mut need_refresh_light_probe = false;
 
         for static_object in self._static_render_object_map.values() {
@@ -692,6 +712,7 @@ impl<'a> SceneManager<'a> {
             let obj_ref = static_object.borrow();
             if !was_ready && obj_ref.is_ready() {
                 need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_recapture_scene_top_view |= !obj_ref._is_render_height_map && obj_ref.is_render_scene_top_view();
                 need_refresh_light_probe |= obj_ref._is_render_camera;
             }
         }
@@ -707,7 +728,9 @@ impl<'a> SceneManager<'a> {
         }
 
         if need_recapture_height_map {
-            self.set_start_capture_height_map(true);
+            self.request_terrain_height_map_capture();
+        } else if need_recapture_scene_top_view {
+            self.request_scene_top_view_capture();
         }
         if need_refresh_light_probe {
             self.reset_frame_count_for_refresh_light_probe();
@@ -794,6 +817,7 @@ impl<'a> SceneManager<'a> {
         render_element_transform_matrices: &mut Vec<Matrix4<f32>>,
         bound_boxes: &mut Vec<BoundBoxInstanceData>,
         enable_capture_height_map: bool,
+        capture_scene_top_view: bool,
         height_map_bounding_box: &mut BoundingBox,
     ) {
         let mut render_element_info_list: Vec<RenderElementInfo<'a>> = Vec::new();
@@ -817,8 +841,13 @@ impl<'a> SceneManager<'a> {
                 && render_object_data._is_render_shadow
                 && SceneManager::shadow_culling(light, &render_object_data._bounding_box) == false;
 
-            let is_render_height_map =
-                enable_capture_height_map && render_object_data.is_ready() && render_object_data._is_render_height_map;
+            let is_render_height_map = enable_capture_height_map
+                && render_object_data.is_ready()
+                && if capture_scene_top_view {
+                    render_object_data.is_render_scene_top_view()
+                } else {
+                    render_object_data._is_render_height_map
+                };
 
             if is_render_height_map {
                 bound_min = math::get_min(&bound_min, &render_object_data._bounding_box._min);
@@ -936,7 +965,7 @@ impl<'a> SceneManager<'a> {
         }
 
         // update height map bounding box
-        if enable_capture_height_map {
+        if enable_capture_height_map && bound_min.x <= bound_max.x {
             *height_map_bounding_box = BoundingBox::create_bounding_box(&bound_min, &bound_max);
         }
 
@@ -966,6 +995,7 @@ impl<'a> SceneManager<'a> {
         let mut render_element_count: usize = 0;
         let mut render_shadow_element_count: usize = 0;
         let mut capture_height_map_element_count: usize = 0;
+        let mut capture_height_map_non_terrain_elements: Vec<RenderElementData<'a>> = Vec::new();
         let num_render_element_info = render_element_info_list.len();
         for render_element_index in 0..num_render_element_info {
             let render_element_info = &render_element_info_list[render_element_index];
@@ -979,19 +1009,22 @@ impl<'a> SceneManager<'a> {
             // update transform offset
             for instance_index in 0..instancing_count {
                 let transform_offset = (render_element_info._transform_offset + instance_index) as i32;
-                if render_element_info._is_render_camera {
+                if render_element_info._is_render_camera && *transform_offset_index < MAX_TRANSFORM_COUNT {
                     render_element_transform_offsets[*transform_offset_index].x = transform_offset;
                     *transform_offset_index += 1;
                     render_element_count += 1;
                 }
 
-                if render_element_info._is_render_shadow {
+                if render_element_info._is_render_shadow && *transform_offset_index_for_shadow < MAX_TRANSFORM_COUNT {
                     render_element_transform_offsets[*transform_offset_index_for_shadow].y = transform_offset;
                     *transform_offset_index_for_shadow += 1;
                     render_shadow_element_count += 1;
                 }
 
-                if enable_capture_height_map && render_element_info._is_render_height_map {
+                if enable_capture_height_map
+                    && render_element_info._is_render_height_map
+                    && *transform_offset_index_for_height_map < MAX_TRANSFORM_COUNT
+                {
                     render_element_transform_offsets[*transform_offset_index_for_height_map].z = transform_offset;
                     *transform_offset_index_for_height_map += 1;
                     capture_height_map_element_count += 1;
@@ -1070,19 +1103,25 @@ impl<'a> SceneManager<'a> {
                         );
                     }
 
-                    // add capture height map element
+                    // add capture height map element (terrain first so roofs/props overwrite CaptureNormalMap)
                     if 0 < capture_height_map_element_count {
-                        capture_height_map_elements.push(RenderElementData {
+                        let element = RenderElementData {
                             _geometry_data: render_element_info._geometry_data.clone(),
                             _material_instance_data: render_element_info._material_instance_data.clone(),
                             _push_constant_data_list: push_constant_data_list.clone(),
                             _num_render_instances: capture_height_map_element_count as u32,
-                        });
+                        };
+                        if capture_scene_top_view && !render_object_data._is_render_height_map {
+                            capture_height_map_non_terrain_elements.push(element);
+                        } else {
+                            capture_height_map_elements.push(element);
+                        }
                         capture_height_map_element_count = 0;
                     }
                 }
             }
         }
+        capture_height_map_elements.append(&mut capture_height_map_non_terrain_elements);
     }
 
     pub fn update_window_size(&mut self, width: i32, height: i32) {
@@ -1209,7 +1248,7 @@ impl<'a> SceneManager<'a> {
 
         // refresh light probe
         self.reset_frame_count_for_refresh_light_probe();
-        self.set_start_capture_height_map(true);
+        self.request_terrain_height_map_capture();
     }
 
     pub fn close_scene_data(&mut self) {
@@ -1324,6 +1363,7 @@ impl<'a> SceneManager<'a> {
         TransformSystem::update(&mut self._transform_storage);
 
         let mut need_recapture_height_map = false;
+        let mut need_recapture_scene_top_view = false;
         let mut need_refresh_light_probe = false;
 
         for (_key, update_object_data) in self._dynamic_update_object_map.iter() {
@@ -1332,6 +1372,7 @@ impl<'a> SceneManager<'a> {
             let obj_ref = update_object_data.borrow();
             if !was_ready && obj_ref.is_ready() {
                 need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_recapture_scene_top_view |= !obj_ref._is_render_height_map && obj_ref.is_render_scene_top_view();
                 need_refresh_light_probe |= obj_ref._is_render_camera;
             }
         }
@@ -1341,6 +1382,7 @@ impl<'a> SceneManager<'a> {
             {
                 let obj_ref = static_object_data.borrow();
                 need_recapture_height_map |= obj_ref._is_render_height_map;
+                need_recapture_scene_top_view |= !obj_ref._is_render_height_map && obj_ref.is_render_scene_top_view();
                 need_refresh_light_probe |= obj_ref._is_render_camera;
             }
         }
@@ -1356,7 +1398,9 @@ impl<'a> SceneManager<'a> {
         }
 
         if need_recapture_height_map {
-            self.set_start_capture_height_map(true);
+            self.request_terrain_height_map_capture();
+        } else if need_recapture_scene_top_view {
+            self.request_scene_top_view_capture();
         }
         if need_refresh_light_probe {
             self.reset_frame_count_for_refresh_light_probe();
@@ -1396,17 +1440,21 @@ impl<'a> SceneManager<'a> {
             self._skeletal_shadow_render_elements.clear();
             self._capture_height_map._skeletal_render_elements.clear();
             self._render_element_transform_count = 0;
+            self._render_element_transform_offset_count = 0;
             let mut transform_offset_index: usize = 0;
             let mut transform_offset_index_for_shadow: usize = 0;
             let mut transform_offset_index_for_height_map: usize = 0;
 
             self._bound_boxes.clear();
 
-            let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_start_capture_height_map();
-            if capture_height_map_fot_static_mesh {
+            let capture_state = self._capture_height_map.get_state();
+            let capture_terrain_height_map = capture_state == CaptureHeightMapState::PendingTerrainCapture;
+            let capture_scene_top_view = capture_state == CaptureHeightMapState::PendingSceneTopView;
+            let capture_height_map_for_static_mesh = capture_terrain_height_map || capture_scene_top_view;
+            if capture_height_map_for_static_mesh {
                 self._capture_height_map.clear_static_render_elements();
             }
-            let capture_height_map_fot_skeletal_mesh: bool = false;
+            let capture_height_map_for_skeletal_mesh: bool = false;
             let mut height_map_bounding_box_for_static_mesh = BoundingBox::default();
             let mut height_map_bounding_box_for_skeletal_mesh = BoundingBox::default();
 
@@ -1425,7 +1473,8 @@ impl<'a> SceneManager<'a> {
                 &mut self._render_element_transform_offsets,
                 &mut self._render_element_transform_matrices,
                 &mut self._bound_boxes,
-                capture_height_map_fot_static_mesh,
+                capture_height_map_for_static_mesh,
+                capture_scene_top_view,
                 &mut height_map_bounding_box_for_static_mesh,
             );
 
@@ -1444,18 +1493,24 @@ impl<'a> SceneManager<'a> {
                 &mut self._render_element_transform_offsets,
                 &mut self._render_element_transform_matrices,
                 &mut self._bound_boxes,
-                capture_height_map_fot_skeletal_mesh,
+                capture_height_map_for_skeletal_mesh,
+                false,
                 &mut height_map_bounding_box_for_skeletal_mesh,
             );
 
-            if capture_height_map_fot_static_mesh {
-                let dead_zone = self.get_dead_zone_height();
-                self._capture_height_map.update_capture_height_map(height_map_bounding_box_for_static_mesh, dead_zone);
-                if self._capture_height_map.need_to_render_height_map() == false {
-                    self._capture_height_map.clear_read_back_frames();
-                    self._capture_height_map.set_capture_height_map_complete();
+            self._render_element_transform_offset_count = transform_offset_index
+                .max(transform_offset_index_for_shadow)
+                .max(transform_offset_index_for_height_map);
+
+            match capture_state {
+                CaptureHeightMapState::PendingTerrainCapture => {
+                    let dead_zone = self.get_dead_zone_height();
+                    self._capture_height_map.finish_terrain_gather(height_map_bounding_box_for_static_mesh, dead_zone);
                 }
-                self._capture_height_map.set_start_capture_height_map(false);
+                CaptureHeightMapState::PendingSceneTopView => {
+                    self._capture_height_map.finish_scene_top_view_gather(height_map_bounding_box_for_static_mesh);
+                }
+                _ => {}
             }
         }
     }
