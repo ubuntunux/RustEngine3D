@@ -22,17 +22,16 @@ pub struct CameraCreateInfo {
 
 impl Default for CameraCreateInfo {
     fn default() -> CameraCreateInfo {
-        unsafe {
-            CameraCreateInfo {
-                meter_per_unit: constants::METER_PER_UNIT,
-                near: constants::NEAR,
-                far: constants::FAR,
-                fov: constants::FOV,
-                window_size: Vector2::new(1024, 768),
-                enable_jitter: true,
-                position: Vector3::zeros(),
-                rotation: Vector3::zeros(),
-            }
+        let cfg = constants::get_engine_config();
+        CameraCreateInfo {
+            meter_per_unit: cfg._meter_per_unit,
+            near: cfg._near,
+            far: cfg._far,
+            fov: cfg._fov,
+            window_size: Vector2::new(1024, 768),
+            enable_jitter: true,
+            position: Vector3::zeros(),
+            rotation: Vector3::zeros(),
         }
     }
 }
@@ -252,7 +251,7 @@ impl CameraObjectData {
         let current_frame = crate::core::engine_core::get_current_frame();
         if self._updated_frame != current_frame {
             if self._enable_jitter {
-                let is_upscale = unsafe { constants::ENABLE_UPSCALE };
+                let is_upscale = constants::is_enable_upscale();
                 let phase_count = if is_upscale {
                     self._jitter_mode_hammersley16x.len() as i32
                 } else {

@@ -3,8 +3,7 @@ use std::str::FromStr;
 use std::vec::Vec;
 use strum_macros::{Display, EnumCount, EnumIter, FromRepr};
 
-use crate::constants;
-use crate::constants::{CURRENT_RENDER_OPTION, MAX_FRAME_COUNT};
+use crate::constants::{self, MAX_FRAME_COUNT};
 use crate::core::engine_service_locator::{get_effect_manager, get_effect_manager_mut, get_engine_resources};
 use crate::effect::effect_manager::EffectManager;
 use crate::render_pass::ray_tracing::ray_tracing;
@@ -704,15 +703,15 @@ impl<'a> RendererData<'a> {
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
-            _render_option: unsafe { CURRENT_RENDER_OPTION },
-            _tone_mapping_mode: unsafe { constants::TONE_MAPPING_MODE },
-            _color_grading_lut: unsafe { constants::COLOR_GRADING_LUT },
-            _exposure: unsafe { constants::EXPOSURE },
-            _dof_intensity: unsafe { constants::DOF_INTENSITY },
-            _bloom_intensity: unsafe { constants::BLOOM_INTENSITY },
-            _god_rays_intensity: unsafe { constants::GOD_RAYS_INTENSITY },
-            _height_fog_intensity: unsafe { constants::HEIGHT_FOG_INTENSITY },
-            _motion_blur_intensity: unsafe { constants::MOTION_BLUR_INTENSITY },
+            _render_option: constants::get_engine_config()._current_render_option,
+            _tone_mapping_mode: constants::get_engine_config()._tone_mapping_mode,
+            _color_grading_lut: constants::get_engine_config()._color_grading_lut,
+            _exposure: constants::get_engine_config()._exposure,
+            _dof_intensity: constants::get_engine_config()._dof_intensity,
+            _bloom_intensity: constants::get_engine_config()._bloom_intensity,
+            _god_rays_intensity: constants::get_engine_config()._god_rays_intensity,
+            _height_fog_intensity: constants::get_engine_config()._height_fog_intensity,
+            _motion_blur_intensity: constants::get_engine_config()._motion_blur_intensity,
             _wind_direction: Vector2::new(1.0, 0.0),
             _wind_strength: 0.30,
             _wind_speed: 1.0,
@@ -2397,7 +2396,7 @@ impl<'a> RendererData<'a> {
         }
 
         // Render Bound Box
-        if unsafe { constants::RENDER_BOUND_BOX } {
+        if constants::is_render_bound_box() {
             let bound_box_matrices = scene_manager.get_bound_boxes();
             let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
@@ -2421,7 +2420,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_final",
             );
-            let rcas_sharpness = if unsafe { constants::ENABLE_UPSCALE } {
+            let rcas_sharpness = if constants::is_enable_upscale() {
                 constants::RCAS_SHARPNESS_UPSCALE
             } else {
                 constants::RCAS_SHARPNESS_NATIVE

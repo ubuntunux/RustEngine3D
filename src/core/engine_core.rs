@@ -19,7 +19,6 @@ use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes, Window
 
 use crate::audio::audio_manager::AudioManager;
 use crate::constants;
-use crate::constants::{DEVELOPMENT, SHOW_DEBUG_TEXT};
 use crate::core::engine_service_locator;
 use crate::core::engine_service_locator::get_scene_manager_mut;
 use crate::core::input::{self, ButtonState};
@@ -190,6 +189,12 @@ pub struct TimeData {
     pub _elapsed_time: f64,
     pub _delta_time: f64,
     pub _delta_time_with_scale: f64,
+    pub _fixed_delta_time: f64,
+    pub _fixed_time_accumulator: f64,
+    pub _fixed_interpolation_alpha: f64,
+    pub _max_fixed_steps_per_frame: u32,
+    pub _fixed_step_count_this_frame: u32,
+    pub _elapsed_fixed_steps: u64,
 }
 
 pub fn create_time_data() -> TimeData {
@@ -214,6 +219,12 @@ pub fn create_time_data() -> TimeData {
         _elapsed_time: 0.0,
         _delta_time: 0.0,
         _delta_time_with_scale: 0.0,
+        _fixed_delta_time: constants::DEFAULT_FIXED_TIMESTEP,
+        _fixed_time_accumulator: 0.0,
+        _fixed_interpolation_alpha: 0.0,
+        _max_fixed_steps_per_frame: constants::DEFAULT_MAX_FIXED_STEPS_PER_FRAME,
+        _fixed_step_count_this_frame: 0,
+        _elapsed_fixed_steps: 0,
     }
 }
 
@@ -226,6 +237,56 @@ impl TimeData {
         self._acc_frame_count = 0;
         self._acc_render_time = 0.0;
         self._acc_present_time = 0.0;
+        self._fixed_time_accumulator = 0.0;
+        self._fixed_interpolation_alpha = 0.0;
+        self._fixed_step_count_this_frame = 0;
+    }
+
+    pub fn set_fixed_delta_time(&mut self, fixed_delta_time: f64) {
+        if fixed_delta_time > 0.0 && fixed_delta_time.is_finite() {
+            self._fixed_delta_time = fixed_delta_time;
+        }
+    }
+
+    pub fn get_fixed_delta_time(&self) -> f64 {
+        self._fixed_delta_time
+    }
+
+    pub fn set_max_fixed_steps_per_frame(&mut self, max_steps: u32) {
+        self._max_fixed_steps_per_frame = max_steps.max(1);
+    }
+
+    pub fn get_fixed_interpolation_alpha(&self) -> f64 {
+        self._fixed_interpolation_alpha
+    }
+
+    pub fn accumulate_fixed_time(&mut self, delta_time: f64) -> u32 {
+        let fixed_dt = if self._fixed_delta_time > 0.0 {
+            self._fixed_delta_time
+        } else {
+            constants::DEFAULT_FIXED_TIMESTEP
+        };
+        let max_steps = self._max_fixed_steps_per_frame.max(1);
+
+        if delta_time > 0.0 && delta_time.is_finite() {
+            self._fixed_time_accumulator += delta_time;
+        }
+
+        let mut steps: u32 = 0;
+        while self._fixed_time_accumulator >= fixed_dt && steps < max_steps {
+            self._fixed_time_accumulator -= fixed_dt;
+            steps += 1;
+            self._elapsed_fixed_steps += 1;
+        }
+
+        // Prevent spiral of death if frame time persistently exceeds max_steps * fixed_dt.
+        if steps == max_steps && self._fixed_time_accumulator >= fixed_dt {
+            self._fixed_time_accumulator = self._fixed_time_accumulator.min(fixed_dt);
+        }
+
+        self._fixed_step_count_this_frame = steps;
+        self._fixed_interpolation_alpha = (self._fixed_time_accumulator / fixed_dt).clamp(0.0, 1.0);
+        steps
     }
 
     pub fn update_time_data(&mut self, delta_time_scale: f64, monitor_refresh_rate: Option<f64>) {
@@ -233,16 +294,23 @@ impl TimeData {
         let mut delta_duration = now.saturating_duration_since(self._last_time_instance);
         let mut delta_time = delta_duration.as_secs_f64();
 
-        let explicit_target = unsafe { constants::TARGET_FRAME_RATE };
+        let (explicit_target, ignore_monitor_refresh, enable_dynamic_fps) = {
+            let cfg = constants::get_engine_config();
+            (
+                cfg._target_frame_rate,
+                cfg._ignore_monitor_refresh_rate,
+                cfg._enable_dynamic_target_fps,
+            )
+        };
         let max_target_fps: f64 = if explicit_target > 0 {
             explicit_target as f64
-        } else if unsafe { !constants::IGNORE_MONITOR_REFRESH_RATE } && monitor_refresh_rate.is_some() {
+        } else if !ignore_monitor_refresh && monitor_refresh_rate.is_some() {
             monitor_refresh_rate.unwrap().clamp(30.0, 240.0)
         } else {
             240.0
         };
 
-        let dynamic_target_fps: f64 = if unsafe { constants::ENABLE_DYNAMIC_TARGET_FPS } {
+        let dynamic_target_fps: f64 = if enable_dynamic_fps {
             self._target_fps.min(max_target_fps)
         } else if explicit_target > 0 {
             explicit_target as f64
@@ -364,6 +432,7 @@ pub trait ApplicationBase<'a> {
     fn is_visible_cursor(&self) -> bool;
     fn focused(&mut self, focused: bool);
     fn update_event(&mut self);
+    fn fixed_update_application(&mut self, _fixed_delta_time: f64) {}
     fn update_application(&mut self, delta_time: f64);
 }
 
@@ -958,13 +1027,12 @@ impl<'a> EngineCore<'a> {
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
         // update timer
-        let delta_time_scale: f64 = unsafe {
-            if DEVELOPMENT && self._keyboard_input_data.get_key_hold(KeyCode::Tab) {
+        let delta_time_scale: f64 =
+            if constants::is_development() && self._keyboard_input_data.get_key_hold(KeyCode::Tab) {
                 10.0
             } else {
                 1.0
-            }
-        };
+            };
         let monitor_refresh_rate = self.get_current_monitor_refresh_rate();
         self._time_data.update_time_data(delta_time_scale, monitor_refresh_rate);
 
@@ -1028,6 +1096,14 @@ impl<'a> EngineCore<'a> {
                 let is_scene_loading = !scene_manager.are_all_render_objects_ready()
                     || !scene_manager.get_capture_height_map().is_capture_height_map_complete();
                 engine_service_locator::get_engine_resources_mut().update_async_loading_with_mode(is_scene_loading);
+                let fixed_steps = self._time_data.accumulate_fixed_time(delta_time);
+                let fixed_dt = self._time_data._fixed_delta_time;
+                for _ in 0..fixed_steps {
+                    self.fixed_update_application(fixed_dt);
+                    if self.get_application().will_terminate_application() {
+                        return;
+                    }
+                }
                 self.update_application(delta_time);
                 if self.get_application().will_terminate_application() {
                     return;
@@ -1049,128 +1125,129 @@ impl<'a> EngineCore<'a> {
                 );
 
                 // debug text
-                unsafe {
-                    if SHOW_DEBUG_TEXT {
-                        font_manager.log(format!(
-                            "{:.2}fps / {:.3}ms",
-                            self._time_data._average_fps, self._time_data._average_frame_time
-                        ));
-                        font_manager.log(format!(
-                            "Game Time: {:.3}ms",
-                            self._time_data._average_frame_time - self._time_data._average_render_time
-                        ));
-                        font_manager.log(format!(
-                            "Render Time: {:.3}ms",
-                            self._time_data._average_render_time - self._time_data._average_present_time
-                        ));
-                        font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
-                        if constants::ENABLE_DYNAMIC_TARGET_FPS {
-                            font_manager.log(format!("Target FPS: {:.2}", self._time_data._target_fps));
-                        } else {
-                            font_manager.log("Dynamic Target FPS: OFF".to_string());
-                        }
-                        let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
-                        let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
-                        font_manager.log(format!(
-                            "Camera Position: [{:.2}, {:.2}, {:.2}], Rotation: [{:.2}, {:.2}, {:.2}]",
-                            camera_position.x,
-                            camera_position.y,
-                            camera_position.z,
-                            camera_rotation.x,
-                            camera_rotation.y,
-                            camera_rotation.z,
-                        ));
-                        font_manager.log(format!(
-                            "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
-                            scene_manager._static_render_object_map.len(),
-                            scene_manager._skeletal_render_object_map.len(),
-                            scene_manager._dynamic_update_object_map.len(),
-                            scene_manager._collision_object_key_map.len(),
-                            scene_manager._static_render_object_instancing_map.len()
-                        ));
-                        font_manager.log(format!(
-                            "RenderStaticMesh(Instancing): {}({}), RenderStaticShadow(Instancing): {}({})",
-                            scene_manager._static_render_elements.len(),
-                            scene_manager
-                                ._static_render_elements
-                                .iter()
-                                .map(|element| element._num_render_instances)
-                                .sum::<u32>(),
-                            scene_manager._static_shadow_render_elements.len(),
-                            scene_manager
-                                ._static_shadow_render_elements
-                                .iter()
-                                .map(|element| element._num_render_instances)
-                                .sum::<u32>()
-                        ));
-                        font_manager.log(format!(
-                            "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
-                            scene_manager._skeletal_render_elements.len(),
-                            scene_manager
-                                ._skeletal_render_elements
-                                .iter()
-                                .map(|element| element._num_render_instances)
-                                .sum::<u32>(),
-                            scene_manager._skeletal_shadow_render_elements.len(),
-                            scene_manager
-                                ._skeletal_shadow_render_elements
-                                .iter()
-                                .map(|element| element._num_render_instances)
-                                .sum::<u32>(),
-                        ));
-                        font_manager.log(format!(
-                            "PointLight: {:?}, Render PointLight: {:?}",
-                            scene_manager._point_light_object_map.len(),
-                            scene_manager.get_render_point_light_count()
-                        ));
-                        let (rt_count, rt_total_bytes) = renderer_context.get_render_target_memory_usage();
-                        let debug_rt_name = renderer_context._renderer_data._debug_render_target;
-                        let debug_rt_info = if let Some(tex) =
-                            renderer_context._renderer_data._render_target_data_map.get(&debug_rt_name)
-                        {
-                            format!(
-                                "({}x{}, {:.2}MB)",
-                                tex._image_width,
-                                tex._image_height,
-                                tex.get_memory_usage_bytes() as f32 / (1024.0 * 1024.0)
-                            )
-                        } else {
-                            String::new()
-                        };
-                        font_manager.log(format!(
-                            "RenderTarget: {:?} {} | Total RTs: {} ({:.1}MB)",
-                            debug_rt_name,
-                            debug_rt_info,
-                            rt_count,
-                            rt_total_bytes as f32 / (1024.0 * 1024.0)
-                        ));
-                        font_manager.log(format!(
-                            "RenderQualityLevel: {:?}, Upscale: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, HalfLambert: {:?}, ToneMap: {:?}, Exp: {:.2}, LUT: {:?}",
-                             { constants::RENDER_QUALITY_LEVEL },
-                             { constants::ENABLE_UPSCALE },
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderSSGI),
-                            renderer_context._renderer_data.has_render_option(RenderOption::RenderHalfLambert),
-                            renderer_context._renderer_data._tone_mapping_mode,
-                            renderer_context._renderer_data._exposure,
-                            renderer_context._renderer_data._color_grading_lut,
-                        ));
+                if constants::is_show_debug_text() {
+                    font_manager.log(format!(
+                        "{:.2}fps / {:.3}ms",
+                        self._time_data._average_fps, self._time_data._average_frame_time
+                    ));
+                    font_manager.log(format!(
+                        "Game Time: {:.3}ms",
+                        self._time_data._average_frame_time - self._time_data._average_render_time
+                    ));
+                    font_manager.log(format!(
+                        "Render Time: {:.3}ms",
+                        self._time_data._average_render_time - self._time_data._average_present_time
+                    ));
+                    font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
+                    if constants::is_enable_dynamic_target_fps() {
+                        font_manager.log(format!("Target FPS: {:.2}", self._time_data._target_fps));
+                    } else {
+                        font_manager.log("Dynamic Target FPS: OFF".to_string());
+                    }
+                    let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
+                    let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
+                    font_manager.log(format!(
+                        "Camera Position: [{:.2}, {:.2}, {:.2}], Rotation: [{:.2}, {:.2}, {:.2}]",
+                        camera_position.x,
+                        camera_position.y,
+                        camera_position.z,
+                        camera_rotation.x,
+                        camera_rotation.y,
+                        camera_rotation.z,
+                    ));
+                    font_manager.log(format!(
+                        "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
+                        scene_manager._static_render_object_map.len(),
+                        scene_manager._skeletal_render_object_map.len(),
+                        scene_manager._dynamic_update_object_map.len(),
+                        scene_manager._collision_object_key_map.len(),
+                        scene_manager._static_render_object_instancing_map.len()
+                    ));
+                    font_manager.log(format!(
+                        "RenderStaticMesh(Instancing): {}({}), RenderStaticShadow(Instancing): {}({})",
+                        scene_manager._static_render_elements.len(),
+                        scene_manager
+                            ._static_render_elements
+                            .iter()
+                            .map(|element| element._num_render_instances)
+                            .sum::<u32>(),
+                        scene_manager._static_shadow_render_elements.len(),
+                        scene_manager
+                            ._static_shadow_render_elements
+                            .iter()
+                            .map(|element| element._num_render_instances)
+                            .sum::<u32>()
+                    ));
+                    font_manager.log(format!(
+                        "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
+                        scene_manager._skeletal_render_elements.len(),
+                        scene_manager
+                            ._skeletal_render_elements
+                            .iter()
+                            .map(|element| element._num_render_instances)
+                            .sum::<u32>(),
+                        scene_manager._skeletal_shadow_render_elements.len(),
+                        scene_manager
+                            ._skeletal_shadow_render_elements
+                            .iter()
+                            .map(|element| element._num_render_instances)
+                            .sum::<u32>(),
+                    ));
+                    font_manager.log(format!(
+                        "PointLight: {:?}, Render PointLight: {:?}",
+                        scene_manager._point_light_object_map.len(),
+                        scene_manager.get_render_point_light_count()
+                    ));
+                    let (rt_count, rt_total_bytes) = renderer_context.get_render_target_memory_usage();
+                    let debug_rt_name = renderer_context._renderer_data._debug_render_target;
+                    let debug_rt_info = if let Some(tex) =
+                        renderer_context._renderer_data._render_target_data_map.get(&debug_rt_name)
+                    {
+                        format!(
+                            "({}x{}, {:.2}MB)",
+                            tex._image_width,
+                            tex._image_height,
+                            tex.get_memory_usage_bytes() as f32 / (1024.0 * 1024.0)
+                        )
+                    } else {
+                        String::new()
+                    };
+                    font_manager.log(format!(
+                        "RenderTarget: {:?} {} | Total RTs: {} ({:.1}MB)",
+                        debug_rt_name,
+                        debug_rt_info,
+                        rt_count,
+                        rt_total_bytes as f32 / (1024.0 * 1024.0)
+                    ));
+                    font_manager.log(format!(
+                        "RenderQualityLevel: {:?}, Upscale: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}, RenderSSGI: {:?}, HalfLambert: {:?}, ToneMap: {:?}, Exp: {:.2}, LUT: {:?}",
+                        constants::get_render_quality_level(),
+                        constants::is_enable_upscale(),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere)
+                            && renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow)
+                            && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderSSGI),
+                        renderer_context._renderer_data.has_render_option(RenderOption::RenderHalfLambert),
+                        renderer_context._renderer_data._tone_mapping_mode,
+                        renderer_context._renderer_data._exposure,
+                        renderer_context._renderer_data._color_grading_lut,
+                    ));
 
-                        let metrics = self._engine_resources.get_resource_metrics();
-                        let total_gpu_vram_bytes = metrics._total_vram_bytes + rt_total_bytes;
-                        font_manager.log(format!(
-                            "VRAM Total: {:.1}MB (RT: {:.1}MB, Asset: {:.1}MB) / Budget: {:.0}MB",
-                            total_gpu_vram_bytes as f32 / (1024.0 * 1024.0),
-                            rt_total_bytes as f32 / (1024.0 * 1024.0),
-                            metrics._total_vram_bytes as f32 / (1024.0 * 1024.0),
-                            metrics._vram_budget_bytes as f32 / (1024.0 * 1024.0),
-                        ));
-                        font_manager.log(format!(
+                    let metrics = self._engine_resources.get_resource_metrics();
+                    let total_gpu_vram_bytes = metrics._total_vram_bytes + rt_total_bytes;
+                    font_manager.log(format!(
+                        "VRAM Total: {:.1}MB (RT: {:.1}MB, Asset: {:.1}MB) / Budget: {:.0}MB",
+                        total_gpu_vram_bytes as f32 / (1024.0 * 1024.0),
+                        rt_total_bytes as f32 / (1024.0 * 1024.0),
+                        metrics._total_vram_bytes as f32 / (1024.0 * 1024.0),
+                        metrics._vram_budget_bytes as f32 / (1024.0 * 1024.0),
+                    ));
+                    font_manager.log(format!(
                             "Streaming: Tex {}/{} ({:.1}MB) | Mesh {}/{} ({:.1}MB) | Model {}/{} | Queue: {} ({:.2}ms) | GC: {}",
                             metrics._loaded_textures,
                             metrics._total_textures,
@@ -1185,16 +1262,15 @@ impl<'a> EngineCore<'a> {
                             metrics._total_gc_evicted_count,
                         ));
 
-                        if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
-                            let mut time_profiler = time_profiler_mutex.lock().unwrap();
-                            let mut keys: Vec<&String> = time_profiler.keys().collect();
-                            keys.sort();
-                            for key in keys {
-                                let value = time_profiler.get(key).unwrap();
-                                font_manager.log(format!("{}: {:.3}ms", key, value));
-                            }
-                            time_profiler.clear(); // Clear the HashMap for the next frame
+                    if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
+                        let mut time_profiler = time_profiler_mutex.lock().unwrap();
+                        let mut keys: Vec<&String> = time_profiler.keys().collect();
+                        keys.sort();
+                        for key in keys {
+                            let value = time_profiler.get(key).unwrap();
+                            font_manager.log(format!("{}: {:.3}ms", key, value));
                         }
+                        time_profiler.clear(); // Clear the HashMap for the next frame
                     }
                 }
 
@@ -1224,6 +1300,10 @@ impl<'a> EngineCore<'a> {
                 }
             }
         }
+    }
+
+    pub fn fixed_update_application(&self, fixed_delta_time: f64) {
+        self.get_application_mut().fixed_update_application(fixed_delta_time);
     }
 
     pub fn update_application(&self, delta_time: f64) {
@@ -1305,7 +1385,7 @@ impl<'a> EngineAppHandler<'a> {
             app_init_timer.elapsed().as_secs_f64() * 1000.0
         );
 
-        if unsafe { DEVELOPMENT } {
+        if constants::is_development() {
             engine_core._engine_resources.update_resource_list_file();
         }
 
@@ -1655,4 +1735,41 @@ pub fn run_application<'a>(
     };
 
     event_loop.run_app_on_demand(&mut app_handler).expect("failed to run application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fixed_timestep_accumulation_and_alpha() {
+        let mut td = create_time_data();
+        td.set_fixed_delta_time(0.02); // 50 Hz
+        td.set_max_fixed_steps_per_frame(5);
+
+        // Half a step -> 0 steps, alpha = 0.5
+        assert_eq!(td.accumulate_fixed_time(0.01), 0);
+        assert!((td.get_fixed_interpolation_alpha() - 0.5).abs() < 1e-6);
+
+        // Another 0.035s -> total 0.045s -> 2 steps, 0.005s remaining, alpha = 0.25
+        assert_eq!(td.accumulate_fixed_time(0.035), 2);
+        assert!((td.get_fixed_interpolation_alpha() - 0.25).abs() < 1e-6);
+        assert_eq!(td._elapsed_fixed_steps, 2);
+    }
+
+    #[test]
+    fn test_fixed_timestep_spiral_of_death_cap_and_reset() {
+        let mut td = create_time_data();
+        td.set_fixed_delta_time(0.01);
+        td.set_max_fixed_steps_per_frame(3);
+
+        // Huge hitch (1.0s) must cap at 3 steps and clamp leftover accumulator
+        assert_eq!(td.accumulate_fixed_time(1.0), 3);
+        assert!(td._fixed_time_accumulator <= td._fixed_delta_time + 1e-9);
+
+        // reset_time_data clears accumulator
+        td.reset_time_data();
+        assert_eq!(td._fixed_time_accumulator, 0.0);
+        assert_eq!(td._fixed_interpolation_alpha, 0.0);
+    }
 }

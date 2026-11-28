@@ -1,4 +1,4 @@
-use crate::constants::{MAX_EMITTER_COUNT, MAX_PARTICLE_COUNT, PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE};
+use crate::constants::{PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, get_max_emitter_count, get_max_particle_count};
 use crate::core::engine_service_locator::get_engine_resources;
 use crate::effect::effect_data::*;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
@@ -144,22 +144,18 @@ pub struct EffectManager<'a> {
 
 impl<'a> EffectManager<'a> {
     pub fn create_effect_manager() -> Box<EffectManager<'a>> {
+        let max_emitter_count = get_max_emitter_count() as usize;
+        let max_particle_count = get_max_particle_count() as usize;
         Box::new(EffectManager {
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
-            _allocated_emitters: unsafe { vec![None; MAX_EMITTER_COUNT as usize] },
+            _allocated_emitters: vec![None; max_emitter_count],
             _allocated_emitter_count: 0,
             _allocated_particle_count: 0,
             _effect_render_group: Vec::new(),
-            _gpu_particle_static_constants: unsafe {
-                vec![GpuParticleStaticConstants::default(); MAX_EMITTER_COUNT as usize]
-            },
-            _gpu_particle_dynamic_constants: unsafe {
-                vec![GpuParticleDynamicConstants::default(); MAX_EMITTER_COUNT as usize]
-            },
-            _gpu_particle_emitter_indices: unsafe {
-                vec![INVALID_ALLOCATED_EMITTER_INDEX; MAX_PARTICLE_COUNT as usize]
-            },
+            _gpu_particle_static_constants: vec![GpuParticleStaticConstants::default(); max_emitter_count],
+            _gpu_particle_dynamic_constants: vec![GpuParticleDynamicConstants::default(); max_emitter_count],
+            _gpu_particle_emitter_indices: vec![INVALID_ALLOCATED_EMITTER_INDEX; max_particle_count],
             _need_to_clear_gpu_particle_buffer: true,
         })
     }
@@ -171,21 +167,19 @@ impl<'a> EffectManager<'a> {
     }
 
     pub fn clear_effects(&mut self) {
-        unsafe {
-            self._effects.clear();
-            self._dead_effect_ids.clear();
-            self._effect_render_group.clear();
-            self._allocated_emitters = vec![None; MAX_EMITTER_COUNT as usize];
-            self._allocated_emitter_count = 0;
-            self._allocated_particle_count = 0;
-            self._effect_render_group.clear();
-            self._gpu_particle_static_constants =
-                vec![GpuParticleStaticConstants::default(); MAX_EMITTER_COUNT as usize];
-            self._gpu_particle_dynamic_constants =
-                vec![GpuParticleDynamicConstants::default(); MAX_EMITTER_COUNT as usize];
-            self._gpu_particle_emitter_indices = vec![INVALID_ALLOCATED_EMITTER_INDEX; MAX_PARTICLE_COUNT as usize];
-            self._need_to_clear_gpu_particle_buffer = true;
-        }
+        let max_emitter_count = get_max_emitter_count() as usize;
+        let max_particle_count = get_max_particle_count() as usize;
+        self._effects.clear();
+        self._dead_effect_ids.clear();
+        self._effect_render_group.clear();
+        self._allocated_emitters = vec![None; max_emitter_count];
+        self._allocated_emitter_count = 0;
+        self._allocated_particle_count = 0;
+        self._effect_render_group.clear();
+        self._gpu_particle_static_constants = vec![GpuParticleStaticConstants::default(); max_emitter_count];
+        self._gpu_particle_dynamic_constants = vec![GpuParticleDynamicConstants::default(); max_emitter_count];
+        self._gpu_particle_emitter_indices = vec![INVALID_ALLOCATED_EMITTER_INDEX; max_particle_count];
+        self._need_to_clear_gpu_particle_buffer = true;
     }
 
     pub fn generate_effect_id(&self) -> Uuid {
@@ -201,10 +195,18 @@ impl<'a> EffectManager<'a> {
     }
 
     pub fn get_gpu_particle_count_buffer_offset(&self, frame_index: usize) -> i32 {
-        unsafe { if 0 == (frame_index & 1) { 0 } else { MAX_EMITTER_COUNT } }
+        if 0 == (frame_index & 1) {
+            0
+        } else {
+            get_max_emitter_count()
+        }
     }
     pub fn get_gpu_particle_update_buffer_offset(&self, frame_index: usize) -> i32 {
-        unsafe { if 0 == (frame_index & 1) { 0 } else { MAX_PARTICLE_COUNT } }
+        if 0 == (frame_index & 1) {
+            0
+        } else {
+            get_max_particle_count()
+        }
     }
 
     pub fn get_need_to_clear_gpu_particle_buffer(&self) -> bool {
@@ -236,8 +238,8 @@ impl<'a> EffectManager<'a> {
     pub fn allocate_emitter(&mut self, emitter_rc: &Rc<EmitterInstance<'a>>) {
         let emitter = ptr_as_mut(emitter_rc.as_ref());
         if false == emitter.is_valid_allocated() {
-            let available_emitter_count: i32 = unsafe { MAX_EMITTER_COUNT - self._allocated_emitter_count };
-            let available_particle_count: i32 = unsafe { MAX_PARTICLE_COUNT - self._allocated_particle_count };
+            let available_emitter_count: i32 = get_max_emitter_count() - self._allocated_emitter_count;
+            let available_particle_count: i32 = get_max_particle_count() - self._allocated_particle_count;
             if 0 < available_emitter_count && 0 < available_particle_count {
                 emitter._allocated_particle_count =
                     available_particle_count.min(emitter.get_emitter_data()._max_particle_count);
@@ -314,7 +316,7 @@ impl<'a> EffectManager<'a> {
 
         let pipeline_binding_data: &PipelineBindingData =
             material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
-        let dispatch_count = unsafe { MAX_EMITTER_COUNT * 2 };
+        let dispatch_count = get_max_emitter_count() * 2;
         let thread_group_count =
             (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
         renderer_context.dispatch_render_pass_pipeline(
@@ -334,7 +336,7 @@ impl<'a> EffectManager<'a> {
 
         let pipeline_binding_data: &PipelineBindingData =
             material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
-        let dispatch_count = unsafe { MAX_PARTICLE_COUNT * 2 };
+        let dispatch_count = get_max_particle_count() * 2;
         let thread_group_count =
             (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
         renderer_context.dispatch_render_pass_pipeline(
@@ -398,15 +400,13 @@ impl<'a> EffectManager<'a> {
 
             let emitter: &mut EmitterInstance = ptr_as_mut(emitter.as_ref().unwrap().as_ref());
             let emitter_data: &EmitterData = emitter.get_emitter_data();
-            let available_particle_count: i32 = unsafe {
-                max(
-                    0,
-                    min(
-                        MAX_PARTICLE_COUNT - process_gpu_particle_count,
-                        emitter_data._max_particle_count,
-                    ),
-                )
-            };
+            let available_particle_count: i32 = max(
+                0,
+                min(
+                    get_max_particle_count() - process_gpu_particle_count,
+                    emitter_data._max_particle_count,
+                ),
+            );
 
             if 0 == available_particle_count {
                 emitter._allocated_particle_count = 0;

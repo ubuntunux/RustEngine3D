@@ -298,16 +298,16 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Shadow.to_string(),
-            _texture_width: unsafe { constants::SHADOW_MAP_SIZE },
-            _texture_height: unsafe { constants::SHADOW_MAP_SIZE },
+            _texture_width: constants::get_shadow_map_size(),
+            _texture_height: constants::get_shadow_map_size(),
             _texture_format: vk::Format::D32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::CaptureNormalMap.to_string(),
-            _texture_width: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
-            _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
+            _texture_width: constants::get_capture_height_map_size(),
+            _texture_height: constants::get_capture_height_map_size(),
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
@@ -315,8 +315,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::CaptureHeightMap.to_string(),
-            _texture_width: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
-            _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
+            _texture_width: constants::get_capture_height_map_size(),
+            _texture_height: constants::get_capture_height_map_size(),
             _texture_format: vk::Format::R32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,

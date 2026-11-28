@@ -46,14 +46,14 @@ impl SceneConstants {
         self._time = elapsed_time as f32;
         self._delta_time = delta_time as f32;
         self._sea_height = sea_height;
-        self._max_particle_count = unsafe { constants::MAX_PARTICLE_COUNT };
-        self._max_emitter_count = unsafe { constants::MAX_EMITTER_COUNT };
+        let max_particle_count = constants::get_max_particle_count();
+        let max_emitter_count = constants::get_max_emitter_count();
+        self._max_particle_count = max_particle_count;
+        self._max_emitter_count = max_emitter_count;
         self._gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset;
         self._gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset;
-        self._prev_gpu_particle_count_buffer_offset =
-            unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
-        self._prev_gpu_particle_update_buffer_offset =
-            unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
+        self._prev_gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset ^ max_emitter_count;
+        self._prev_gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset ^ max_particle_count;
         self._render_point_light_count = render_point_light_count;
         self._elapsed_frame = elapsed_frame as u32;
         self._render_option = render_option as u32;
@@ -317,12 +317,14 @@ impl ShaderBufferDataType {
                 ..storage_buffer_create_info
             },
         );
+        let max_emitter_count = constants::get_max_emitter_count() as usize;
+        let max_particle_count = constants::get_max_particle_count() as usize;
         ShaderBufferDataType::register_shader_buffer_data(
             debug_utils_device,
             &mut RegisterShaderBufferCreateInfo {
                 _shader_buffer_data_type: ShaderBufferDataType::GpuParticleStaticConstants,
                 _shader_buffer_data_stride: std::mem::size_of::<GpuParticleStaticConstants>(),
-                _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize },
+                _shader_buffer_data_count: max_emitter_count,
                 ..storage_buffer_create_info
             },
         );
@@ -331,7 +333,7 @@ impl ShaderBufferDataType {
             &mut RegisterShaderBufferCreateInfo {
                 _shader_buffer_data_type: ShaderBufferDataType::GpuParticleDynamicConstants,
                 _shader_buffer_data_stride: std::mem::size_of::<GpuParticleDynamicConstants>(),
-                _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize },
+                _shader_buffer_data_count: max_emitter_count,
                 ..storage_buffer_create_info
             },
         );
@@ -340,7 +342,7 @@ impl ShaderBufferDataType {
             &mut RegisterShaderBufferCreateInfo {
                 _shader_buffer_data_type: ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
                 _shader_buffer_data_stride: std::mem::size_of::<i32>(),
-                _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize },
+                _shader_buffer_data_count: max_particle_count,
                 ..storage_buffer_create_info
             },
         );
@@ -349,7 +351,7 @@ impl ShaderBufferDataType {
             &mut RegisterShaderBufferCreateInfo {
                 _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBuffer,
                 _shader_buffer_data_stride: std::mem::size_of::<GpuParticleCountBufferData>(),
-                _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize * 2 },
+                _shader_buffer_data_count: max_emitter_count * 2,
                 _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
                 _create_buffer_per_swapchain_count: false,
                 _has_staging_buffer: false,
@@ -362,7 +364,7 @@ impl ShaderBufferDataType {
             &mut RegisterShaderBufferCreateInfo {
                 _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,
                 _shader_buffer_data_stride: std::mem::size_of::<GpuParticleUpdateBufferData>(),
-                _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize * 2 },
+                _shader_buffer_data_count: max_particle_count * 2,
                 _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
                 _create_buffer_per_swapchain_count: false,
                 _has_staging_buffer: false,

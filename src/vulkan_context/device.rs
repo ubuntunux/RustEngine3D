@@ -155,8 +155,12 @@ pub fn create_vk_instance(
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
 
+    let (debug_message_level, vulkan_api_version) = {
+        let cfg = constants::get_engine_config();
+        (cfg._debug_message_level, cfg._vulkan_api_version)
+    };
     let mut extension_names_raw = surface_extensions.to_vec();
-    if unsafe { vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL } {
+    if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != debug_message_level {
         extension_names_raw.push(vk::EXT_DEBUG_UTILS_NAME.as_ptr());
     }
 
@@ -170,7 +174,7 @@ pub fn create_vk_instance(
         application_version: app_version,
         p_engine_name: app_name.as_ptr(),
         engine_version: constants::ENGINE_VERSION,
-        api_version: unsafe { constants::VULKAN_API_VERSION },
+        api_version: vulkan_api_version,
         ..Default::default()
     };
 
@@ -191,14 +195,12 @@ pub fn create_vk_instance(
         vk::api_version_minor(constants::ENGINE_VERSION),
         vk::api_version_patch(constants::ENGINE_VERSION)
     );
-    unsafe {
-        log::info!(
-            "    require vulkan api version: {}.{}.{}",
-            vk::api_version_major(constants::VULKAN_API_VERSION),
-            vk::api_version_minor(constants::VULKAN_API_VERSION),
-            vk::api_version_patch(constants::VULKAN_API_VERSION)
-        );
-    }
+    log::info!(
+        "    require vulkan api version: {}.{}.{}",
+        vk::api_version_major(vulkan_api_version),
+        vk::api_version_minor(vulkan_api_version),
+        vk::api_version_patch(vulkan_api_version)
+    );
     log::info!("    instance_layer_names: {:?}", instance_layer_names_raw);
     log::info!("    surface_extensions: {:?}", surface_extensions);
     unsafe { entry.create_instance(&create_info, None).expect("Instance creation error") }

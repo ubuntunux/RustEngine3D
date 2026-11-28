@@ -1,4 +1,4 @@
-use crate::constants::DEVELOPMENT;
+use crate::constants;
 #[cfg(not(target_os = "android"))]
 use chrono::Local;
 use env_logger;
@@ -36,7 +36,7 @@ pub fn initialize_logger(log_level: LevelFilter) {
     });
     builder.filter(None, log_level);
 
-    if unsafe { DEVELOPMENT } {
+    if constants::is_development() {
         builder.target(env_logger::Target::Stdout);
     } else {
         let log_file = File::create(".log").expect("Could not create log file");

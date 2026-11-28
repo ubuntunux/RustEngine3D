@@ -189,7 +189,7 @@ impl Default for RenderContext_ShadowAO {
         RenderContext_ShadowAO {
             _ssao_kernel_size: constants::SSAO_KERNEL_SIZE as i32,
             _ssao_radius: constants::SSAO_RADIUS,
-            _ssao_noise_dim: unsafe { constants::SSAO_NOISE_DIM },
+            _ssao_noise_dim: constants::get_engine_config()._ssao_noise_dim,
             _shadow_ao_constants: ShadowAOConstants {
                 _ssao_kernel_samples: random_normals,
             },

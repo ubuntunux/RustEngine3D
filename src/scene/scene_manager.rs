@@ -15,7 +15,7 @@ use crate::renderer::renderer_data::RenderObjectType;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::capture_height_map::{CaptureHeightMap, CaptureHeightMapState};
-use crate::scene::collision::CollisionType;
+use crate::scene::collision::{COLLISION_LAYER_ALL, CollisionMask, CollisionType};
 use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{
     DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLights,
@@ -422,7 +422,15 @@ impl<'a> SceneManager<'a> {
         self._point_light_object_map.remove(&object_id);
     }
     pub fn collect_collision_objects(&self, bound_min: &Vector3<f32>, bound_max: &Vector3<f32>) -> RenderObjectMap<'a> {
-        let mut collision_objectm_map: RenderObjectMap<'a> = HashMap::new();
+        self.collect_collision_objects_with_mask(bound_min, bound_max, COLLISION_LAYER_ALL)
+    }
+    pub fn collect_collision_objects_with_mask(
+        &self,
+        bound_min: &Vector3<f32>,
+        bound_max: &Vector3<f32>,
+        layer_mask: CollisionMask,
+    ) -> RenderObjectMap<'a> {
+        let mut collision_object_map: RenderObjectMap<'a> = HashMap::new();
         let key_min = CollisionObjectKey::from_position(&bound_min);
         let key_max = CollisionObjectKey::from_position(&bound_max);
         for z in key_min._indices.z..(key_max._indices.z + 1) {
@@ -430,14 +438,44 @@ impl<'a> SceneManager<'a> {
                 for x in key_min._indices.x..(key_max._indices.x + 1) {
                     if let Some(collision_objects) = self._collision_object_map.get(&CollisionObjectKey::new(x, y, z)) {
                         for collision_object in collision_objects.iter() {
-                            collision_objectm_map
-                                .insert(collision_object.borrow().get_object_id(), collision_object.clone());
+                            let obj = collision_object.borrow();
+                            if obj._collision.matches_layer_mask(layer_mask) {
+                                collision_object_map.insert(obj.get_object_id(), collision_object.clone());
+                            }
                         }
                     }
                 }
             }
         }
-        collision_objectm_map
+        collision_object_map
+    }
+    pub fn raycast_collision_objects(
+        &self,
+        origin: &Vector3<f32>,
+        dir: &Vector3<f32>,
+        max_distance: f32,
+        layer_mask: CollisionMask,
+    ) -> Option<(RcRefCell<RenderObjectData<'a>>, f32)> {
+        if max_distance <= 0.0 || dir.magnitude_squared() <= 1e-12 {
+            return None;
+        }
+        let end_point = origin + dir * max_distance;
+        let bound_min = math::get_min(origin, &end_point);
+        let bound_max = math::get_max(origin, &end_point);
+        let candidates = self.collect_collision_objects_with_mask(&bound_min, &bound_max, layer_mask);
+
+        let mut closest_hit: Option<(RcRefCell<RenderObjectData<'a>>, f32)> = None;
+        let mut closest_dist = max_distance;
+        for candidate in candidates.values() {
+            let hit_dist = candidate.borrow()._collision.collide_ray_with_mask(origin, dir, layer_mask);
+            if let Some(dist) = hit_dist {
+                if dist <= closest_dist {
+                    closest_dist = dist;
+                    closest_hit = Some((candidate.clone(), dist));
+                }
+            }
+        }
+        closest_hit
     }
     pub fn register_collision_object(&mut self, object: &RcRefCell<RenderObjectData<'a>>) {
         if object.borrow().get_collision_type() != CollisionType::NONE {
@@ -855,7 +893,7 @@ impl<'a> SceneManager<'a> {
             }
 
             // render element for bound box
-            if unsafe { constants::RENDER_BOUND_BOX } && is_render_camera {
+            if constants::is_render_bound_box() && is_render_camera {
                 bound_boxes.push(BoundBoxInstanceData {
                     _transform: math::combinate_matrix2(
                         &render_object_data._bounding_box._center,
@@ -1041,6 +1079,10 @@ impl<'a> SceneManager<'a> {
 
             // update push constants data
             if is_last || is_changed {
+                let bound_height = {
+                    let bound_box = &render_element_info._mesh_data.borrow()._bound_box;
+                    bound_box._max.y.max(bound_box._max.y - bound_box._min.y).max(0.01)
+                };
                 let mut push_constant_data_list =
                     render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
                 for push_constant_data_mut in push_constant_data_list.iter_mut() {
@@ -1052,6 +1094,9 @@ impl<'a> SceneManager<'a> {
                         "_bone_count",
                         &PushConstantParameter::Int(render_object_data.get_bone_count() as i32),
                     );
+                    push_constant_data_mut
+                        ._push_constant
+                        .set_push_constant_parameter("_bound_height", &PushConstantParameter::Float(bound_height));
                 }
 
                 begin_block!("render element");

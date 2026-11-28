@@ -14,7 +14,6 @@ use serde_json::{self, Value};
 
 use crate::audio::audio_manager::{AudioBankCreateInfo, AudioBankData, AudioData};
 use crate::constants;
-use crate::constants::DEVELOPMENT;
 use crate::core::engine_service_locator::{get_engine_resources, get_renderer_context};
 use crate::effect::effect_data::{EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo};
 use crate::renderer::renderer_context::RendererContext;
@@ -1112,7 +1111,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn preinitialize_engine_resources(&mut self) {
-        if unsafe { DEVELOPMENT } {
+        if constants::is_development() {
             // update engine resources
             self.update_engine_resources();
             self.update_resource_list_file();
@@ -1782,7 +1781,7 @@ impl<'a> EngineResources<'a> {
             default_audio_bank_file_path.push(&audio_bank_directory);
             default_audio_bank_file_path.push(&DEFAULT_AUDIO_BANK_NAME);
             default_audio_bank_file_path.set_extension(EXT_AUDIO_BANK);
-            if unsafe { DEVELOPMENT } {
+            if constants::is_development() {
                 if false == default_audio_bank_file_path.is_file() {
                     let mut default_audio_bank_data_create_info = AudioBankCreateInfo::default();
                     default_audio_bank_data_create_info._audio_names.push(DEFAULT_AUDIO_NAME.to_string());
@@ -1892,7 +1891,7 @@ impl<'a> EngineResources<'a> {
         default_effect_file_path.push(EFFECT_DIRECTORY);
         default_effect_file_path.push(DEFAULT_EFFECT_NAME);
         default_effect_file_path.set_extension(EXT_EFFECT);
-        if unsafe { DEVELOPMENT } {
+        if constants::is_development() {
             if false == default_effect_file_path.is_file() {
                 let default_effect_data_create_info = EffectDataCreateInfo {
                     _emitter_data_create_infos: vec![EmitterDataCreateInfo {
@@ -2247,7 +2246,7 @@ impl<'a> EngineResources<'a> {
 
                 // Gets FontDataCreateInfo and also creates font texture files if needed.
                 let maybe_font_file = font_file_map.get(&font_data_name);
-                let font_data_create_info: FontDataCreateInfo = if unsafe { DEVELOPMENT }
+                let font_data_create_info: FontDataCreateInfo = if constants::is_development()
                     && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name))
                 {
                     if is_korean_source {
@@ -3049,7 +3048,7 @@ impl<'a> EngineResources<'a> {
         let mut combined_textures_name_map: HashMap<PathBuf, String> = HashMap::new();
 
         // generate necessary texture data_list
-        if unsafe { DEVELOPMENT } {
+        if constants::is_development() {
             let mut engine_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
             engine_texture_source_path.push(TEXTURE_SOURCE_DIRECTORY);
             texture_generator::generate_images(&engine_texture_source_path);
@@ -3103,7 +3102,7 @@ impl<'a> EngineResources<'a> {
         }
 
         // Cook changed source images (.png/.jpg/...) -> .dds with mipmaps in DEVELOPMENT / DEPLOY mode
-        if unsafe { DEVELOPMENT } {
+        if constants::is_development() {
             let excluded_sources: HashSet<PathBuf> = combined_textures_name_map.keys().cloned().collect();
             let engine_src_dir = PathBuf::from(ENGINE_RESOURCE_PATH).join(TEXTURE_SOURCE_DIRECTORY);
             let engine_out_dir = PathBuf::from(ENGINE_RESOURCE_PATH).join(TEXTURE_DIRECTORY);
@@ -3749,7 +3748,7 @@ impl<'a> EngineResources<'a> {
         let descriptor_data_create_infos = &pipeline_data_create_info._descriptor_data_create_infos;
         // TODO: Let's set an appropriate max_descriptor_pool_count according to the render pass
         let max_descriptor_pool_count: u32 =
-            unsafe { (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32 };
+            (constants::get_engine_config()._max_descriptor_pool_alloc_count * constants::SWAPCHAIN_IMAGE_COUNT) as u32;
         if let Some(descriptor_data) = self._descriptor_data_map.get(&descriptor_name) {
             return descriptor_data.clone();
         }

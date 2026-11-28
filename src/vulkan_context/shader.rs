@@ -5,7 +5,7 @@ use std::path::PathBuf;
 #[cfg(not(target_os = "android"))]
 use std::process;
 
-use crate::constants::DEVELOPMENT;
+use crate::constants;
 use crate::resource::resource;
 use crate::utilities::system;
 use crate::vulkan_context::debug_utils;
@@ -77,7 +77,7 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String], stage_
     let (is_engine_resource, shader_file_path) = get_shader_file_path(shader_filename);
     let spirv_file_path: PathBuf = spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
 
-    if unsafe { DEVELOPMENT } {
+    if constants::is_development() {
         // collect include files
         let re_include = Regex::new("\\#include\\s+[\"|<](.+?)[\"|>]").unwrap();
         if false == shader_file_path.is_file() {

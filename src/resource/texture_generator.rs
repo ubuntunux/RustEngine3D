@@ -210,13 +210,12 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         ..Default::default()
     });
 
-    let random_normals = generate_random_normals(unsafe { constants::SSAO_NOISE_DIM as u32 }, unsafe {
-        constants::SSAO_NOISE_DIM as u32
-    });
+    let ssao_noise_dim = constants::get_engine_config()._ssao_noise_dim as u32;
+    let random_normals = generate_random_normals(ssao_noise_dim, ssao_noise_dim);
     let texture_random_normal = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from(DEFAULT_RANDOM_NORMAL_TEXTURE),
-        _texture_width: unsafe { constants::SSAO_NOISE_DIM as u32 },
-        _texture_height: unsafe { constants::SSAO_NOISE_DIM as u32 },
+        _texture_width: ssao_noise_dim,
+        _texture_height: ssao_noise_dim,
         _texture_format: vk::Format::R32G32B32A32_SFLOAT,
         _texture_initial_data_list: random_normals,
         ..Default::default()

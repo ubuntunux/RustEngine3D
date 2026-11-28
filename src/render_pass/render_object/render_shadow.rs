@@ -1,4 +1,4 @@
-use crate::constants::{SHADOW_DEPTH_BIAS, SHADOW_DEPTH_SLOPE_BIAS};
+use crate::constants;
 use crate::render_pass::render_object::common;
 use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
@@ -83,9 +83,9 @@ pub fn get_render_pass_data_create_info(
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::FRONT,
         _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-        _pipeline_depth_bias_constant_factor: unsafe { SHADOW_DEPTH_BIAS },
+        _pipeline_depth_bias_constant_factor: constants::get_engine_config()._shadow_depth_bias,
         _pipeline_depth_bias_clamp: -1000.0,
-        _pipeline_depth_bias_slope_factor: unsafe { SHADOW_DEPTH_SLOPE_BIAS },
+        _pipeline_depth_bias_slope_factor: constants::get_engine_config()._shadow_depth_slope_bias,
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),

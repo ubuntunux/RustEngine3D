@@ -11,17 +11,16 @@ use nalgebra::{Matrix4, Vector3, Vector4, linalg};
 // LightData
 impl Default for LightData {
     fn default() -> LightData {
-        unsafe {
-            LightData {
-                _shadow_view_projection: Matrix4::identity(),
-                _inv_shadow_view_projection: Matrix4::identity(),
-                _light_position: Vector3::zeros(),
-                _shadow_samples: constants::SHADOW_SAMPLES,
-                _light_direction: math::get_top_down_view(),
-                _reserved0: 0,
-                _light_color: Vector3::new(1.0, 1.0, 1.0),
-                _reserved1: 0,
-            }
+        let cfg = constants::get_engine_config();
+        LightData {
+            _shadow_view_projection: Matrix4::identity(),
+            _inv_shadow_view_projection: Matrix4::identity(),
+            _light_position: Vector3::zeros(),
+            _shadow_samples: cfg._shadow_samples,
+            _light_direction: math::get_top_down_view(),
+            _reserved0: 0,
+            _light_color: Vector3::new(1.0, 1.0, 1.0),
+            _reserved1: 0,
         }
     }
 }
@@ -29,19 +28,18 @@ impl Default for LightData {
 // DirectionalLightCreateInfo
 impl Default for DirectionalLightCreateInfo {
     fn default() -> DirectionalLightCreateInfo {
-        unsafe {
-            DirectionalLightCreateInfo {
-                _position: Vector3::zeros(),
-                _rotation: math::get_top_down_view(),
-                _light_data: LightData::default(),
-                _shadow_update_distance: constants::SHADOW_UPDATE_DISTANCE,
-                _shadow_dimensions: Vector4::new(
-                    constants::SHADOW_DISTANCE,
-                    constants::SHADOW_DISTANCE,
-                    -constants::SHADOW_DEPTH,
-                    constants::SHADOW_DEPTH,
-                ),
-            }
+        let cfg = constants::get_engine_config();
+        DirectionalLightCreateInfo {
+            _position: Vector3::zeros(),
+            _rotation: math::get_top_down_view(),
+            _light_data: LightData::default(),
+            _shadow_update_distance: cfg._shadow_update_distance,
+            _shadow_dimensions: Vector4::new(
+                cfg._shadow_distance,
+                cfg._shadow_distance,
+                -cfg._shadow_depth,
+                cfg._shadow_depth,
+            ),
         }
     }
 }

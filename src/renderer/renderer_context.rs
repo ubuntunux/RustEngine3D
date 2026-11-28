@@ -151,21 +151,23 @@ impl<'a> RendererContext<'a> {
                 window_size.x,
                 window_size.y
             );
+            let engine_config = constants::get_engine_config().clone();
             let entry = Entry::linked();
             let surface_extensions =
                 ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap();
-            let required_layer_names =
-                device::get_instance_layers(&entry, &*&raw const constants::REQUIRED_INSTANCE_LAYERS);
+            let required_layer_names = device::get_instance_layers(&entry, &engine_config._required_instance_layers);
             let required_instance_layers: Vec<*const c_char> =
                 required_layer_names.iter().map(|layer| layer.as_ptr()).collect();
-            let device_extensions: Vec<CString> = (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
+            let device_extensions: Vec<CString> = engine_config
+                ._required_device_extensions
                 .iter()
                 .map(|str| CString::new(str.as_str()).unwrap())
                 .collect();
             let mut device_extension_names_raw: Vec<*const c_char> =
                 device_extensions.iter().map(|extension| extension.as_ptr()).collect();
-            let device_extensions_for_ray_tracing: Vec<CString> = if *&raw const constants::USE_RAY_TRACING {
-                (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
+            let device_extensions_for_ray_tracing: Vec<CString> = if engine_config._use_ray_tracing {
+                engine_config
+                    ._required_ray_tracing_extensions
                     .iter()
                     .map(|str| CString::new(str.as_str()).unwrap())
                     .collect()
@@ -195,7 +197,7 @@ impl<'a> RendererContext<'a> {
             let device_memory_properties: vk::PhysicalDeviceMemoryProperties =
                 instance.get_physical_device_memory_properties(physical_device);
             let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
-            let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
+            let enable_ray_tracing = has_ray_tracing_extensions && engine_config._use_ray_tracing;
 
             log::info!("PhysicalDeviceProperties");
             log::info!(
@@ -244,11 +246,11 @@ impl<'a> RendererContext<'a> {
                 &surface_instance,
                 surface,
                 physical_device,
-                constants::IS_CONCURRENT_MODE,
+                engine_config._is_concurrent_mode,
             );
             let render_features = RenderFeatures {
                 _physical_device_features: vk::PhysicalDeviceFeatures {
-                    shader_clip_distance: if constants::SHADER_CLIP_DISTANCE { 1 } else { 0 },
+                    shader_clip_distance: if engine_config._shader_clip_distance { 1 } else { 0 },
                     ..physical_device_features.clone()
                 },
                 _msaa_samples: msaa_samples,
@@ -273,8 +275,8 @@ impl<'a> RendererContext<'a> {
             let debug_call_back: vk::DebugUtilsMessengerEXT;
             let debug_utils_device: Option<ext::debug_utils::Device>;
             let debug_utils_instance: Option<ext::debug_utils::Instance>;
-            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
-                let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
+            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != engine_config._debug_message_level {
+                let debug_message_level = get_debug_message_level(engine_config._debug_message_level);
                 let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
                     message_severity: debug_message_level,
                     message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
@@ -316,7 +318,7 @@ impl<'a> RendererContext<'a> {
                 &queue_family_data_list,
                 window_size.x as u32,
                 window_size.y as u32,
-                constants::ENABLE_IMMEDIATE_MODE,
+                engine_config._enable_immediate_mode,
             );
             let image_available_semaphores = sync::create_semaphores(&device);
             let render_finished_semaphores = sync::create_semaphores(&device);
@@ -1089,7 +1091,7 @@ impl<'a> RendererContext<'a> {
             &self._queue_family_data_list,
             window_width,
             window_height,
-            unsafe { constants::ENABLE_IMMEDIATE_MODE },
+            constants::get_engine_config()._enable_immediate_mode,
         );
         self._command_buffers = command_buffer::create_command_buffers(
             &self._device,
