@@ -79,7 +79,7 @@ struct PushConstant_RenderObjectBase
     uint _transform_offset_index;
     uint _bone_count;
     float _bound_height;
-    uint _reserved0;
+    float _wind_strength;
 };
 
 #define BEGIN_PUSH_CONSTANT(type_name) layout( push_constant ) uniform type_name { PushConstant_RenderObjectBase push_constant_base;

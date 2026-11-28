@@ -81,7 +81,7 @@ pub struct PushConstant_RenderObjectBase {
     pub _transform_offset_index: u32,
     pub _bone_count: u32,
     pub _bound_height: f32,
-    pub _reserved0: u32,
+    pub _wind_strength: f32,
 }
 
 impl Default for PushConstant_RenderObjectBase {
@@ -91,7 +91,7 @@ impl Default for PushConstant_RenderObjectBase {
             _transform_offset_index: 0,
             _bone_count: 0,
             _bound_height: 1.0,
-            _reserved0: 0,
+            _wind_strength: 1.0,
         }
     }
 }
@@ -106,6 +106,8 @@ impl PushConstant for PushConstant_RenderObjectBase {
     fn get_push_constant_parameter(&self, key: &str) -> PushConstantParameter {
         if "_color" == key {
             return PushConstantParameter::Float4(self._color.clone());
+        } else if "_wind_strength" == key {
+            return PushConstantParameter::Float(self._wind_strength);
         }
         PushConstantParameter::None
     }
@@ -122,6 +124,16 @@ impl PushConstant for PushConstant_RenderObjectBase {
         } else if "_bound_height" == key {
             if let PushConstantParameter::Float(bound_height) = value {
                 self._bound_height = *bound_height;
+            }
+        } else if "_wind_strength" == key {
+            match value {
+                PushConstantParameter::Float(wind_strength) => {
+                    self._wind_strength = *wind_strength;
+                }
+                PushConstantParameter::Int(wind_strength) => {
+                    self._wind_strength = *wind_strength as f32;
+                }
+                _ => {}
             }
         } else if "_color" == key {
             if let PushConstantParameter::Float4(value) = value {
@@ -310,3 +322,28 @@ impl PushConstantName for PushConstant_RenderFinal {
 }
 
 impl PushConstant for PushConstant_RenderFinal {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_render_object_base_wind_strength_default_and_material_params() {
+        let mut base = PushConstant_RenderObjectBase::default();
+        assert_eq!(base._wind_strength, 1.0);
+        match base.get_push_constant_parameter("_wind_strength") {
+            PushConstantParameter::Float(v) => assert_eq!(v, 1.0),
+            other => panic!("Expected Float(1.0), got {:?}", other),
+        }
+
+        let float_params: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(r#"{"_wind_strength": 0.45}"#).unwrap();
+        base.update_material_parameters(&float_params);
+        assert!((base._wind_strength - 0.45).abs() < 1e-6);
+
+        let int_params: serde_json::Map<String, serde_json::Value> =
+            serde_json::from_str(r#"{"_wind_strength": 0}"#).unwrap();
+        base.update_material_parameters(&int_params);
+        assert_eq!(base._wind_strength, 0.0);
+    }
+}
