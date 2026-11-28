@@ -5,6 +5,7 @@
 #include "scene_constants.glsl"
 #include "utility.glsl"
 #include "../precomputed_atmosphere/atmosphere_predefined.glsl"
+#define ENABLE_DEFERRED_LIGHTING_AND_FOG
 #include "shading.glsl"
 #include "render_quad_common.glsl"
 
@@ -42,6 +43,11 @@ layout(binding = 15) uniform sampler2D irradiance_texture;
 layout(binding = 16) uniform sampler3D scattering_texture;
 layout(binding = 17) uniform sampler3D single_mie_scattering_texture;
 layout(binding = 18) uniform sampler2D textureSceneGI;
+layout(binding = 19) uniform LocalLightingData
+{
+    LOCAL_LIGHTING_DATA local_lighting_data;
+};
+layout(binding = 20) uniform sampler3D textureVolumetricFog;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -77,7 +83,9 @@ void main() {
     float shadow_resolved = 1.0;
     float ao_resolved = 1.0;
     vec3 bent_normal = N;
-    if ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)
+    const bool has_shadow_option = (scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u;
+    const bool has_ssao_option = (scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0u;
+    if (has_shadow_option || has_ssao_option)
     {
         vec4 shadow_ao_center = textureLod(textureShadowResolved, vs_output.texCoord, 0.0);
         // 5-tap depth-aware bilateral filter on ShadowAO.xy removes PCSS/Contact/GTAO dither while preserving sharp edges
@@ -108,9 +116,9 @@ void main() {
             }
         }
         filtered_xy /= max(weight_sum, 1e-5);
-        shadow_resolved = filtered_xy.x;
-        ao_resolved = filtered_xy.y;
-        if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0u)
+        shadow_resolved = has_shadow_option ? filtered_xy.x : 1.0;
+        ao_resolved = has_ssao_option ? filtered_xy.y : 1.0;
+        if (has_ssao_option)
         {
             bent_normal = normalize(oct_decode_normal(shadow_ao_center.zw));
         }
@@ -209,7 +217,10 @@ void main() {
         bent_normal,
         V,
         depth,
-        IS_COMBINED_SHADOW
+        IS_COMBINED_SHADOW,
+        local_lighting_data,
+        textureSceneDepth,
+        textureVolumetricFog
     );
     outColor.xyz += emissive_color;
     outColor.w = 1.0;

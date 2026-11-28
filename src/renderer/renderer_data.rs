@@ -17,6 +17,7 @@ use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
     RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_RenderFinal,
     RenderContext_SceneColorDownSampling, RenderContext_ShadowAO, RenderContext_TAA, RenderContext_TAA_Simple,
+    RenderContext_VolumetricFog,
 };
 use crate::renderer::render_target::{self, RenderTargetType};
 use crate::renderer::renderer_context::RendererContext;
@@ -185,6 +186,8 @@ pub enum RenderOption {
     RenderGodRays = 1 << 16,
     RenderDepthOfField = 1 << 17,
     RenderStylizedOutline = 1 << 18,
+    RenderVolumetricFog = 1 << 19,
+    RenderLocalContactShadow = 1 << 20,
     ALL = 0xffffffff,
 }
 
@@ -206,12 +209,14 @@ pub struct RendererData<'a> {
     pub _render_context_ssr: RenderContext_TAA_Simple<'a>,
     pub _render_context_ssgi: RenderContext_TAA_Simple<'a>,
     pub _render_context_composite_gbuffer: RenderContext_CompositeGBuffer,
+    pub _render_context_volumetric_fog: RenderContext_VolumetricFog,
     pub _render_context_render_final: RenderContext_RenderFinal,
     pub _render_context_clear_render_targets: RenderContext_ClearRenderTargets<'a>,
     pub _render_context_light_probe: RenderContext_LightProbe<'a>,
     pub _fft_ocean: FFTOcean<'a>,
     pub _atmosphere: Atmosphere<'a>,
     pub _render_option: u32,
+    pub _csm_cascade_count: u32,
     pub _tone_mapping_mode: ToneMappingMode,
     pub _color_grading_lut: ColorGradingLut,
     pub _exposure: f32,
@@ -326,6 +331,15 @@ impl<'a> RendererData<'a> {
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSGIResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSGIResolvedPrev).as_ref().unwrap(),
+        );
+
+        // 3D Froxel Volumetric Fog
+        self._render_context_volumetric_fog.initialize(
+            device,
+            debug_utils_device,
+            engine_resources,
+            self._render_target_data_map.get(&RenderTargetType::VolumetricFogInject).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::VolumetricFogInjectPrev).as_ref().unwrap(),
         );
 
         // Render Final (Color Grading LUT descriptors)
@@ -503,6 +517,7 @@ impl<'a> RendererData<'a> {
         self._render_context_ssr.destroy(device);
         self._render_context_ssgi.destroy(device);
         self._render_context_composite_gbuffer.destroy(device);
+        self._render_context_volumetric_fog.destroy();
         self._render_context_render_final.destroy(device);
         self._render_context_clear_render_targets.destroy(device);
         self._render_context_light_probe.destroy(device);
@@ -522,6 +537,14 @@ impl<'a> RendererData<'a> {
         } else {
             self._render_option &= !(option as u32);
         }
+    }
+
+    pub fn set_csm_cascade_count(&mut self, cascade_count: u32) {
+        self._csm_cascade_count = cascade_count.min(constants::CSM_CASCADE_COUNT as u32);
+    }
+
+    pub fn get_csm_cascade_count(&self) -> u32 {
+        self._csm_cascade_count
     }
 
     pub fn set_render_scene(&mut self, enable: bool) {
@@ -577,6 +600,7 @@ impl<'a> RendererData<'a> {
         // Keep SSR and SSGI temporal ping-pong indices strictly in lockstep for CompositeGBuffer descriptor selection
         self._render_context_ssr.update();
         self._render_context_ssgi.update();
+        self._render_context_volumetric_fog.swap_ping_pong();
     }
 
     pub fn upload_uniform_buffers(
@@ -648,6 +672,12 @@ impl<'a> RendererData<'a> {
         self.upload_shader_buffer_data(
             command_buffer,
             swapchain_index,
+            &ShaderBufferDataType::LocalLightingData,
+            scene_manager.get_render_local_lighting_data(),
+        );
+        self.upload_shader_buffer_data(
+            command_buffer,
+            swapchain_index,
             &ShaderBufferDataType::ShadowAOConstants,
             &self._render_context_shadow_ao._shadow_ao_constants,
         );
@@ -702,12 +732,14 @@ impl<'a> RendererData<'a> {
             _render_context_ssr: RenderContext_TAA_Simple::default(),
             _render_context_ssgi: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
+            _render_context_volumetric_fog: RenderContext_VolumetricFog::default(),
             _render_context_render_final: RenderContext_RenderFinal::default(),
             _render_context_clear_render_targets: RenderContext_ClearRenderTargets::default(),
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
             _render_option: constants::get_engine_config()._current_render_option,
+            _csm_cascade_count: constants::get_engine_config()._csm_cascade_count,
             _tone_mapping_mode: constants::get_engine_config()._tone_mapping_mode,
             _color_grading_lut: constants::get_engine_config()._color_grading_lut,
             _exposure: constants::get_engine_config()._exposure,
@@ -973,6 +1005,56 @@ impl<'a> RendererData<'a> {
                 }
             }
         }
+
+        // Clear 3D Froxel Volumetric Fog textures directly via vkCmdClearColorImage
+        let fog_subresource_range = vk::ImageSubresourceRange {
+            aspect_mask: vk::ImageAspectFlags::COLOR,
+            base_mip_level: 0,
+            level_count: 1,
+            base_array_layer: 0,
+            layer_count: 1,
+        };
+        let clear_zero = vk::ClearColorValue {
+            float32: [0.0, 0.0, 0.0, 0.0],
+        };
+        let clear_identity_transmittance = vk::ClearColorValue {
+            float32: [0.0, 0.0, 0.0, 1.0],
+        };
+        unsafe {
+            renderer_context.get_device().cmd_clear_color_image(
+                command_buffer,
+                self.get_render_target(RenderTargetType::VolumetricFogInject)._image,
+                vk::ImageLayout::GENERAL,
+                &clear_zero,
+                &[fog_subresource_range],
+            );
+            renderer_context.get_device().cmd_clear_color_image(
+                command_buffer,
+                self.get_render_target(RenderTargetType::VolumetricFogInjectPrev)._image,
+                vk::ImageLayout::GENERAL,
+                &clear_zero,
+                &[fog_subresource_range],
+            );
+            renderer_context.get_device().cmd_clear_color_image(
+                command_buffer,
+                self.get_render_target(RenderTargetType::VolumetricFogAccum)._image,
+                vk::ImageLayout::GENERAL,
+                &clear_identity_transmittance,
+                &[fog_subresource_range],
+            );
+        }
+        let clear_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE);
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::TRANSFER,
+            vk::PipelineStageFlags::COMPUTE_SHADER | vk::PipelineStageFlags::FRAGMENT_SHADER,
+            vk::DependencyFlags::empty(),
+            &[clear_barrier],
+            &[],
+            &[],
+        );
     }
 
     pub fn copy_cube_map(
@@ -1390,6 +1472,25 @@ impl<'a> RendererData<'a> {
         render_pass_name: &str,
         render_elements: &Vec<RenderElementData>,
     ) {
+        self.render_solid_object_with_viewport(
+            renderer_context,
+            command_buffer,
+            swapchain_index,
+            render_pass_name,
+            render_elements,
+            None,
+        );
+    }
+
+    pub fn render_solid_object_with_viewport(
+        &self,
+        renderer_context: &RendererContext<'a>,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        render_pass_name: &str,
+        render_elements: &Vec<RenderElementData>,
+        custom_viewport_scissor: Option<(vk::Viewport, vk::Rect2D)>,
+    ) {
         if 0 == render_elements.len() {
             return;
         }
@@ -1426,6 +1527,9 @@ impl<'a> RendererData<'a> {
                             pipeline_data,
                             None,
                         );
+                        if let Some((viewport, scissor)) = custom_viewport_scissor {
+                            renderer_context.set_viewport_and_scissor(command_buffer, viewport, scissor);
+                        }
                         prev_pipeline_data = pipeline_data_ptr;
                     }
 
@@ -1979,6 +2083,78 @@ impl<'a> RendererData<'a> {
         );
     }
 
+    pub fn render_volumetric_fog(
+        &self,
+        renderer_context: &RendererContext<'a>,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+    ) {
+        let _label_volumetric_fog = ScopedDebugLabel::create_scoped_cmd_label(
+            renderer_context.get_debug_utils(),
+            command_buffer,
+            "render_volumetric_fog",
+        );
+
+        let engine_resources = get_engine_resources();
+        let material_instance = engine_resources.get_material_instance_data("common/render_volumetric_fog").borrow();
+        let ping_pong = self._render_context_volumetric_fog._ping_pong_index;
+
+        // Pass 1: Inject scattering + extinction into 3D froxel grid with temporal reprojection
+        let inject_binding = material_instance.get_pipeline_binding_data("render_volumetric_fog/inject");
+        let group_x = constants::VOLUMETRIC_FOG_GRID_WIDTH.div_ceil(8).max(1);
+        let group_y = constants::VOLUMETRIC_FOG_GRID_HEIGHT.div_ceil(8).max(1);
+        let group_z = constants::VOLUMETRIC_FOG_GRID_DEPTH.div_ceil(4).max(1);
+        renderer_context.dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            inject_binding,
+            group_x,
+            group_y,
+            group_z,
+            Some(&self._render_context_volumetric_fog._inject_descriptor_sets[ping_pong]),
+            None,
+        );
+
+        let inject_to_integrate_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ);
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::DependencyFlags::empty(),
+            &[inject_to_integrate_barrier],
+            &[],
+            &[],
+        );
+
+        // Pass 2: Front-to-back transmittance & in-scattering integration along Z
+        let integrate_binding = material_instance.get_pipeline_binding_data("render_volumetric_fog/integrate");
+        renderer_context.dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            integrate_binding,
+            group_x,
+            group_y,
+            1,
+            Some(&self._render_context_volumetric_fog._integrate_descriptor_sets[ping_pong]),
+            None,
+        );
+
+        let integrate_to_fragment_barrier = vk::MemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::SHADER_WRITE)
+            .dst_access_mask(vk::AccessFlags::SHADER_READ);
+        renderer_context.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::COMPUTE_SHADER,
+            vk::PipelineStageFlags::FRAGMENT_SHADER,
+            vk::DependencyFlags::empty(),
+            &[integrate_to_fragment_barrier],
+            &[],
+            &[],
+        );
+    }
+
     pub fn render_pre_process(
         &self,
         renderer_context: &RendererContext<'a>,
@@ -1999,9 +2175,17 @@ impl<'a> RendererData<'a> {
             self.render_ssgi(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
         }
 
-        // ShadowAO
-        if self.has_render_option(RenderOption::RenderShadow) {
+        // ShadowAO (runs when either CSM Shadows or GTAO is enabled)
+        if self.has_render_option(RenderOption::RenderShadow) || self.has_render_option(RenderOption::RenderSSAO) {
             self.render_shadow_ao(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
+        }
+
+        // 3D Froxel Volumetric Fog
+        if self.has_render_option(RenderOption::RenderVolumetricFog)
+            && self.has_render_option(RenderOption::RenderHeightFog)
+            && self._height_fog_intensity > 0.001
+        {
+            self.render_volumetric_fog(renderer_context, command_buffer, swapchain_index);
         }
 
         // Composite GBuffer
@@ -2184,12 +2368,17 @@ impl<'a> RendererData<'a> {
             );
         }
 
-        // render shadow
-        {
+        // render CSM shadow atlas (up to 4 cascades in 2x2 tiles of RenderTargetType::Shadow; 0 disables shadows)
+        let active_csm_cascades = if self.has_render_option(RenderOption::RenderShadow) {
+            (self._csm_cascade_count as usize).min(constants::CSM_CASCADE_COUNT)
+        } else {
+            0
+        };
+        if active_csm_cascades > 0 {
             let _label_render_shadow = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
-                "render shadow",
+                "render_shadow_csm",
             );
             renderer_context.render_material_instance(
                 command_buffer,
@@ -2201,19 +2390,75 @@ impl<'a> RendererData<'a> {
                 None,
                 None,
             );
-            self.render_solid_object(
-                renderer_context,
+
+            let shadow_target = self.get_render_target(RenderTargetType::Shadow);
+            let grid_dim = constants::CSM_ATLAS_GRID_DIM.max(1);
+            let tile_w = (shadow_target._image_width / grid_dim).max(1);
+            let tile_h = (shadow_target._image_height / grid_dim).max(1);
+            let light_buffer = self.get_shader_buffer_data(&ShaderBufferDataType::LightData);
+            let active_cascade_offset =
+                std::mem::offset_of!(crate::scene::light::LightData, _active_shadow_cascade) as vk::DeviceSize;
+
+            for cascade_idx in 0..active_csm_cascades {
+                let tile_x = (cascade_idx as u32) % grid_dim;
+                let tile_y = (cascade_idx as u32) / grid_dim;
+                let viewport = vk::Viewport {
+                    x: (tile_x * tile_w) as f32,
+                    y: (tile_y * tile_h) as f32,
+                    width: tile_w as f32,
+                    height: tile_h as f32,
+                    min_depth: 0.0,
+                    max_depth: 1.0,
+                };
+                let scissor = vk::Rect2D {
+                    offset: vk::Offset2D {
+                        x: (tile_x * tile_w) as i32,
+                        y: (tile_y * tile_h) as i32,
+                    },
+                    extent: vk::Extent2D {
+                        width: tile_w,
+                        height: tile_h,
+                    },
+                };
+
+                renderer_context.update_shader_buffer_i32_at_offset(
+                    command_buffer,
+                    swapchain_index,
+                    light_buffer,
+                    active_cascade_offset,
+                    cascade_idx as i32,
+                );
+
+                self.render_solid_object_with_viewport(
+                    renderer_context,
+                    command_buffer,
+                    swapchain_index,
+                    render_shadow::get_render_pass_name(RenderObjectType::Static),
+                    &static_shadow_render_elements,
+                    Some((viewport, scissor)),
+                );
+                self.render_solid_object_with_viewport(
+                    renderer_context,
+                    command_buffer,
+                    swapchain_index,
+                    render_shadow::get_render_pass_name(RenderObjectType::Skeletal),
+                    &skeletal_shadow_render_elements,
+                    Some((viewport, scissor)),
+                );
+            }
+
+            // Make all 4 shadow atlas cascades visible to subsequent fragment & volumetric compute shaders
+            let shadow_barrier = vk::MemoryBarrier::default()
+                .src_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
+                .dst_access_mask(vk::AccessFlags::SHADER_READ);
+            renderer_context.pipeline_barrier(
                 command_buffer,
-                swapchain_index,
-                render_shadow::get_render_pass_name(RenderObjectType::Static),
-                &static_shadow_render_elements,
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                render_shadow::get_render_pass_name(RenderObjectType::Skeletal),
-                &skeletal_shadow_render_elements,
+                vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+                vk::PipelineStageFlags::FRAGMENT_SHADER | vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::empty(),
+                &[shadow_barrier],
+                &[],
+                &[],
             );
         }
 

@@ -79,7 +79,8 @@ void main() {
     out_vertex_output._projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
     out_vertex_output._projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
 #elif (RenderMode_Shadow == RenderMode)
-    out_vertex_output._projection_pos = light_data.SHADOW_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
+    int cascade_idx = clamp(light_data.ACTIVE_SHADOW_CASCADE, 0, CSM_CASCADE_COUNT - 1);
+    out_vertex_output._projection_pos = light_data.CSM_VIEW_PROJECTIONS[cascade_idx] * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
 #elif (RenderMode_CaptureHeightMap == RenderMode)
     out_vertex_output._projection_pos = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
 #endif

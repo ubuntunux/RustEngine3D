@@ -1,0 +1,4 @@
+{"material_name": "common/render_volumetric_fog",
+ "material_parameters": {
+     "texture_cloud": "precomputed_atmosphere/cloud_3d"
+ }}

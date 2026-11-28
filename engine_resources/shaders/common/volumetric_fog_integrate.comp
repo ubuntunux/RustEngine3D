@@ -1,0 +1,60 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene_constants.glsl"
+#include "utility.glsl"
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(binding = 0) uniform SceneConstants
+{
+    SCENE_CONSTANTS scene_constants;
+};
+layout(binding = 1) uniform ViewConstants
+{
+    VIEW_CONSTANTS view_constants;
+};
+layout(binding = 2) uniform sampler3D textureFogInject;
+layout(binding = 3, rgba16f) writeonly uniform image3D imageFogAccum;
+
+float slice_to_linear_depth(float slice_norm)
+{
+    return VOLUMETRIC_FOG_NEAR * pow(VOLUMETRIC_FOG_FAR / VOLUMETRIC_FOG_NEAR, saturate(slice_norm));
+}
+
+void main()
+{
+    ivec3 grid_size = imageSize(imageFogAccum);
+    ivec2 xy = ivec2(gl_GlobalInvocationID.xy);
+    if (xy.x >= grid_size.x || xy.y >= grid_size.y)
+    {
+        return;
+    }
+
+    vec3 accum_inscatter = vec3(0.0);
+    float accum_transmittance = 1.0;
+    float prev_depth = VOLUMETRIC_FOG_NEAR;
+
+    for (int z = 0; z < grid_size.z; ++z)
+    {
+        float next_depth = slice_to_linear_depth(float(z + 1) / float(grid_size.z));
+        float slice_thickness = max(next_depth - prev_depth, 0.001);
+        prev_depth = next_depth;
+
+        vec4 froxel = texelFetch(textureFogInject, ivec3(xy, z), 0);
+        vec3 scattering = max(froxel.rgb, vec3(0.0));
+        float extinction = max(froxel.a, 0.0);
+
+        // Energy-conserving analytical slice integration (Frostbite / Hillaire 2015)
+        float slice_transmittance = exp(-extinction * slice_thickness);
+        vec3 slice_inscatter = (extinction > 1e-5)
+            ? (scattering - scattering * slice_transmittance) / extinction
+            : (scattering * slice_thickness);
+
+        accum_inscatter += accum_transmittance * slice_inscatter;
+        accum_transmittance *= slice_transmittance;
+
+        imageStore(imageFogAccum, ivec3(xy, z), vec4(accum_inscatter, accum_transmittance));
+    }
+}

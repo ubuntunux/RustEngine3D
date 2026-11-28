@@ -46,6 +46,23 @@ pub const RCAS_SHARPNESS_UPSCALE: f32 = 0.45;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const MAX_POINT_LIGHTS: usize = 32; // NOTE: Ensure enum values match in scene_constants.glsl
+pub const MAX_SPOT_LIGHTS: usize = 16; // NOTE: Ensure enum values match in scene_constants.glsl
+pub const MAX_LOCAL_LIGHT_PROBES: usize = 16; // NOTE: Ensure enum values match in scene_constants.glsl
+pub const CSM_CASCADE_COUNT: usize = 4; // NOTE: Ensure enum values match in scene_constants.glsl
+pub const CSM_DEFAULT_SPLIT_DISTANCES: [f32; CSM_CASCADE_COUNT] = [18.0, 52.0, 140.0, 340.0];
+pub const CSM_SPLIT_PRESETS: [[f32; CSM_CASCADE_COUNT]; CSM_CASCADE_COUNT + 1] = [
+    [0.0, 0.0, 0.0, 0.0],
+    [90.0, 90.0, 90.0, 90.0],
+    [26.0, 130.0, 130.0, 130.0],
+    [20.0, 68.0, 220.0, 220.0],
+    [18.0, 52.0, 140.0, 340.0],
+];
+pub const CSM_ATLAS_GRID_DIM: u32 = 2; // 2x2 atlas inside RenderTargetType::Shadow
+pub const VOLUMETRIC_FOG_GRID_WIDTH: u32 = 160;
+pub const VOLUMETRIC_FOG_GRID_HEIGHT: u32 = 90;
+pub const VOLUMETRIC_FOG_GRID_DEPTH: u32 = 64;
+pub const VOLUMETRIC_FOG_NEAR: f32 = 0.5;
+pub const VOLUMETRIC_FOG_FAR: f32 = 160.0;
 pub const LIGHT_GRID_DIMENSION: [usize; 3] = [10, 10, 10];
 pub const LIGHT_GRID_CELL_COUNT: usize = LIGHT_GRID_DIMENSION[0] * LIGHT_GRID_DIMENSION[1] * LIGHT_GRID_DIMENSION[2];
 pub const MAX_LIGHT_COUNT_PER_CELL: usize = 4;
@@ -90,6 +107,7 @@ pub struct EngineConfig {
     pub _far: f32,
     pub _fov: f32,
     pub _shadow_map_size: u32,
+    pub _csm_cascade_count: u32,
     pub _shadow_samples: i32,
     pub _shadow_distance: f32,
     pub _shadow_depth: f32,
@@ -137,6 +155,7 @@ impl Default for EngineConfig {
             _far: 200000.0,
             _fov: 60.0,
             _shadow_map_size: 2048,
+            _csm_cascade_count: CSM_CASCADE_COUNT as u32,
             _shadow_samples: 12,
             _shadow_distance: 100.0,
             _shadow_depth: 10000.0,

@@ -15,9 +15,13 @@ pub struct LightData {
     pub _light_position: Vector3<f32>,
     pub _shadow_samples: i32,
     pub _light_direction: Vector3<f32>,
-    pub _reserved0: i32,
+    pub _active_shadow_cascade: i32,
     pub _light_color: Vector3<f32>,
-    pub _reserved1: i32,
+    pub _csm_cascade_count: i32,
+    pub _csm_view_projections: [Matrix4<f32>; constants::CSM_CASCADE_COUNT],
+    pub _inv_csm_view_projections: [Matrix4<f32>; constants::CSM_CASCADE_COUNT],
+    pub _csm_split_distances: Vector4<f32>,
+    pub _csm_atlas_rects: [Vector4<f32>; constants::CSM_CASCADE_COUNT],
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -36,6 +40,8 @@ pub struct DirectionalLight {
     pub _light_name: String,
     pub _light_data: LightData,
     pub _light_shadow_projection: Matrix4<f32>,
+    pub _shadow_depth: f32,
+    pub _csm_split_distances: [f32; constants::CSM_CASCADE_COUNT],
     pub _transform_object: TransformObjectData,
     pub _updated_light_data: bool,
     pub _shadow_update_distance: f32,
@@ -79,4 +85,86 @@ pub struct PointLight {
     pub _light_name: String,
     pub _light_data: PointLightData,
     pub _bounding_box: BoundingBox,
+}
+
+// scene_constants.glsl - struct SPOT_LIGHT_DATA
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SpotLightData {
+    pub _light_position: Vector3<f32>,
+    pub _radius: f32,
+    pub _light_direction: Vector3<f32>,
+    pub _outer_cos_angle: f32,
+    pub _light_color: Vector3<f32>,
+    pub _inner_cos_angle: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct SpotLightCreateInfo {
+    pub _light_position: Vector3<f32>,
+    pub _light_direction: Vector3<f32>,
+    pub _light_color: Vector3<f32>,
+    pub _radius: f32,
+    pub _inner_angle_deg: f32,
+    pub _outer_angle_deg: f32,
+}
+
+#[derive(Clone, Debug)]
+pub struct SpotLight {
+    pub _object_id: SceneObjectID,
+    pub _light_name: String,
+    pub _light_data: SpotLightData,
+    pub _bounding_box: BoundingBox,
+}
+
+// scene_constants.glsl - struct LOCAL_LIGHT_PROBE_DATA
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct LocalLightProbeData {
+    pub _position: Vector3<f32>,
+    pub _blend_distance: f32,
+    pub _half_extents: Vector3<f32>,
+    pub _indoor_factor: f32,
+    pub _sky_irradiance: Vector3<f32>,
+    pub _intensity: f32,
+    pub _ground_irradiance: Vector3<f32>,
+    pub _priority: f32,
+    pub _side_irradiance: Vector3<f32>,
+    pub _specular_tint: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
+pub struct LocalLightProbeCreateInfo {
+    pub _position: Vector3<f32>,
+    pub _half_extents: Vector3<f32>,
+    pub _blend_distance: f32,
+    pub _indoor_factor: f32,
+    pub _sky_irradiance: Vector3<f32>,
+    pub _ground_irradiance: Vector3<f32>,
+    pub _side_irradiance: Vector3<f32>,
+    pub _intensity: f32,
+    pub _priority: f32,
+    pub _specular_tint: f32,
+}
+
+#[derive(Clone, Debug)]
+pub struct LocalLightProbe {
+    pub _object_id: SceneObjectID,
+    pub _probe_name: String,
+    pub _probe_data: LocalLightProbeData,
+    pub _bounding_box: BoundingBox,
+}
+
+// scene_constants.glsl - struct LOCAL_LIGHTING_DATA
+#[repr(C)]
+#[derive(Clone)]
+pub struct LocalLightingData {
+    pub _spot_lights: [SpotLightData; constants::MAX_SPOT_LIGHTS],
+    pub _local_light_probes: [LocalLightProbeData; constants::MAX_LOCAL_LIGHT_PROBES],
+    pub _spot_light_count: i32,
+    pub _local_light_probe_count: i32,
+    pub _reserved0: i32,
+    pub _reserved1: i32,
 }

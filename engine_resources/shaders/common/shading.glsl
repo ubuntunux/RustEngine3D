@@ -156,6 +156,458 @@ float get_shadow_factor_pcss(
     return saturate(total_shadow / float(VOGEL_SAMPLES));
 }
 
+float get_shadow_factor_atlas(
+    const float time,
+    const in ivec2 screen_pos,
+    const in vec3 world_position,
+    const in mat4 shadow_view_projection,
+    const in vec4 atlas_rect,
+    const int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
+)
+{
+    const vec2 shadow_texture_size = vec2(textureSize(texture_shadow, 0));
+    const vec2 shadow_texel_size = 1.0 / max(shadow_texture_size, vec2(1.0));
+    vec4 shadow_proj = shadow_view_projection * vec4(world_position, 1.0);
+    shadow_proj.xyz /= shadow_proj.w;
+    shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
+
+    if(1.0 < shadow_proj.x || shadow_proj.x < 0.0 || 1.0 < shadow_proj.y || shadow_proj.y < 0.0 || 1.0 < shadow_proj.z || shadow_proj.z < 0.0)
+    {
+        return 1.0;
+    }
+
+    const vec2 tile_min = atlas_rect.xy + shadow_texel_size * 1.5;
+    const vec2 tile_max = atlas_rect.xy + atlas_rect.zw - shadow_texel_size * 1.5;
+    const vec2 base_uv = atlas_rect.xy + shadow_proj.xy * atlas_rect.zw;
+
+    const vec2 shadow_noise_radius = shadow_texel_size * 2.5;
+    const float rot_angle = interleaved_gradient_noise(screen_pos) * TWO_PI;
+    const float cs = cos(rot_angle);
+    const float sn = sin(rot_angle);
+    const mat2 rot = mat2(cs, -sn, sn, cs);
+
+    float total_shadow_factor = 0.0;
+    for(int sample_index = 0; sample_index < sample_count; ++sample_index)
+    {
+        const vec2 offset = (sample_count > 4) ? (rot * PoissonSamples[sample_index % PoissonSampleCount]) : PoissonSamples[sample_index % PoissonSampleCount];
+        const vec2 shadow_uv = clamp(base_uv + offset * shadow_noise_radius, tile_min, tile_max);
+        const float sample_shadow_depth = textureLod(texture_shadow, shadow_uv, 0.0).x;
+        float shadow_factor = shadow_proj.z < (sample_shadow_depth + depth_bias) ? 0.0 : 1.0;
+        total_shadow_factor += shadow_factor;
+    }
+    return saturate(total_shadow_factor / float(sample_count));
+}
+
+float get_shadow_factor_pcss_atlas(
+    const float time,
+    const in ivec2 screen_pos,
+    const in vec3 world_position,
+    const in mat4 shadow_view_projection,
+    const in mat4 inv_shadow_view_projection,
+    const in vec4 atlas_rect,
+    const int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
+)
+{
+    const vec2 shadow_texture_size = vec2(textureSize(texture_shadow, 0));
+    const vec2 shadow_texel_size = 1.0 / max(shadow_texture_size, vec2(1.0));
+    vec4 shadow_proj = shadow_view_projection * vec4(world_position, 1.0);
+    shadow_proj.xyz /= shadow_proj.w;
+    shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
+
+    if (1.0 < shadow_proj.x || shadow_proj.x < 0.0 || 1.0 < shadow_proj.y || shadow_proj.y < 0.0 || 1.0 < shadow_proj.z || shadow_proj.z < 0.0)
+    {
+        return 1.0;
+    }
+
+    const vec2 tile_min = atlas_rect.xy + shadow_texel_size * 1.5;
+    const vec2 tile_max = atlas_rect.xy + atlas_rect.zw - shadow_texel_size * 1.5;
+    const vec2 base_uv = atlas_rect.xy + shadow_proj.xy * atlas_rect.zw;
+
+    const float rot_angle = interleaved_gradient_noise(screen_pos) * TWO_PI;
+    const float cs = cos(rot_angle);
+    const float sn = sin(rot_angle);
+    const mat2 rot = mat2(cs, -sn, sn, cs);
+
+    // Step 1: 8-tap rotated Poisson blocker search inside cascade tile
+    const int BLOCKER_SAMPLES = 8;
+    const vec2 blocker_search_radius = shadow_texel_size * 4.0;
+    float blocker_depth_sum = 0.0;
+    int blocker_count = 0;
+    for (int i = 0; i < BLOCKER_SAMPLES; ++i)
+    {
+        vec2 offset = rot * PoissonSamples[(i * 2) % PoissonSampleCount];
+        vec2 uv = clamp(base_uv + offset * blocker_search_radius, tile_min, tile_max);
+        float sample_depth = textureLod(texture_shadow, uv, 0.0).x;
+        if (shadow_proj.z < (sample_depth + depth_bias))
+        {
+            blocker_depth_sum += sample_depth;
+            blocker_count += 1;
+        }
+    }
+
+    if (blocker_count == 0)
+    {
+        return 1.0;
+    }
+
+    // Step 2: Estimate world-space receiver-to-blocker distance and penumbra radius in tile texels
+    float avg_blocker_depth = blocker_depth_sum / float(blocker_count);
+    vec4 blocker_ndc = vec4(shadow_proj.xy * 2.0 - 1.0, avg_blocker_depth, 1.0);
+    vec4 blocker_world = inv_shadow_view_projection * blocker_ndc;
+    blocker_world.xyz /= max(abs(blocker_world.w), 1e-5);
+    float blocker_dist = length(world_position - blocker_world.xyz);
+    float penumbra_texels = clamp(1.05 + blocker_dist * 0.32, 1.05, 5.0);
+
+    // Step 3: 16-tap Vogel-disk variable-radius PCF clamped to cascade tile
+    const int VOGEL_SAMPLES = 16;
+    const float GOLDEN_ANGLE = 2.39996323;
+    const vec2 filter_radius = shadow_texel_size * penumbra_texels;
+    float total_shadow = 0.0;
+    for (int i = 0; i < VOGEL_SAMPLES; ++i)
+    {
+        float r = sqrt((float(i) + 0.5) / float(VOGEL_SAMPLES));
+        float theta = float(i) * GOLDEN_ANGLE + rot_angle;
+        vec2 offset = vec2(cos(theta), sin(theta)) * r;
+        vec2 uv = clamp(base_uv + offset * filter_radius, tile_min, tile_max);
+        float sample_depth = textureLod(texture_shadow, uv, 0.0).x;
+        total_shadow += (shadow_proj.z < (sample_depth + depth_bias)) ? 0.0 : 1.0;
+    }
+    return saturate(total_shadow / float(VOGEL_SAMPLES));
+}
+
+int select_csm_cascade(const in LIGHT_DATA light_data, float linear_depth)
+{
+    int active_count = clamp(light_data.CSM_CASCADE_COUNT_ACTIVE, 0, CSM_CASCADE_COUNT);
+    if (active_count <= 1) return 0;
+    vec4 splits = light_data.CSM_SPLIT_DISTANCES;
+    if (linear_depth < splits.x) return 0;
+    if (active_count <= 2 || linear_depth < splits.y) return 1;
+    if (active_count <= 3 || linear_depth < splits.z) return 2;
+    return 3;
+}
+
+float get_csm_split_far(const in LIGHT_DATA light_data, int idx)
+{
+    if (idx <= 0) return light_data.CSM_SPLIT_DISTANCES.x;
+    if (idx == 1) return light_data.CSM_SPLIT_DISTANCES.y;
+    if (idx == 2) return light_data.CSM_SPLIT_DISTANCES.z;
+    return light_data.CSM_SPLIT_DISTANCES.w;
+}
+
+float get_shadow_factor_csm(
+    const float time,
+    const in ivec2 screen_pos,
+    const in vec3 world_position,
+    const float linear_depth,
+    const in LIGHT_DATA light_data,
+    const int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
+)
+{
+    int active_count = clamp(light_data.CSM_CASCADE_COUNT_ACTIVE, 0, CSM_CASCADE_COUNT);
+    if (active_count <= 0)
+    {
+        return 1.0;
+    }
+    float max_shadow_dist = get_csm_split_far(light_data, active_count - 1);
+    if (linear_depth > max_shadow_dist)
+    {
+        return 1.0;
+    }
+
+    int c = select_csm_cascade(light_data, linear_depth);
+    float bias_c = depth_bias * (1.0 + float(c) * 1.25);
+    float shadow_c = get_shadow_factor_atlas(
+        time,
+        screen_pos,
+        world_position,
+        light_data.CSM_VIEW_PROJECTIONS[c],
+        light_data.CSM_ATLAS_RECTS[c],
+        sample_count,
+        bias_c,
+        texture_shadow
+    );
+
+    float split_far = get_csm_split_far(light_data, c);
+    float split_near = (c == 0) ? 0.0 : get_csm_split_far(light_data, c - 1);
+    float blend_band = max((split_far - split_near) * 0.15, 2.0);
+    if (linear_depth > split_far - blend_band)
+    {
+        float blend_t = saturate((linear_depth - (split_far - blend_band)) / blend_band);
+        if (c < active_count - 1)
+        {
+            int c_next = c + 1;
+            float bias_next = depth_bias * (1.0 + float(c_next) * 1.25);
+            float shadow_next = get_shadow_factor_atlas(
+                time,
+                screen_pos,
+                world_position,
+                light_data.CSM_VIEW_PROJECTIONS[c_next],
+                light_data.CSM_ATLAS_RECTS[c_next],
+                max(sample_count / 2, 4),
+                bias_next,
+                texture_shadow
+            );
+            shadow_c = mix(shadow_c, shadow_next, blend_t);
+        }
+        else
+        {
+            // Smoothly fade far shadow edge to lit beyond max active cascade distance
+            shadow_c = mix(shadow_c, 1.0, blend_t);
+        }
+    }
+    return shadow_c;
+}
+
+float get_shadow_factor_pcss_csm(
+    const float time,
+    const in ivec2 screen_pos,
+    const in vec3 world_position,
+    const float linear_depth,
+    const in LIGHT_DATA light_data,
+    const int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
+)
+{
+    int active_count = clamp(light_data.CSM_CASCADE_COUNT_ACTIVE, 0, CSM_CASCADE_COUNT);
+    if (active_count <= 0)
+    {
+        return 1.0;
+    }
+    float max_shadow_dist = get_csm_split_far(light_data, active_count - 1);
+    if (linear_depth > max_shadow_dist)
+    {
+        return 1.0;
+    }
+
+    int c = select_csm_cascade(light_data, linear_depth);
+    float bias_c = depth_bias * (1.0 + float(c) * 1.25);
+    // Use full PCSS on near/mid cascades (0..1) and fast PCF on far cascades (2..3) for optimal quality/perf
+    float shadow_c = (c <= 1)
+        ? get_shadow_factor_pcss_atlas(
+            time,
+            screen_pos,
+            world_position,
+            light_data.CSM_VIEW_PROJECTIONS[c],
+            light_data.INV_CSM_VIEW_PROJECTIONS[c],
+            light_data.CSM_ATLAS_RECTS[c],
+            sample_count,
+            bias_c,
+            texture_shadow
+        )
+        : get_shadow_factor_atlas(
+            time,
+            screen_pos,
+            world_position,
+            light_data.CSM_VIEW_PROJECTIONS[c],
+            light_data.CSM_ATLAS_RECTS[c],
+            max(sample_count / 2, 8),
+            bias_c,
+            texture_shadow
+        );
+
+    float split_far = get_csm_split_far(light_data, c);
+    float split_near = (c == 0) ? 0.0 : get_csm_split_far(light_data, c - 1);
+    float blend_band = max((split_far - split_near) * 0.15, 2.0);
+    if (linear_depth > split_far - blend_band)
+    {
+        float blend_t = saturate((linear_depth - (split_far - blend_band)) / blend_band);
+        if (c < active_count - 1)
+        {
+            int c_next = c + 1;
+            float bias_next = depth_bias * (1.0 + float(c_next) * 1.25);
+            float shadow_next = get_shadow_factor_atlas(
+                time,
+                screen_pos,
+                world_position,
+                light_data.CSM_VIEW_PROJECTIONS[c_next],
+                light_data.CSM_ATLAS_RECTS[c_next],
+                8,
+                bias_next,
+                texture_shadow
+            );
+            shadow_c = mix(shadow_c, shadow_next, blend_t);
+        }
+        else
+        {
+            shadow_c = mix(shadow_c, 1.0, blend_t);
+        }
+    }
+    return shadow_c;
+}
+
+// Fast single-tap CSM shadow visibility for volumetric fog froxel injection
+float get_shadow_factor_csm_fast(
+    const in vec3 world_position,
+    const float linear_depth,
+    const in LIGHT_DATA light_data,
+    sampler2D texture_shadow
+)
+{
+    int active_count = clamp(light_data.CSM_CASCADE_COUNT_ACTIVE, 0, CSM_CASCADE_COUNT);
+    if (active_count <= 0)
+    {
+        return 1.0;
+    }
+    float max_shadow_dist = get_csm_split_far(light_data, active_count - 1);
+    if (linear_depth > max_shadow_dist)
+    {
+        return 1.0;
+    }
+    int c = select_csm_cascade(light_data, linear_depth);
+    vec4 shadow_proj = light_data.CSM_VIEW_PROJECTIONS[c] * vec4(world_position, 1.0);
+    shadow_proj.xyz /= max(abs(shadow_proj.w), 1e-5);
+    shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
+    if (shadow_proj.x < 0.0 || shadow_proj.x > 1.0 || shadow_proj.y < 0.0 || shadow_proj.y > 1.0 || shadow_proj.z < 0.0 || shadow_proj.z > 1.0)
+    {
+        return 1.0;
+    }
+    vec4 atlas_rect = light_data.CSM_ATLAS_RECTS[c];
+    vec2 shadow_texel_size = 1.0 / max(vec2(textureSize(texture_shadow, 0)), vec2(1.0));
+    vec2 tile_min = atlas_rect.xy + shadow_texel_size * 1.5;
+    vec2 tile_max = atlas_rect.xy + atlas_rect.zw - shadow_texel_size * 1.5;
+    vec2 uv = clamp(atlas_rect.xy + shadow_proj.xy * atlas_rect.zw, tile_min, tile_max);
+    float sample_depth = textureLod(texture_shadow, uv, 0.0).x;
+    float bias = SHADOW_BIAS * (2.0 + float(c) * 2.0);
+    return (shadow_proj.z < (sample_depth + bias)) ? 0.0 : 1.0;
+}
+
+// Exponential depth mapping for 3D Froxel Volumetric Fog
+float volumetric_fog_linear_depth_to_slice(float linear_depth)
+{
+    float clamped_depth = clamp(linear_depth, VOLUMETRIC_FOG_NEAR, VOLUMETRIC_FOG_FAR);
+    return log(clamped_depth / VOLUMETRIC_FOG_NEAR) / log(VOLUMETRIC_FOG_FAR / VOLUMETRIC_FOG_NEAR);
+}
+
+float volumetric_fog_slice_to_linear_depth(float slice_norm)
+{
+    return VOLUMETRIC_FOG_NEAR * pow(VOLUMETRIC_FOG_FAR / VOLUMETRIC_FOG_NEAR, saturate(slice_norm));
+}
+
+// Screen-Space Contact Shadow ray march toward a local point/spot light
+float compute_local_light_contact_shadow(
+    const in VIEW_CONSTANTS view_constants,
+    const in SCENE_CONSTANTS scene_constants,
+    const in ivec2 screen_pos,
+    const in vec3 world_position,
+    const in vec3 N,
+    const in vec3 light_dir,
+    const float light_dist,
+    const float linear_depth,
+    sampler2D texture_scene_depth
+)
+{
+    if (linear_depth > 40.0 || light_dist < 0.08)
+    {
+        return 1.0;
+    }
+    const int LOCAL_CONTACT_STEPS = 6;
+    const float max_ray_len = min(light_dist * 0.92, mix(0.65, 2.25, saturate(linear_depth / 22.0)));
+    const float thickness = 0.06 + linear_depth * 0.015;
+    const float jitter = fract(interleaved_gradient_noise(screen_pos + ivec2(37, 17)) + float(scene_constants.ELAPSED_FRAME & 3u) * 0.25);
+    const vec3 ray_origin_rel = (world_position - view_constants.CAMERA_POSITION) + N * (0.02 + linear_depth * 0.0025);
+
+    float occlusion = 0.0;
+    for (int step_i = 0; step_i < LOCAL_CONTACT_STEPS; ++step_i)
+    {
+        float t = (float(step_i) + 0.35 + 0.65 * jitter) / float(LOCAL_CONTACT_STEPS);
+        vec3 sample_rel = ray_origin_rel + light_dir * (t * max_ray_len);
+        vec4 proj = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(sample_rel, 1.0);
+        if (proj.w <= 0.0)
+        {
+            break;
+        }
+        proj.xyz /= proj.w;
+        vec2 sample_uv = proj.xy * 0.5 + 0.5;
+        if (sample_uv.x <= 0.0 || sample_uv.x >= 1.0 || sample_uv.y <= 0.0 || sample_uv.y >= 1.0)
+        {
+            break;
+        }
+        float sample_depth = textureLod(texture_scene_depth, sample_uv, 0.0).x;
+        if (sample_depth <= 0.0)
+        {
+            continue;
+        }
+        float ray_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, proj.z);
+        float scene_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, sample_depth);
+        float depth_diff = ray_linear - scene_linear;
+        if (depth_diff > 0.012 && depth_diff < thickness)
+        {
+            float fade = (1.0 - t) * (1.0 - depth_diff / thickness);
+            occlusion = max(occlusion, saturate(fade * 1.65));
+        }
+    }
+    float dist_fade = 1.0 - smoothstep(26.0, 40.0, linear_depth);
+    return 1.0 - occlusion * dist_fade * 0.88;
+}
+
+// Evaluate box-volume Local Light Probes (smooth edge falloff + priority weighting)
+void evaluate_local_light_probes(
+    const in LOCAL_LIGHTING_DATA local_lighting_data,
+    const in vec3 world_position,
+    const in vec3 N,
+    out vec3 out_probe_irradiance,
+    out float out_indoor_override,
+    out float out_specular_tint
+)
+{
+    out_probe_irradiance = vec3(0.0);
+    out_indoor_override = 0.0;
+    out_specular_tint = 1.0;
+
+    int probe_count = min(MAX_LOCAL_LIGHT_PROBES, local_lighting_data.LOCAL_LIGHT_PROBE_COUNT);
+    if (probe_count <= 0)
+    {
+        return;
+    }
+
+    vec3 irr_sum = vec3(0.0);
+    float indoor_sum = 0.0;
+    float spec_tint_sum = 0.0;
+    float weight_sum = 0.0;
+    float max_coverage = 0.0;
+
+    float up_w = saturate(N.y * 0.5 + 0.5);
+    float side_w = 1.0 - abs(N.y);
+
+    for (int i = 0; i < probe_count; ++i)
+    {
+        LOCAL_LIGHT_PROBE_DATA probe = local_lighting_data.local_light_probes[i];
+        vec3 d = abs(world_position - probe.POSITION) - probe.HALF_EXTENTS;
+        float outside_dist = length(max(d, vec3(0.0)));
+        if (outside_dist >= probe.BLEND_DISTANCE)
+        {
+            continue;
+        }
+        float edge_t = 1.0 - saturate(outside_dist / max(probe.BLEND_DISTANCE, 0.05));
+        float coverage = edge_t * edge_t * (3.0 - 2.0 * edge_t);
+        float priority_weight = coverage * exp2(clamp(probe.PRIORITY, -4.0, 4.0));
+
+        vec3 hemi = mix(probe.GROUND_IRRADIANCE, probe.SKY_IRRADIANCE, up_w);
+        vec3 probe_irr = mix(hemi, probe.SIDE_IRRADIANCE, side_w * 0.45) * probe.INTENSITY;
+
+        irr_sum += probe_irr * priority_weight;
+        indoor_sum += probe.INDOOR_FACTOR * priority_weight;
+        spec_tint_sum += probe.SPECULAR_TINT * priority_weight;
+        weight_sum += priority_weight;
+        max_coverage = max(max_coverage, coverage);
+    }
+
+    if (weight_sum > 1e-4)
+    {
+        float inv_w = 1.0 / weight_sum;
+        out_probe_irradiance = irr_sum * inv_w;
+        out_indoor_override = saturate((indoor_sum * inv_w) * max_coverage);
+        out_specular_tint = mix(1.0, spec_tint_sum * inv_w, out_indoor_override);
+    }
+}
+
 // [Burley 2012, "Physically-Based Shading at Disney"]
 float diffuse_burley( float Roughness, float NoV, float NoL, float VoH )
 {
@@ -419,6 +871,11 @@ vec4 surface_shading(
     const in vec3 V,
     const in float depth,
     const in bool IS_COMBINED_SHADOW
+#ifdef ENABLE_DEFERRED_LIGHTING_AND_FOG
+    , const in LOCAL_LIGHTING_DATA local_lighting_data
+    , const in sampler2D texture_scene_depth
+    , const in sampler3D texture_volumetric_fog
+#endif
 )
 {
     const vec3 L = normalize(-light_data.LIGHT_DIRECTION);
@@ -539,12 +996,12 @@ vec4 surface_shading(
     if(!IS_COMBINED_SHADOW && ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)) {
         if ((scene_constants.RENDER_OPTION & RenderOption_RenderPCSS) != 0u)
         {
-            shadow_factor *= get_shadow_factor_pcss(
+            shadow_factor *= get_shadow_factor_pcss_csm(
                 scene_constants.TIME,
                 frag_pixel_pos,
                 world_position,
-                light_data.SHADOW_VIEW_PROJECTION,
-                light_data.INV_SHADOW_VIEW_PROJECTION,
+                scene_linear_depth,
+                light_data,
                 light_data.SHADOW_SAMPLES,
                 SHADOW_BIAS,
                 texture_shadow
@@ -552,12 +1009,12 @@ vec4 surface_shading(
         }
         else
         {
-            shadow_factor *= get_shadow_factor(
+            shadow_factor *= get_shadow_factor_csm(
                 scene_constants.TIME,
                 frag_pixel_pos,
                 world_position,
-                light_data.SHADOW_VIEW_PROJECTION,
-                light_data.INV_SHADOW_VIEW_PROJECTION,
+                scene_linear_depth,
+                light_data,
                 light_data.SHADOW_SAMPLES,
                 SHADOW_BIAS,
                 texture_shadow
@@ -619,6 +1076,29 @@ vec4 surface_shading(
         diffuse_light += unshadowed_sun_color * (0.08 / PI) * bounce_ndl * warm_bounce_tint * mix(0.50, 1.0, sky_visibility) * diffuse_ao * analytic_gi_weight;
     }
 
+#ifdef ENABLE_DEFERRED_LIGHTING_AND_FOG
+    // Multiple Local Light Probes: blend local box-volume irradiance & suppress outdoor sky IBL leaks indoors/caves
+    {
+        vec3 probe_irradiance;
+        float indoor_override;
+        float probe_spec_tint;
+        evaluate_local_light_probes(
+            local_lighting_data,
+            world_position,
+            bent_normal,
+            probe_irradiance,
+            indoor_override,
+            probe_spec_tint
+        );
+        if (indoor_override > 0.001)
+        {
+            vec3 diffuse_ao = multi_bounce_ao(ao_factor, base_color);
+            diffuse_light = mix(diffuse_light, probe_irradiance * diffuse_ao, indoor_override);
+            specular_light *= probe_spec_tint;
+        }
+    }
+#endif
+
     // Directional Light
     if (clampled_NoL > 0.0)
     {
@@ -673,8 +1153,10 @@ vec4 surface_shading(
     diffuse_light *= inv_sea_ratio;
     specular_light *= inv_sea_ratio;
 
-    // Point Lights (physical inverse-square attenuation with smooth radius window)
+    // Point Lights (physical inverse-square attenuation with smooth radius window + Screen-Space Contact Shadows)
     const int light_count = min(MAX_POINT_LIGHTS, scene_constants.RENDER_POINT_LIGHT_COUNT);
+    const bool enable_local_contact_shadow = (scene_constants.RENDER_OPTION & RenderOption_RenderLocalContactShadow) != 0u;
+    int point_contact_shadow_budget = 4;
     for(int i = 0; i < light_count; ++i)
     {
         const float point_light_radius = point_lights.point_light_data[i].RADIUS;
@@ -691,7 +1173,26 @@ vec4 surface_shading(
                 float window = saturate(1.0 - dist_ratio * dist_ratio * dist_ratio * dist_ratio);
                 window *= window;
                 const float point_light_attenuation = window / (1.0 + point_light_dist * point_light_dist * 0.25);
-                const vec3 point_light_color = point_lights.point_light_data[i].LIGHT_COLOR * point_light_attenuation;
+
+                float local_shadow = 1.0;
+#ifdef ENABLE_DEFERRED_LIGHTING_AND_FOG
+                if (enable_local_contact_shadow && point_contact_shadow_budget > 0 && point_light_attenuation > 0.015)
+                {
+                    local_shadow = compute_local_light_contact_shadow(
+                        view_constants,
+                        scene_constants,
+                        frag_pixel_pos,
+                        world_position,
+                        N,
+                        point_light_dir,
+                        point_light_dist,
+                        scene_linear_depth,
+                        texture_scene_depth
+                    );
+                    point_contact_shadow_budget -= 1;
+                }
+#endif
+                const vec3 point_light_color = point_lights.point_light_data[i].LIGHT_COLOR * point_light_attenuation * local_shadow;
 
                 const float point_light_NoL = saturate(raw_point_NoL);
                 const float point_light_NoH = clamp(dot(N, point_light_half), 0.001, 1.0);
@@ -703,6 +1204,64 @@ vec4 surface_shading(
             }
         }
     }
+
+#ifdef ENABLE_DEFERRED_LIGHTING_AND_FOG
+    // Spot Lights (smooth inner/outer cone falloff + inverse-square attenuation + Screen-Space Contact Shadows)
+    const int spot_count = min(MAX_SPOT_LIGHTS, local_lighting_data.SPOT_LIGHT_COUNT);
+    int spot_contact_shadow_budget = 4;
+    for (int i = 0; i < spot_count; ++i)
+    {
+        SPOT_LIGHT_DATA spot = local_lighting_data.spot_lights[i];
+        vec3 to_spot = spot.LIGHT_POSITION - world_position;
+        float spot_dist = length(to_spot);
+        if (spot_dist <= spot.RADIUS && spot_dist > 0.0001)
+        {
+            vec3 spot_dir = to_spot / spot_dist;
+            float raw_spot_NoL = dot(N, spot_dir);
+            if (raw_spot_NoL > 0.0)
+            {
+                // spot.LIGHT_DIRECTION points FROM light toward target; -spot_dir is direction from light to surface
+                float cos_theta = dot(-spot_dir, normalize(spot.LIGHT_DIRECTION));
+                float cone_attenuation = saturate((cos_theta - spot.OUTER_COS_ANGLE) / max(spot.INNER_COS_ANGLE - spot.OUTER_COS_ANGLE, 0.001));
+                cone_attenuation *= cone_attenuation;
+                if (cone_attenuation > 0.001)
+                {
+                    float dist_ratio = spot_dist / max(spot.RADIUS, 0.001);
+                    float window = saturate(1.0 - dist_ratio * dist_ratio * dist_ratio * dist_ratio);
+                    window *= window;
+                    float spot_attenuation = (window * cone_attenuation) / (1.0 + spot_dist * spot_dist * 0.25);
+
+                    float spot_shadow = 1.0;
+                    if (enable_local_contact_shadow && spot_contact_shadow_budget > 0 && spot_attenuation > 0.01)
+                    {
+                        spot_shadow = compute_local_light_contact_shadow(
+                            view_constants,
+                            scene_constants,
+                            frag_pixel_pos,
+                            world_position,
+                            N,
+                            spot_dir,
+                            spot_dist,
+                            scene_linear_depth,
+                            texture_scene_depth
+                        );
+                        spot_contact_shadow_budget -= 1;
+                    }
+
+                    vec3 spot_color = spot.LIGHT_COLOR * spot_attenuation * spot_shadow;
+                    vec3 spot_half = normalize(V + spot_dir);
+                    float spot_NoL = saturate(raw_spot_NoL);
+                    float spot_NoH = clamp(dot(N, spot_half), 0.001, 1.0);
+                    float spot_VoH = clamp(dot(V, spot_half), 0.001, 1.0);
+                    vec3 spot_F = fresnelSchlick(spot_VoH, F0);
+
+                    diffuse_light += diffuse_burley(roughness, NoV, spot_NoL, spot_VoH) * spot_NoL * spot_color;
+                    specular_light += cooktorrance_specular(spot_F, spot_NoL, NoV, spot_NoH, roughness) * ms_energy_comp * spot_NoL * spot_color;
+                }
+            }
+        }
+    }
+#endif
 
     // Moon Light (only active at dusk/night, with elevation fade and subtle Cook-Torrance specular)
     float night_factor = smoothstep(0.15, -0.1, L.y);
@@ -730,15 +1289,32 @@ vec4 surface_shading(
     result = diffuse_light * base_color * (1.0 - max(reflectance, metallic));
     result += specular_light;
 
-    // Exponential Height Fog (analytic height-falloff optical depth + cube-map horizon color + Mie sun in-scattering)
+    // Volumetric Froxel Fog (0..VOLUMETRIC_FOG_FAR) + Far Exponential Height Fog fallback
     if ((scene_constants.RENDER_OPTION & RenderOption_RenderHeightFog) != 0u && scene_constants.HEIGHT_FOG_INTENSITY > 0.001)
     {
-        const float fog_start_dist = 18.0;
+        float vol_transmittance = 1.0;
+        float fog_start_dist = 18.0;
+        float fog_base_density = 0.0022;
+#ifdef ENABLE_DEFERRED_LIGHTING_AND_FOG
+        if ((scene_constants.RENDER_OPTION & RenderOption_RenderVolumetricFog) != 0u)
+        {
+            // Sample 3D Froxel Volumetric Fog (scattered sun shafts + point/spot light halos + height mist)
+            float fog_slice = volumetric_fog_linear_depth_to_slice(scene_linear_depth);
+            vec4 vol_fog = textureLod(texture_volumetric_fog, vec3(screen_texcoord, fog_slice), 0.0);
+            vol_transmittance = saturate(vol_fog.a);
+            vec3 vol_inscatter = max(vol_fog.rgb, vec3(0.0));
+            result = result * vol_transmittance + vol_inscatter;
+
+            // Smoothly continue height fog beyond VOLUMETRIC_FOG_FAR for distant terrain/mountains
+            fog_start_dist = VOLUMETRIC_FOG_FAR * 0.95;
+            fog_base_density = 0.0020;
+        }
+#endif
         float eff_dist = max(0.0, scene_linear_depth - fog_start_dist);
         if (eff_dist > 0.01)
         {
             const float fog_intensity = max(scene_constants.HEIGHT_FOG_INTENSITY, 0.0);
-            const float fog_density = 0.0022 * fog_intensity;
+            const float fog_density = fog_base_density * fog_intensity;
             const float fog_height_falloff = 0.045;
             float cam_y = max(view_constants.CAMERA_POSITION.y - scene_constants.SEA_HEIGHT, 0.0);
             float frag_y = max(world_position.y - scene_constants.SEA_HEIGHT, 0.0);
@@ -749,7 +1325,7 @@ vec4 surface_shading(
                 : 1.0;
             float fog_max_opacity = saturate(0.65 * min(fog_intensity, 1.45));
             float fog_amount = saturate((1.0 - exp(-fog_density * eff_dist * c_cam * height_integral)) * fog_max_opacity);
-            fog_amount *= mix(0.25, 1.0, sky_visibility);
+            fog_amount *= mix(0.25, 1.0, sky_visibility) * vol_transmittance;
 
             const vec2 env_size = vec2(textureSize(texture_probe, 0));
             const float fog_mip = max(1.0, min(8.0, log2(max(env_size.x, env_size.y)) - 1.0) - 1.0);

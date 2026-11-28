@@ -9,7 +9,7 @@ use rand;
 use crate::constants;
 use crate::render_pass::common::{
     composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy, render_final, render_gaussian_blur,
-    render_taa,
+    render_taa, render_volumetric_fog,
 };
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
@@ -1202,5 +1202,100 @@ impl<'a> RenderContext_LightProbe<'a> {
         self._light_probe_forward_convolve_irradiance_descriptor_sets.clear();
         self._only_sky_prefilter_specular_descriptor_sets.clear();
         self._light_probe_forward_prefilter_specular_descriptor_sets.clear();
+    }
+}
+
+#[derive(Clone, Default)]
+#[allow(non_camel_case_types)]
+pub struct RenderContext_VolumetricFog {
+    pub _ping_pong_index: usize,
+    pub _inject_descriptor_sets: [SwapchainArray<vk::DescriptorSet>; 2],
+    pub _integrate_descriptor_sets: [SwapchainArray<vk::DescriptorSet>; 2],
+}
+
+impl RenderContext_VolumetricFog {
+    pub fn initialize<'a>(
+        &mut self,
+        device: &Device,
+        debug_utils_device: &ext::debug_utils::Device,
+        engine_resources: &EngineResources<'a>,
+        texture_fog_inject_0: &TextureData,
+        texture_fog_inject_1: &TextureData,
+    ) {
+        let material_instance = engine_resources.get_material_instance_data("common/render_volumetric_fog").borrow();
+        let inject_binding = material_instance.get_pipeline_binding_data("render_volumetric_fog/inject");
+        let integrate_binding = material_instance.get_pipeline_binding_data("render_volumetric_fog/integrate");
+
+        // Ping-pong 0: history = inject_1, output = inject_0
+        self._inject_descriptor_sets[0] = utility::create_descriptor_sets_by_semantic(
+            device,
+            debug_utils_device,
+            inject_binding,
+            &[
+                (
+                    render_volumetric_fog::SEMANTIC_FOG_HISTORY.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_fog_inject_1.get_default_image_info(),
+                    ),
+                ),
+                (
+                    render_volumetric_fog::SEMANTIC_FOG_INJECT_OUT.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_fog_inject_0.get_default_image_info(),
+                    ),
+                ),
+            ],
+        );
+        self._integrate_descriptor_sets[0] = utility::create_descriptor_sets_by_semantic(
+            device,
+            debug_utils_device,
+            integrate_binding,
+            &[(
+                render_volumetric_fog::SEMANTIC_FOG_INJECT_IN.to_string(),
+                utility::create_descriptor_image_info_swapchain_array(texture_fog_inject_0.get_default_image_info()),
+            )],
+        );
+
+        // Ping-pong 1: history = inject_0, output = inject_1
+        self._inject_descriptor_sets[1] = utility::create_descriptor_sets_by_semantic(
+            device,
+            debug_utils_device,
+            inject_binding,
+            &[
+                (
+                    render_volumetric_fog::SEMANTIC_FOG_HISTORY.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_fog_inject_0.get_default_image_info(),
+                    ),
+                ),
+                (
+                    render_volumetric_fog::SEMANTIC_FOG_INJECT_OUT.to_string(),
+                    utility::create_descriptor_image_info_swapchain_array(
+                        texture_fog_inject_1.get_default_image_info(),
+                    ),
+                ),
+            ],
+        );
+        self._integrate_descriptor_sets[1] = utility::create_descriptor_sets_by_semantic(
+            device,
+            debug_utils_device,
+            integrate_binding,
+            &[(
+                render_volumetric_fog::SEMANTIC_FOG_INJECT_IN.to_string(),
+                utility::create_descriptor_image_info_swapchain_array(texture_fog_inject_1.get_default_image_info()),
+            )],
+        );
+        self._ping_pong_index = 0;
+    }
+
+    pub fn swap_ping_pong(&mut self) {
+        self._ping_pong_index ^= 1;
+    }
+
+    pub fn destroy(&mut self) {
+        self._inject_descriptor_sets[0].clear();
+        self._inject_descriptor_sets[1].clear();
+        self._integrate_descriptor_sets[0].clear();
+        self._integrate_descriptor_sets[1].clear();
     }
 }

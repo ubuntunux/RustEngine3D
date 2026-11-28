@@ -136,7 +136,10 @@ void main()
 
     float device_depth = texture(texture_depth, vs_output.uv).x;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
-    float scene_shadow_length = (is_render_light_probe_mode || cam_alt_km > 15.0) ? 0.0 : GetSceneShadowLength(
+    bool enable_atm_shadow = ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)
+        && (light_data.CSM_CASCADE_COUNT_ACTIVE > 0);
+    int atm_cascade_idx = clamp(min(light_data.CSM_CASCADE_COUNT_ACTIVE - 1, 2), 0, CSM_CASCADE_COUNT - 1);
+    float scene_shadow_length = (is_render_light_probe_mode || cam_alt_km > 15.0 || !enable_atm_shadow) ? 0.0 : GetSceneShadowLengthAtlas(
         atmosphere_constants,
         scene_linear_depth,
         view_constants.NEAR_FAR.y,
@@ -144,6 +147,7 @@ void main()
         eye_direction,
         sun_direction,
         light_data.SHADOW_VIEW_PROJECTION,
+        light_data.CSM_ATLAS_RECTS[atm_cascade_idx],
         texture_shadow
     );
 

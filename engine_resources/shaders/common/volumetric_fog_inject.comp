@@ -1,0 +1,211 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+#include "scene_constants.glsl"
+#include "utility.glsl"
+#include "../precomputed_atmosphere/atmosphere_predefined.glsl"
+#include "shading.glsl"
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 4) in;
+
+layout(binding = 0) uniform SceneConstants
+{
+    SCENE_CONSTANTS scene_constants;
+};
+layout(binding = 1) uniform ViewConstants
+{
+    VIEW_CONSTANTS view_constants;
+};
+layout(binding = 2) uniform LightData
+{
+    LIGHT_DATA light_data;
+};
+layout(binding = 3) uniform PointLights
+{
+    POINT_LIGHTS point_lights;
+};
+layout(binding = 4) uniform LocalLightingData
+{
+    LOCAL_LIGHTING_DATA local_lighting_data;
+};
+layout(binding = 5) uniform AtmosphereConstants
+{
+    ATMOSPHERE_CONSTANTS atmosphere_constants;
+};
+layout(binding = 6) uniform sampler2D textureShadow;
+layout(binding = 7) uniform samplerCube texture_probe;
+layout(binding = 8) uniform sampler3D textureFogHistory;
+layout(binding = 9, rgba16f) writeonly uniform image3D imageFogOut;
+layout(binding = 10) uniform sampler3D texture_cloud;
+
+float henyey_greenstein_phase(float cos_theta, float g)
+{
+    float g2 = g * g;
+    float denom = max(1.0 + g2 - 2.0 * g * cos_theta, 0.001);
+    return (1.0 - g2) / (4.0 * PI * pow(denom, 1.5));
+}
+
+vec3 froxel_uv_depth_to_relative_world(vec2 uv, float linear_depth)
+{
+    vec4 clip_near = vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    vec4 view_near_h = view_constants.INV_PROJECTION * clip_near;
+    vec3 view_near = view_near_h.xyz / max(abs(view_near_h.w), 1e-5);
+    vec3 view_pos = view_near * (linear_depth / max(abs(view_near.z), 1e-4));
+    return (view_constants.INV_VIEW_ORIGIN * vec4(view_pos, 1.0)).xyz;
+}
+
+void main()
+{
+    ivec3 grid_size = imageSize(imageFogOut);
+    ivec3 coord = ivec3(gl_GlobalInvocationID.xyz);
+    if (coord.x >= grid_size.x || coord.y >= grid_size.y || coord.z >= grid_size.z)
+    {
+        return;
+    }
+
+    vec2 uv = (vec2(coord.xy) + 0.5) / vec2(grid_size.xy);
+    float z_jitter = fract(
+        interleaved_gradient_noise(coord.xy + ivec2(coord.z * 7, coord.z * 13))
+        + float(scene_constants.ELAPSED_FRAME & 15u) * 0.61803399
+    );
+    float slice_norm = (float(coord.z) + z_jitter) / float(grid_size.z);
+    float linear_depth = volumetric_fog_slice_to_linear_depth(slice_norm);
+
+    vec3 rel_pos = froxel_uv_depth_to_relative_world(uv, linear_depth);
+    vec3 world_pos = rel_pos + view_constants.CAMERA_POSITION;
+    vec3 view_dir = safe_normalize(rel_pos);
+
+    // Height-based atmospheric mist density + subtle 3D cloud-noise wisps + weather boost
+    float fog_intensity = max(scene_constants.HEIGHT_FOG_INTENSITY, 0.0);
+    float height_above_sea = max(world_pos.y - scene_constants.SEA_HEIGHT, 0.0);
+    float weather_boost = 1.0 + scene_constants.RAIN_INTENSITY * 0.70 + scene_constants.WETNESS * 0.20;
+    vec3 mist_uvw = world_pos * 0.0075 + vec3(scene_constants.WIND_DIRECTION.x, 0.0, scene_constants.WIND_DIRECTION.y) * scene_constants.WIND_TIME * 0.012;
+    float mist_noise = mix(0.78, 1.24, textureLod(texture_cloud, mist_uvw, 0.0).r);
+    float near_fade = smoothstep(0.5, 4.5, linear_depth);
+    float height_density = (0.0024 * exp(-0.042 * height_above_sea) + 0.00028) * fog_intensity * weather_boost * mist_noise;
+    float extinction = height_density * near_fade;
+
+    // Directional Sun Scattering (CSM shadow visibility + cloud shadow + dual-lobe Henyey-Greenstein phase)
+    vec3 sun_dir = safe_normalize(-light_data.LIGHT_DIRECTION);
+    float sun_horizon_fade = smoothstep(0.0, 0.06, sun_dir.y);
+    float sun_vis = 1.0;
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u && sun_horizon_fade > 0.001)
+    {
+        sun_vis = get_shadow_factor_csm_fast(world_pos, linear_depth, light_data, textureShadow);
+        if (atmosphere_constants.cloud_coverage > 0.01 && sun_dir.y > 0.05)
+        {
+            float cloud_t = max(atmosphere_constants.cloud_altitude - world_pos.y, 0.0) / max(sun_dir.y, 0.12);
+            vec2 cloud_xz = world_pos.xz + sun_dir.xz * min(cloud_t, 12000.0);
+            vec2 wind_off = scene_constants.WIND_DIRECTION * (scene_constants.WIND_TIME * 0.0018);
+            vec3 cloud_uvw = vec3(cloud_xz * 0.00018 + wind_off, 0.35);
+            float cloud_density = textureLod(texture_cloud, cloud_uvw, 0.0).r;
+            float cloud_cov = saturate((cloud_density - (1.0 - atmosphere_constants.cloud_coverage * 0.85)) * 2.6);
+            sun_vis *= mix(1.0, 0.25, cloud_cov * atmosphere_constants.cloud_coverage);
+        }
+    }
+
+    float cos_sun = dot(view_dir, sun_dir);
+    float hg_phase = mix(
+        henyey_greenstein_phase(cos_sun, -0.18),
+        henyey_greenstein_phase(cos_sun, 0.65),
+        0.72
+    );
+    vec3 sun_inscatter = light_data.LIGHT_COLOR * sun_horizon_fade * sun_vis * hg_phase * 1.15;
+
+    // Ambient sky in-scatter from environment cube probe, modulated by local indoor probes
+    const vec2 env_size = vec2(textureSize(texture_probe, 0));
+    const float fog_mip = max(1.0, min(8.0, log2(max(env_size.x, env_size.y)) - 1.0) - 1.0);
+    vec3 ambient_dir = safe_normalize(vec3(view_dir.x, 0.20, view_dir.z));
+    vec3 ambient_inscatter = textureLod(texture_probe, ambient_dir, fog_mip).rgb * (0.28 / PI);
+
+    vec3 probe_irr;
+    float probe_indoor;
+    float probe_spec_tint;
+    evaluate_local_light_probes(local_lighting_data, world_pos, vec3(0.0, 1.0, 0.0), probe_irr, probe_indoor, probe_spec_tint);
+    if (probe_indoor > 0.001)
+    {
+        ambient_inscatter = mix(ambient_inscatter, probe_irr * (0.35 / PI), probe_indoor);
+        sun_inscatter *= (1.0 - probe_indoor * 0.85);
+    }
+
+    // Local Light Volumetric Scattering (Point Lights + Spot Lights)
+    vec3 local_inscatter = vec3(0.0);
+    float local_light_density_boost = 0.0;
+
+    int point_count = min(MAX_POINT_LIGHTS, scene_constants.RENDER_POINT_LIGHT_COUNT);
+    for (int i = 0; i < point_count; ++i)
+    {
+        POINT_LIGHT_DATA pl = point_lights.point_light_data[i];
+        vec3 to_light = pl.LIGHT_POSITION - world_pos;
+        float dist = length(to_light);
+        if (dist < pl.RADIUS && dist > 0.01)
+        {
+            vec3 l_dir = to_light / dist;
+            float ratio = dist / max(pl.RADIUS, 0.001);
+            float win = saturate(1.0 - ratio * ratio * ratio * ratio);
+            win *= win;
+            float atten = win / (1.0 + dist * dist * 0.35);
+            float phase = henyey_greenstein_phase(dot(view_dir, l_dir), 0.35);
+            local_inscatter += pl.LIGHT_COLOR * atten * phase * 2.2;
+            local_light_density_boost = max(local_light_density_boost, atten * 0.0015 * fog_intensity);
+        }
+    }
+
+    int spot_count = min(MAX_SPOT_LIGHTS, local_lighting_data.SPOT_LIGHT_COUNT);
+    for (int i = 0; i < spot_count; ++i)
+    {
+        SPOT_LIGHT_DATA sl = local_lighting_data.spot_lights[i];
+        vec3 to_light = sl.LIGHT_POSITION - world_pos;
+        float dist = length(to_light);
+        if (dist < sl.RADIUS && dist > 0.01)
+        {
+            vec3 l_dir = to_light / dist;
+            float cos_theta = dot(-l_dir, safe_normalize(sl.LIGHT_DIRECTION));
+            float cone = saturate((cos_theta - sl.OUTER_COS_ANGLE) / max(sl.INNER_COS_ANGLE - sl.OUTER_COS_ANGLE, 0.001));
+            cone *= cone;
+            if (cone > 0.001)
+            {
+                float ratio = dist / max(sl.RADIUS, 0.001);
+                float win = saturate(1.0 - ratio * ratio * ratio * ratio);
+                win *= win;
+                float atten = (win * cone) / (1.0 + dist * dist * 0.30);
+                float phase = henyey_greenstein_phase(dot(view_dir, l_dir), 0.50);
+                local_inscatter += sl.LIGHT_COLOR * atten * phase * 2.8;
+                local_light_density_boost = max(local_light_density_boost, atten * 0.0025 * fog_intensity);
+            }
+        }
+    }
+
+    float total_extinction = max(extinction + local_light_density_boost, 0.0);
+    vec3 total_scattering = (sun_inscatter + ambient_inscatter) * extinction
+        + local_inscatter * max(total_extinction, 0.0012 * fog_intensity);
+    vec4 current_froxel = vec4(max(total_scattering, vec3(0.0)), total_extinction);
+
+    // Temporal Reprojection Anti-Aliasing using unjittered froxel center
+    if (scene_constants.ELAPSED_FRAME > 1u)
+    {
+        float center_slice_norm = (float(coord.z) + 0.5) / float(grid_size.z);
+        float center_depth = volumetric_fog_slice_to_linear_depth(center_slice_norm);
+        vec3 center_world = froxel_uv_depth_to_relative_world(uv, center_depth) + view_constants.CAMERA_POSITION;
+        vec3 prev_rel = center_world - view_constants.CAMERA_POSITION_PREV;
+        vec4 prev_clip = view_constants.VIEW_ORIGIN_PROJECTION_PREV * vec4(prev_rel, 1.0);
+        if (prev_clip.w > 0.001)
+        {
+            vec3 prev_ndc = prev_clip.xyz / prev_clip.w;
+            vec2 prev_uv = prev_ndc.xy * 0.5 + 0.5;
+            float prev_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, prev_ndc.z);
+            float prev_slice = volumetric_fog_linear_depth_to_slice(prev_linear_depth);
+            if (prev_uv.x > 0.0 && prev_uv.x < 1.0
+                && prev_uv.y > 0.0 && prev_uv.y < 1.0
+                && prev_linear_depth >= VOLUMETRIC_FOG_NEAR
+                && prev_linear_depth <= VOLUMETRIC_FOG_FAR)
+            {
+                vec4 history_froxel = textureLod(textureFogHistory, vec3(prev_uv, prev_slice), 0.0);
+                current_froxel = mix(current_froxel, history_froxel, 0.84);
+            }
+        }
+    }
+
+    imageStore(imageFogOut, coord, current_froxel);
+}

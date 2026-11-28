@@ -68,6 +68,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         common::render_taa_simple::get_render_pass_data_create_info(renderer_data),
         common::render_taa::get_render_pass_data_create_info(renderer_data),
         common::render_ui::get_render_pass_data_create_info(renderer_data),
+        common::render_volumetric_fog::get_render_pass_data_create_info(renderer_data),
         effect::process_gpu_particle::get_render_pass_data_create_info(renderer_data),
         effect::render_particle_translucent::get_render_pass_data_create_info(
             renderer_data,

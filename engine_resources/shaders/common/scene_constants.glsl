@@ -35,6 +35,14 @@
 
 #define MAX_BONES_PER_VERTEX 4
 #define MAX_TRANSFORM_COUNT 65536 // MAX_TRANSFORM_COUNT must match with constants.rs
+#define CSM_CASCADE_COUNT 4
+#define MAX_SPOT_LIGHTS 16
+#define MAX_LOCAL_LIGHT_PROBES 16
+#define VOLUMETRIC_FOG_GRID_WIDTH 160
+#define VOLUMETRIC_FOG_GRID_HEIGHT 90
+#define VOLUMETRIC_FOG_GRID_DEPTH 64
+#define VOLUMETRIC_FOG_NEAR 0.5
+#define VOLUMETRIC_FOG_FAR 160.0
 
 // GBuffer Shading Model IDs (stored in SceneNormal.w via encode_shading_model)
 const uint ShadingModel_Default = 0u;
@@ -81,6 +89,8 @@ const uint RenderOption_RenderAutoExposure = 1u << 15u;
 const uint RenderOption_RenderGodRays = 1u << 16u;
 const uint RenderOption_RenderDepthOfField = 1u << 17u;
 const uint RenderOption_RenderStylizedOutline = 1u << 18u;
+const uint RenderOption_RenderVolumetricFog = 1u << 19u;
+const uint RenderOption_RenderLocalContactShadow = 1u << 20u;
 
 // uniform_buffer_data_list.rs - struct SceneConstants
 struct SCENE_CONSTANTS
@@ -156,9 +166,13 @@ struct LIGHT_DATA
     vec3 LIGHT_POSITION;
     int SHADOW_SAMPLES;
     vec3 LIGHT_DIRECTION;
-    int LIGHT_DATA_TEMP0;
+    int ACTIVE_SHADOW_CASCADE;
     vec3 LIGHT_COLOR;
-    int LIGHT_DATA_TEMP1;
+    int CSM_CASCADE_COUNT_ACTIVE;
+    mat4 CSM_VIEW_PROJECTIONS[CSM_CASCADE_COUNT];
+    mat4 INV_CSM_VIEW_PROJECTIONS[CSM_CASCADE_COUNT];
+    vec4 CSM_SPLIT_DISTANCES;
+    vec4 CSM_ATLAS_RECTS[CSM_CASCADE_COUNT];
 };
 
 // light.rs - struct PointLightData
@@ -174,6 +188,43 @@ struct POINT_LIGHT_DATA
 struct POINT_LIGHTS
 {
     POINT_LIGHT_DATA point_light_data[MAX_POINT_LIGHTS];
+};
+
+// light.rs - struct SpotLightData
+struct SPOT_LIGHT_DATA
+{
+    vec3 LIGHT_POSITION;
+    float RADIUS;
+    vec3 LIGHT_DIRECTION;
+    float OUTER_COS_ANGLE;
+    vec3 LIGHT_COLOR;
+    float INNER_COS_ANGLE;
+};
+
+// light.rs - struct LocalLightProbeData
+struct LOCAL_LIGHT_PROBE_DATA
+{
+    vec3 POSITION;
+    float BLEND_DISTANCE;
+    vec3 HALF_EXTENTS;
+    float INDOOR_FACTOR;
+    vec3 SKY_IRRADIANCE;
+    float INTENSITY;
+    vec3 GROUND_IRRADIANCE;
+    float PRIORITY;
+    vec3 SIDE_IRRADIANCE;
+    float SPECULAR_TINT;
+};
+
+// light.rs - struct LocalLightingData
+struct LOCAL_LIGHTING_DATA
+{
+    SPOT_LIGHT_DATA spot_lights[MAX_SPOT_LIGHTS];
+    LOCAL_LIGHT_PROBE_DATA local_light_probes[MAX_LOCAL_LIGHT_PROBES];
+    int SPOT_LIGHT_COUNT;
+    int LOCAL_LIGHT_PROBE_COUNT;
+    int RESERVED0;
+    int RESERVED1;
 };
 
 // shader_buffer_data.rs - struct LightIndicesCell

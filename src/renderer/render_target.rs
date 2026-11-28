@@ -43,6 +43,10 @@ pub enum RenderTargetType {
     SSGI,
     SSGIResolved,
     SSGIResolvedPrev,
+    // 3D Froxel Volumetric Fog
+    VolumetricFogInject,
+    VolumetricFogInjectPrev,
+    VolumetricFogAccum,
     // FFT Ocean
     FFT_A,
     FFT_B,
@@ -492,6 +496,42 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::VolumetricFogInject.to_string(),
+            _texture_width: constants::VOLUMETRIC_FOG_GRID_WIDTH,
+            _texture_height: constants::VOLUMETRIC_FOG_GRID_HEIGHT,
+            _texture_layers: constants::VOLUMETRIC_FOG_GRID_DEPTH,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::VolumetricFogInjectPrev.to_string(),
+            _texture_width: constants::VOLUMETRIC_FOG_GRID_WIDTH,
+            _texture_height: constants::VOLUMETRIC_FOG_GRID_HEIGHT,
+            _texture_layers: constants::VOLUMETRIC_FOG_GRID_DEPTH,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::VolumetricFogAccum.to_string(),
+            _texture_width: constants::VOLUMETRIC_FOG_GRID_WIDTH,
+            _texture_height: constants::VOLUMETRIC_FOG_GRID_HEIGHT,
+            _texture_layers: constants::VOLUMETRIC_FOG_GRID_DEPTH,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },
     ];

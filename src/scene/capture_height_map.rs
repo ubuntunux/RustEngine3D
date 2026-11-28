@@ -318,4 +318,29 @@ mod tests {
         assert!(capture.is_capture_height_map_complete());
         assert!(!capture.need_to_read_back_height_map(100));
     }
+
+    #[test]
+    fn test_capture_height_map_projection_matches_terrain_bounding_box() {
+        let mut capture = CaptureHeightMap::create_capture_height_map(uuid::Uuid::new_v4());
+        let bbox = BoundingBox::create_bounding_box(&Vector3::new(-40.0, -5.0, -40.0), &Vector3::new(60.0, 35.0, 60.0));
+        capture.update_capture_height_map(bbox.clone(), -10.0);
+
+        let vp = capture.get_shadow_view_projection();
+        let p_center = vp * Vector4::new(bbox._center.x, bbox._center.y, bbox._center.z, 1.0);
+        let p_top = vp * Vector4::new(bbox._center.x, bbox._max.y, bbox._center.z, 1.0);
+        let p_bottom = vp * Vector4::new(bbox._center.x, bbox._min.y, bbox._center.z, 1.0);
+        let p_min_x = vp * Vector4::new(bbox._min.x, bbox._center.y, bbox._center.z, 1.0);
+        let p_max_x = vp * Vector4::new(bbox._max.x, bbox._center.y, bbox._center.z, 1.0);
+
+        // Center projects to NDC (0, 0, 0.5)
+        assert!(p_center.x.abs() < 1e-4, "center x={}", p_center.x);
+        assert!(p_center.y.abs() < 1e-4, "center y={}", p_center.y);
+        assert!((p_center.z - 0.5).abs() < 1e-4, "center z={}", p_center.z);
+        // Reverse-Z top-down projection: max.y -> 1.0, min.y -> 0.0
+        assert!((p_top.z - 1.0).abs() < 1e-4, "top z={}", p_top.z);
+        assert!(p_bottom.z.abs() < 1e-4, "bottom z={}", p_bottom.z);
+        // X extents map tightly to [-1, 1]
+        assert!((p_min_x.x.abs() - 1.0).abs() < 1e-4, "min_x={}", p_min_x.x);
+        assert!((p_max_x.x.abs() - 1.0).abs() < 1e-4, "max_x={}", p_max_x.x);
+    }
 }

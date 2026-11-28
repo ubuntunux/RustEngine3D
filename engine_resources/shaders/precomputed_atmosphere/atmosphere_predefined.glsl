@@ -1211,7 +1211,7 @@ void GetSphereShadowInOut(
     }
 }
 
-float GetSceneShadowLength(
+float GetSceneShadowLengthAtlas(
     const in ATMOSPHERE_CONSTANTS atmosphere_constants,
     float scene_dist,
     float far,
@@ -1219,6 +1219,7 @@ float GetSceneShadowLength(
     const in vec3 view_direction,
     const in vec3 light_direction,
     const in mat4 shadow_view_projection,
+    const in vec4 atlas_rect,
     sampler2D texture_shadow
 )
 {
@@ -1270,13 +1271,18 @@ float GetSceneShadowLength(
             continue;
         }
 
+        const vec2 tile_min = atlas_rect.xy + shadow_texel_size * 1.5;
+        const vec2 tile_max = atlas_rect.xy + atlas_rect.zw - shadow_texel_size * 1.5;
+        const vec2 base_atlas_uv = atlas_rect.xy + shadow_uv.xy * atlas_rect.zw;
+
         // 3x3 PCF filter for smooth shadow factor calculation
         float shadow_factor = 0.0;
         for(int x = -1; x <= 1; ++x)
         {
             for(int y = -1; y <= 1; ++y)
             {
-                float shadow_depth = texture(texture_shadow, shadow_uv.xy + vec2(x, y) * shadow_texel_size).x;
+                vec2 tap_uv = clamp(base_atlas_uv + vec2(x, y) * shadow_texel_size, tile_min, tile_max);
+                float shadow_depth = texture(texture_shadow, tap_uv).x;
                 if (shadow_uv.z - shadow_bias > shadow_depth)
                 {
                     shadow_factor += 1.0;
@@ -1292,6 +1298,30 @@ float GetSceneShadowLength(
     vec3 relative_camera_pos = camera_position.xyz * ATMOSPHERE_RATIO;
     float lightshaft_fadein_hack = smoothstep(0.02, 0.04, dot(normalize(relative_camera_pos - atmosphere_constants.earth_center), sun_direction));
     return max(0.0, shadow_length * ATMOSPHERE_RATIO) * lightshaft_fadein_hack;
+}
+
+float GetSceneShadowLength(
+    const in ATMOSPHERE_CONSTANTS atmosphere_constants,
+    float scene_dist,
+    float far,
+    const in vec3 camera_position,
+    const in vec3 view_direction,
+    const in vec3 light_direction,
+    const in mat4 shadow_view_projection,
+    sampler2D texture_shadow
+)
+{
+    return GetSceneShadowLengthAtlas(
+        atmosphere_constants,
+        scene_dist,
+        far,
+        camera_position,
+        view_direction,
+        light_direction,
+        shadow_view_projection,
+        vec4(0.0, 0.5, 0.5, 0.5),
+        texture_shadow
+    );
 }
 
 

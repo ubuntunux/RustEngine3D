@@ -84,12 +84,12 @@ void main()
         // Under Water Caustic
         if(false == isUnderWater)
         {
-            vec3 under_water_shadow = vec3(get_shadow_factor(
+            vec3 under_water_shadow = vec3(get_shadow_factor_csm(
                 0.0,
                 ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
                 world_pos,
-                light_data.SHADOW_VIEW_PROJECTION,
-                light_data.INV_SHADOW_VIEW_PROJECTION,
+                dist,
+                light_data,
                 8,
                 0.0,
                 texture_shadow

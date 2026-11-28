@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::constants::{
-    COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS,
-    MAX_TRANSFORM_COUNT,
+    COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_LOCAL_LIGHT_PROBES,
+    MAX_POINT_LIGHTS, MAX_SPOT_LIGHTS, MAX_TRANSFORM_COUNT,
 };
 use crate::core::engine_service_locator::{
     get_effect_manager, get_effect_manager_mut, get_engine_resources, get_engine_resources_mut, get_renderer_data_mut,
@@ -18,7 +18,8 @@ use crate::scene::capture_height_map::{CaptureHeightMap, CaptureHeightMapState};
 use crate::scene::collision::{COLLISION_LAYER_ALL, CollisionMask, CollisionType};
 use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{
-    DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLights,
+    DirectionalLight, DirectionalLightCreateInfo, LightData, LocalLightProbe, LocalLightProbeCreateInfo,
+    LocalLightingData, PointLight, PointLightCreateInfo, PointLights, SpotLight, SpotLightCreateInfo,
 };
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
@@ -35,6 +36,8 @@ use uuid::Uuid;
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
 pub type PointLightObjectMap = HashMap<SceneObjectID, RcRefCell<PointLight>>;
+pub type SpotLightObjectMap = HashMap<SceneObjectID, RcRefCell<SpotLight>>;
+pub type LocalLightProbeMap = HashMap<SceneObjectID, RcRefCell<LocalLightProbe>>;
 pub type RenderObjectInstancingMap<'a> = HashMap<RenderObjectInstanceKey<'a>, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectMap<'a> = HashMap<SceneObjectID, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
@@ -87,6 +90,8 @@ pub struct SceneDataCreateInfo {
     pub _cameras: HashMap<String, CameraCreateInfo>,
     pub _directional_lights: HashMap<String, DirectionalLightCreateInfo>,
     pub _point_lights: HashMap<String, PointLightCreateInfo>,
+    pub _spot_lights: HashMap<String, SpotLightCreateInfo>,
+    pub _local_light_probes: HashMap<String, LocalLightProbeCreateInfo>,
     pub _effects: HashMap<String, EffectCreateInfo>,
     pub _static_objects: RenderObjectCreateInfoMap,
     pub _skeletal_objects: RenderObjectCreateInfoMap,
@@ -105,6 +110,9 @@ pub struct SceneManager<'a> {
     pub _point_light_object_map: PointLightObjectMap,
     pub _render_point_lights: PointLights,
     pub _render_point_light_count: i32,
+    pub _spot_light_object_map: SpotLightObjectMap,
+    pub _local_light_probe_map: LocalLightProbeMap,
+    pub _render_local_lighting_data: LocalLightingData,
     pub _dynamic_update_object_map: RenderObjectMap<'a>,
     pub _collision_object_map: CollisionObjectMap<'a>,
     pub _collision_object_key_map: HashMap<SceneObjectID, Vec<CollisionObjectKey>>,
@@ -130,6 +138,8 @@ impl SceneDataCreateInfo {
         self._cameras.is_empty()
             && self._directional_lights.is_empty()
             && self._point_lights.is_empty()
+            && self._spot_lights.is_empty()
+            && self._local_light_probes.is_empty()
             && self._effects.is_empty()
             && self._static_objects.is_empty()
             && self._skeletal_objects.is_empty()
@@ -143,6 +153,8 @@ impl Default for SceneDataCreateInfo {
             _cameras: HashMap::new(),
             _directional_lights: HashMap::new(),
             _point_lights: HashMap::new(),
+            _spot_lights: HashMap::new(),
+            _local_light_probes: HashMap::new(),
             _effects: HashMap::new(),
             _static_objects: HashMap::new(),
             _skeletal_objects: HashMap::new(),
@@ -211,6 +223,9 @@ impl<'a> SceneManager<'a> {
     }
     pub fn get_render_point_light_count(&self) -> i32 {
         self._render_point_light_count
+    }
+    pub fn get_render_local_lighting_data(&self) -> &LocalLightingData {
+        &self._render_local_lighting_data
     }
     pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
         &self._light_probe_cameras[index]
@@ -293,6 +308,9 @@ impl<'a> SceneManager<'a> {
             _point_light_object_map: HashMap::new(),
             _render_point_lights: PointLights::default(),
             _render_point_light_count: 0,
+            _spot_light_object_map: HashMap::new(),
+            _local_light_probe_map: HashMap::new(),
+            _render_local_lighting_data: LocalLightingData::default(),
             _dynamic_update_object_map: HashMap::new(),
             _collision_object_map: HashMap::new(),
             _collision_object_key_map: HashMap::new(),
@@ -420,6 +438,40 @@ impl<'a> SceneManager<'a> {
     }
     pub fn remove_point_light_object(&mut self, object_id: SceneObjectID) {
         self._point_light_object_map.remove(&object_id);
+    }
+    pub fn add_spot_light_object(
+        &mut self,
+        object_name: &str,
+        light_create_info: &SpotLightCreateInfo,
+    ) -> RcRefCell<SpotLight> {
+        let object_id = self.generate_object_id();
+        let spot_light = newRcRefCell(SpotLight::create_spot_light(
+            object_id,
+            &String::from(object_name),
+            light_create_info,
+        ));
+        self._spot_light_object_map.insert(object_id, spot_light.clone());
+        spot_light
+    }
+    pub fn remove_spot_light_object(&mut self, object_id: SceneObjectID) {
+        self._spot_light_object_map.remove(&object_id);
+    }
+    pub fn add_local_light_probe(
+        &mut self,
+        probe_name: &str,
+        probe_create_info: &LocalLightProbeCreateInfo,
+    ) -> RcRefCell<LocalLightProbe> {
+        let object_id = self.generate_object_id();
+        let probe = newRcRefCell(LocalLightProbe::create_local_light_probe(
+            object_id,
+            &String::from(probe_name),
+            probe_create_info,
+        ));
+        self._local_light_probe_map.insert(object_id, probe.clone());
+        probe
+    }
+    pub fn remove_local_light_probe(&mut self, object_id: SceneObjectID) {
+        self._local_light_probe_map.remove(&object_id);
     }
     pub fn collect_collision_objects(&self, bound_min: &Vector3<f32>, bound_max: &Vector3<f32>) -> RenderObjectMap<'a> {
         self.collect_collision_objects_with_mask(bound_min, bound_max, COLLISION_LAYER_ALL)
@@ -810,33 +862,41 @@ impl<'a> SceneManager<'a> {
         false
     }
     pub fn shadow_culling(light: &DirectionalLight, geometry_bound_box: &BoundingBox) -> bool {
-        let shadow_view_projection = light.get_shadow_view_projection();
-        let c = geometry_bound_box._center;
-        let e = geometry_bound_box._extents;
-        let clip_center = shadow_view_projection * Vector4::new(c.x, c.y, c.z, 1.0);
-        let clip_extents = Vector3::new(
-            shadow_view_projection.m11.abs() * e.x
-                + shadow_view_projection.m12.abs() * e.y
-                + shadow_view_projection.m13.abs() * e.z,
-            shadow_view_projection.m21.abs() * e.x
-                + shadow_view_projection.m22.abs() * e.y
-                + shadow_view_projection.m23.abs() * e.z,
-            shadow_view_projection.m31.abs() * e.x
-                + shadow_view_projection.m32.abs() * e.y
-                + shadow_view_projection.m33.abs() * e.z,
-        );
-        let minimum = clip_center.xyz() - clip_extents;
-        let maximum = clip_center.xyz() + clip_extents;
-        if maximum.x < -1.0
-            || 1.0 < minimum.x
-            || maximum.y < -1.0
-            || 1.0 < minimum.y
-            || maximum.z < 0.0
-            || 1.0 < minimum.z
-        {
+        let active_count =
+            light.get_light_data()._csm_cascade_count.clamp(0, constants::CSM_CASCADE_COUNT as i32) as usize;
+        if active_count == 0 {
             return true;
         }
-        false
+        let c = geometry_bound_box._center;
+        let e = geometry_bound_box._extents;
+        let c4 = Vector4::new(c.x, c.y, c.z, 1.0);
+        // Object is visible to shadow map if it overlaps ANY active CSM cascade
+        for shadow_view_projection in light.get_csm_view_projections().iter().take(active_count) {
+            let clip_center = shadow_view_projection * c4;
+            let clip_extents = Vector3::new(
+                shadow_view_projection.m11.abs() * e.x
+                    + shadow_view_projection.m12.abs() * e.y
+                    + shadow_view_projection.m13.abs() * e.z,
+                shadow_view_projection.m21.abs() * e.x
+                    + shadow_view_projection.m22.abs() * e.y
+                    + shadow_view_projection.m23.abs() * e.z,
+                shadow_view_projection.m31.abs() * e.x
+                    + shadow_view_projection.m32.abs() * e.y
+                    + shadow_view_projection.m33.abs() * e.z,
+            );
+            let minimum = clip_center.xyz() - clip_extents;
+            let maximum = clip_center.xyz() + clip_extents;
+            let culled = maximum.x < -1.0
+                || 1.0 < minimum.x
+                || maximum.y < -1.0
+                || 1.0 < minimum.y
+                || maximum.z < 0.0
+                || 1.0 < minimum.z;
+            if !culled {
+                return false;
+            }
+        }
+        true
     }
 
     pub fn gather_render_elements(
@@ -1183,6 +1243,8 @@ impl<'a> SceneManager<'a> {
             _cameras: HashMap::new(),
             _directional_lights: HashMap::new(),
             _point_lights: HashMap::new(),
+            _spot_lights: HashMap::new(),
+            _local_light_probes: HashMap::new(),
             _effects: HashMap::new(),
             _static_objects: HashMap::new(),
             _skeletal_objects: HashMap::new(),
@@ -1276,6 +1338,16 @@ impl<'a> SceneManager<'a> {
             self.add_point_light_object(object_name, light_create_info);
         }
 
+        // spot lights
+        for (object_name, light_create_info) in scene_data_create_info._spot_lights.iter() {
+            self.add_spot_light_object(object_name, light_create_info);
+        }
+
+        // local light probes
+        for (probe_name, probe_create_info) in scene_data_create_info._local_light_probes.iter() {
+            self.add_local_light_probe(probe_name, probe_create_info);
+        }
+
         // effects
         for (object_name, effect_create_info) in scene_data_create_info._effects.iter() {
             self.add_effect(object_name, effect_create_info);
@@ -1304,6 +1376,10 @@ impl<'a> SceneManager<'a> {
         self._directional_light_object_map.clear();
         self._point_light_object_map.clear();
         self._render_point_light_count = 0;
+        self._spot_light_object_map.clear();
+        self._local_light_probe_map.clear();
+        self._render_local_lighting_data._spot_light_count = 0;
+        self._render_local_lighting_data._local_light_probe_count = 0;
         self._dynamic_update_object_map.clear();
         self._collision_object_map.clear();
         self._collision_object_key_map.clear();
@@ -1324,6 +1400,8 @@ impl<'a> SceneManager<'a> {
             _cameras: HashMap::new(),
             _directional_lights: HashMap::new(),
             _point_lights: HashMap::new(),
+            _spot_lights: HashMap::new(),
+            _local_light_probes: HashMap::new(),
             _effects: HashMap::new(),
             _static_objects: HashMap::new(),
             _skeletal_objects: HashMap::new(),
@@ -1459,22 +1537,62 @@ impl<'a> SceneManager<'a> {
 
         let main_camera = ptr_as_mut(self.get_main_camera());
         main_camera.update_camera_object_data();
-        let camera_position = &main_camera.get_camera_position();
+        let camera_position = *main_camera.get_camera_position();
 
         let mut main_light = self._main_light.as_ref().unwrap().borrow_mut();
-        main_light.update_light_data(camera_position);
+        main_light.update_light_data_with_camera(main_camera);
 
-        begin_block!("gather point lights");
+        begin_block!("gather local lights & probes");
         {
-            // TODO: cull point light
-            self._render_point_light_count = 0;
-            for (i, point_light_data) in self._point_light_object_map.values().enumerate() {
-                self._render_point_lights._point_light_data[i] = point_light_data.borrow()._light_data.clone();
-                self._render_point_light_count += 1;
-                if MAX_POINT_LIGHTS <= self._render_point_light_count as usize {
-                    break;
-                }
+            // Gather closest visible point lights sorted by distance to camera
+            let mut point_light_candidates: Vec<(f32, crate::scene::light::PointLightData)> =
+                Vec::with_capacity(self._point_light_object_map.len());
+            for point_light_data in self._point_light_object_map.values() {
+                let pl = point_light_data.borrow();
+                let to_light = pl._light_data._light_position - camera_position;
+                let dist = to_light.norm() - pl._light_data._radius;
+                point_light_candidates.push((dist, pl._light_data.clone()));
             }
+            point_light_candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            self._render_point_light_count = 0;
+            for (_dist, pl_data) in point_light_candidates.into_iter().take(MAX_POINT_LIGHTS) {
+                self._render_point_lights._point_light_data[self._render_point_light_count as usize] = pl_data;
+                self._render_point_light_count += 1;
+            }
+
+            // Gather closest spot lights sorted by distance to camera
+            let mut spot_light_candidates: Vec<(f32, crate::scene::light::SpotLightData)> =
+                Vec::with_capacity(self._spot_light_object_map.len());
+            for spot_light_data in self._spot_light_object_map.values() {
+                let sl = spot_light_data.borrow();
+                let to_light = sl._light_data._light_position - camera_position;
+                let dist = to_light.norm() - sl._light_data._radius;
+                spot_light_candidates.push((dist, sl._light_data));
+            }
+            spot_light_candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            let mut spot_count: i32 = 0;
+            for (_dist, sl_data) in spot_light_candidates.into_iter().take(MAX_SPOT_LIGHTS) {
+                self._render_local_lighting_data._spot_lights[spot_count as usize] = sl_data;
+                spot_count += 1;
+            }
+            self._render_local_lighting_data._spot_light_count = spot_count;
+
+            // Gather closest local light probes sorted by distance to camera
+            let mut probe_candidates: Vec<(f32, crate::scene::light::LocalLightProbeData)> =
+                Vec::with_capacity(self._local_light_probe_map.len());
+            for probe_data in self._local_light_probe_map.values() {
+                let probe = probe_data.borrow();
+                let to_probe = probe._probe_data._position - camera_position;
+                let dist = to_probe.norm() - probe._bounding_box._radius;
+                probe_candidates.push((dist, probe._probe_data));
+            }
+            probe_candidates.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+            let mut probe_count: i32 = 0;
+            for (_dist, probe_data) in probe_candidates.into_iter().take(MAX_LOCAL_LIGHT_PROBES) {
+                self._render_local_lighting_data._local_light_probes[probe_count as usize] = probe_data;
+                probe_count += 1;
+            }
+            self._render_local_lighting_data._local_light_probe_count = probe_count;
         }
 
         begin_block!("gather render elements");

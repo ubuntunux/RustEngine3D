@@ -845,6 +845,13 @@ impl<'a> RendererContext<'a> {
         }
     }
 
+    pub fn set_viewport_and_scissor(&self, command_buffer: CommandBuffer, viewport: vk::Viewport, scissor: vk::Rect2D) {
+        unsafe {
+            self._device.cmd_set_viewport(command_buffer, 0, &[viewport]);
+            self._device.cmd_set_scissor(command_buffer, 0, &[scissor]);
+        }
+    }
+
     pub fn bind_descriptor_sets(
         &self,
         command_buffer: CommandBuffer,
@@ -1189,6 +1196,38 @@ impl<'a> RendererContext<'a> {
         } else {
             buffer::upload_buffer_data(&self._device, buffer_data, system::convert_to_bytes(upload_data));
         }
+    }
+
+    pub fn update_shader_buffer_i32_at_offset(
+        &self,
+        command_buffer: CommandBuffer,
+        swapchain_index: u32,
+        shader_buffer_data: &ShaderBufferData,
+        byte_offset: vk::DeviceSize,
+        value: i32,
+    ) {
+        let buffer_handle = shader_buffer_data._buffers[swapchain_index as usize]._buffer;
+        let bytes = value.to_ne_bytes();
+        unsafe {
+            self._device.cmd_update_buffer(command_buffer, buffer_handle, byte_offset, &bytes);
+        }
+        let barrier = vk::BufferMemoryBarrier::default()
+            .src_access_mask(vk::AccessFlags::TRANSFER_WRITE)
+            .dst_access_mask(vk::AccessFlags::UNIFORM_READ)
+            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .buffer(buffer_handle)
+            .offset(byte_offset)
+            .size(bytes.len() as vk::DeviceSize);
+        self.pipeline_barrier(
+            command_buffer,
+            vk::PipelineStageFlags::TRANSFER,
+            vk::PipelineStageFlags::VERTEX_SHADER | vk::PipelineStageFlags::FRAGMENT_SHADER,
+            vk::DependencyFlags::empty(),
+            &[],
+            &[barrier],
+            &[],
+        );
     }
 
     pub fn upload_shader_buffer_data_offset<T>(

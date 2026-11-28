@@ -10,7 +10,7 @@ use crate::scene::camera::CameraObjectData;
 use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::scene::debug_line::DebugLineInstanceData;
 use crate::scene::font::FontInstanceData;
-use crate::scene::light::{LightData, LightIndicesCell, PointLights};
+use crate::scene::light::{LightData, LightIndicesCell, LocalLightingData, PointLights};
 use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer;
@@ -184,6 +184,14 @@ impl ShaderBufferDataType {
             &mut RegisterShaderBufferCreateInfo {
                 _shader_buffer_data_type: ShaderBufferDataType::PointLightData,
                 _shader_buffer_data_stride: std::mem::size_of::<PointLights>(),
+                ..uniform_buffer_create_info
+            },
+        );
+        ShaderBufferDataType::register_shader_buffer_data(
+            debug_utils_device,
+            &mut RegisterShaderBufferCreateInfo {
+                _shader_buffer_data_type: ShaderBufferDataType::LocalLightingData,
+                _shader_buffer_data_stride: std::mem::size_of::<LocalLightingData>(),
                 ..uniform_buffer_create_info
             },
         );

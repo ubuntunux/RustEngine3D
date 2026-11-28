@@ -16,6 +16,7 @@ pub enum ShaderBufferDataType {
     ViewConstants,
     LightData,
     PointLightData,
+    LocalLightingData,
     ShadowAOConstants,
     AtmosphereConstants,
     LightProbeViewConstants0,

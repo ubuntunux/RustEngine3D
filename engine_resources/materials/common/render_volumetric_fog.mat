@@ -1,0 +1,5 @@
+{"pipelines":
+    [ {"render_pass": "render_volumetric_fog", "pipeline": "inject"},
+      {"render_pass": "render_volumetric_fog", "pipeline": "integrate"}
+    ]
+}

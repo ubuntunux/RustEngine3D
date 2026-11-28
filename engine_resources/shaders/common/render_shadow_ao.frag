@@ -180,36 +180,42 @@ void main() {
     }
 
     const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
+    const float pixel_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
     float shadow_factor = 1.0;
-    if ((scene_constants.RENDER_OPTION & RenderOption_RenderPCSS) != 0u)
+    const bool enable_shadow = ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)
+        && (light_data.CSM_CASCADE_COUNT_ACTIVE > 0);
+    if (enable_shadow)
     {
-        shadow_factor = get_shadow_factor_pcss(
-            scene_constants.TIME,
-            screen_pos,
-            world_position,
-            light_data.SHADOW_VIEW_PROJECTION,
-            light_data.INV_SHADOW_VIEW_PROJECTION,
-            light_data.SHADOW_SAMPLES,
-            SHADOW_BIAS,
-            texture_shadow
-        );
-    }
-    else
-    {
-        shadow_factor = get_shadow_factor(
-            scene_constants.TIME,
-            screen_pos,
-            world_position,
-            light_data.SHADOW_VIEW_PROJECTION,
-            light_data.INV_SHADOW_VIEW_PROJECTION,
-            light_data.SHADOW_SAMPLES,
-            SHADOW_BIAS,
-            texture_shadow
-        );
+        if ((scene_constants.RENDER_OPTION & RenderOption_RenderPCSS) != 0u)
+        {
+            shadow_factor = get_shadow_factor_pcss_csm(
+                scene_constants.TIME,
+                screen_pos,
+                world_position,
+                pixel_linear_depth,
+                light_data,
+                light_data.SHADOW_SAMPLES,
+                SHADOW_BIAS,
+                texture_shadow
+            );
+        }
+        else
+        {
+            shadow_factor = get_shadow_factor_csm(
+                scene_constants.TIME,
+                screen_pos,
+                world_position,
+                pixel_linear_depth,
+                light_data,
+                light_data.SHADOW_SAMPLES,
+                SHADOW_BIAS,
+                texture_shadow
+            );
+        }
     }
 
     // Screen-Space Contact Shadows: short 8-step ray march toward sun for crisp grounding on grass, rocks, and feet
-    if ((scene_constants.RENDER_OPTION & RenderOption_RenderContactShadow) != 0u && shadow_factor > 0.01)
+    if (enable_shadow && (scene_constants.RENDER_OPTION & RenderOption_RenderContactShadow) != 0u && shadow_factor > 0.01)
     {
         const vec3 L = normalize(-light_data.LIGHT_DIRECTION);
         const float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
@@ -257,7 +263,8 @@ void main() {
     }
 
     // Cloud Shadow Projection: project world position along sun ray onto overhead 3D cloud deck
-    if ((scene_constants.RENDER_OPTION & RenderOption_RenderSky) != 0u
+    if (enable_shadow
+        && (scene_constants.RENDER_OPTION & RenderOption_RenderSky) != 0u
         && atmosphere_constants.cloud_coverage > 0.28
         && shadow_factor > 0.01)
     {
