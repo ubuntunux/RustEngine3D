@@ -404,6 +404,7 @@ impl<'a> RenderContext_TAA<'a> {
 
     pub fn destroy(&mut self, device: &Device) {
         framebuffer::destroy_framebuffer_data(device, &self._taa_resolve_framebuffer_data);
+        self._taa_resolve_framebuffer_data = FramebufferData::default();
         self._taa_descriptor_sets.clear();
     }
 }
@@ -587,6 +588,10 @@ impl<'a> RenderContext_TAA_Simple<'a> {
     pub fn destroy(&mut self, device: &Device) {
         framebuffer::destroy_framebuffer_data(device, &self._framebuffer_data0);
         framebuffer::destroy_framebuffer_data(device, &self._framebuffer_data1);
+        self._framebuffer_data0 = FramebufferData::default();
+        self._framebuffer_data1 = FramebufferData::default();
+        self._descriptor_sets0.clear();
+        self._descriptor_sets1.clear();
     }
 }
 

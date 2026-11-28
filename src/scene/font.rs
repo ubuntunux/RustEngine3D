@@ -417,9 +417,9 @@ impl TextRenderData {
         let engine_resources = get_engine_resources();
         let material_instance = engine_resources.get_material_instance_data("ui/render_font").borrow();
         let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
-        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(
-            self._font_data.borrow()._texture.borrow().get_default_image_info().clone(),
-        );
+        let mut font_image_info = self._font_data.borrow()._texture.borrow().get_default_image_info().clone();
+        font_image_info.sampler = vk::Sampler::null();
+        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(font_image_info);
         self._render_font_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,

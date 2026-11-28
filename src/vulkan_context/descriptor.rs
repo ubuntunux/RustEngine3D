@@ -65,6 +65,17 @@ impl DescriptorDataCreateInfo {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DescriptorSetLayoutBindingKey {
+    pub _binding: u32,
+    pub _descriptor_type: i32,
+    pub _descriptor_count: u32,
+    pub _stage_flags: u32,
+    pub _immutable_samplers: Vec<u64>,
+}
+
+pub type DescriptorSetLayoutCacheKey = Vec<DescriptorSetLayoutBindingKey>;
+
 #[derive(Debug, Clone)]
 pub struct DescriptorData<'a> {
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
@@ -73,6 +84,7 @@ pub struct DescriptorData<'a> {
     pub _descriptor_pool: vk::DescriptorPool,
     pub _descriptor_set_layout: vk::DescriptorSetLayout,
     pub _max_descriptor_sets_count: u32,
+    pub _owns_descriptor_set_layout: bool,
 }
 
 impl<'a> Default for DescriptorData<'a> {
@@ -84,6 +96,7 @@ impl<'a> Default for DescriptorData<'a> {
             _descriptor_pool: vk::DescriptorPool::null(),
             _descriptor_set_layout: vk::DescriptorSetLayout::null(),
             _max_descriptor_sets_count: 0,
+            _owns_descriptor_set_layout: true,
         }
     }
 }
@@ -192,15 +205,45 @@ pub fn destroy_descriptor_set_layout(device: &Device, descriptor_set_layout: vk:
     }
 }
 
-pub fn create_descriptor_data<'a>(
+pub fn build_descriptor_set_layout_cache_key(
+    descriptor_data_create_infos: &[DescriptorDataCreateInfo],
+    global_samplers: &[vk::Sampler],
+) -> DescriptorSetLayoutCacheKey {
+    let sampler_array_count = global_samplers.len().max(1) as u32;
+    let sampler_raw_handles: Vec<u64> = global_samplers.iter().map(|s| s.as_raw()).collect();
+    let mut key: DescriptorSetLayoutCacheKey = descriptor_data_create_infos
+        .iter()
+        .map(|info| {
+            let is_immutable_sampler_array =
+                info._descriptor_resource_type == DescriptorResourceType::ImmutableSamplerArray;
+            DescriptorSetLayoutBindingKey {
+                _binding: info._descriptor_binding_index,
+                _descriptor_type: convert_resource_type_to_descriptor_type(&info._descriptor_resource_type).as_raw(),
+                _descriptor_count: if is_immutable_sampler_array {
+                    sampler_array_count
+                } else {
+                    1
+                },
+                _stage_flags: info._descriptor_shader_stage.as_raw(),
+                _immutable_samplers: if is_immutable_sampler_array && !global_samplers.is_empty() {
+                    sampler_raw_handles.clone()
+                } else {
+                    Vec::new()
+                },
+            }
+        })
+        .collect();
+    key.sort_by_key(|k| k._binding);
+    key
+}
+
+pub fn create_descriptor_set_layout_for_infos(
     device: &Device,
     debug_utils_device: &ext::debug_utils::Device,
     descriptor_name: &str,
-    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
+    descriptor_data_create_infos: &[DescriptorDataCreateInfo],
     global_samplers: &[vk::Sampler],
-    max_descriptor_sets_count: u32,
-) -> DescriptorData<'a> {
-    log::trace!("create_descriptor_data");
+) -> vk::DescriptorSetLayout {
     let sampler_array_count = global_samplers.len().max(1) as u32;
     let layout_bindings_for_vk: Vec<vk::DescriptorSetLayoutBinding> = descriptor_data_create_infos
         .iter()
@@ -227,6 +270,47 @@ pub fn create_descriptor_data<'a>(
             }
         })
         .collect();
+    create_descriptor_set_layout(device, debug_utils_device, descriptor_name, &layout_bindings_for_vk)
+}
+
+pub fn create_descriptor_data<'a>(
+    device: &Device,
+    debug_utils_device: &ext::debug_utils::Device,
+    descriptor_name: &str,
+    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
+    global_samplers: &[vk::Sampler],
+    max_descriptor_sets_count: u32,
+) -> DescriptorData<'a> {
+    let descriptor_set_layout = create_descriptor_set_layout_for_infos(
+        device,
+        debug_utils_device,
+        descriptor_name,
+        descriptor_data_create_infos,
+        global_samplers,
+    );
+    create_descriptor_data_with_layout(
+        device,
+        debug_utils_device,
+        descriptor_name,
+        descriptor_data_create_infos,
+        global_samplers.len().max(1) as u32,
+        descriptor_set_layout,
+        true,
+        max_descriptor_sets_count,
+    )
+}
+
+pub fn create_descriptor_data_with_layout<'a>(
+    device: &Device,
+    debug_utils_device: &ext::debug_utils::Device,
+    descriptor_name: &str,
+    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
+    sampler_array_count: u32,
+    descriptor_set_layout: vk::DescriptorSetLayout,
+    owns_descriptor_set_layout: bool,
+    max_descriptor_sets_count: u32,
+) -> DescriptorData<'a> {
+    log::trace!("create_descriptor_data_with_layout");
     let descriptor_pool_sizes = descriptor_data_create_infos
         .iter()
         .map(|descriptor_data_create_info| {
@@ -242,8 +326,6 @@ pub fn create_descriptor_data<'a>(
             }
         })
         .collect();
-    let descriptor_set_layout =
-        create_descriptor_set_layout(device, debug_utils_device, descriptor_name, &layout_bindings_for_vk);
     let descriptor_pool = create_descriptor_pool(
         device,
         debug_utils_device,
@@ -252,15 +334,25 @@ pub fn create_descriptor_data<'a>(
         max_descriptor_sets_count,
     );
     // Clear raw immutable sampler pointers before storing to avoid retaining borrowed stack/slice pointers
-    let stored_layout_bindings: Vec<vk::DescriptorSetLayoutBinding<'a>> = layout_bindings_for_vk
+    let stored_layout_bindings: Vec<vk::DescriptorSetLayoutBinding<'a>> = descriptor_data_create_infos
         .iter()
-        .map(|b| vk::DescriptorSetLayoutBinding {
-            binding: b.binding,
-            descriptor_type: b.descriptor_type,
-            descriptor_count: b.descriptor_count,
-            stage_flags: b.stage_flags,
-            p_immutable_samplers: std::ptr::null(),
-            ..Default::default()
+        .map(|descriptor_data_create_info| {
+            let is_immutable_sampler_array =
+                descriptor_data_create_info._descriptor_resource_type == DescriptorResourceType::ImmutableSamplerArray;
+            vk::DescriptorSetLayoutBinding {
+                binding: descriptor_data_create_info._descriptor_binding_index,
+                descriptor_type: convert_resource_type_to_descriptor_type(
+                    &descriptor_data_create_info._descriptor_resource_type,
+                ),
+                descriptor_count: if is_immutable_sampler_array {
+                    sampler_array_count
+                } else {
+                    1
+                },
+                stage_flags: descriptor_data_create_info._descriptor_shader_stage,
+                p_immutable_samplers: std::ptr::null(),
+                ..Default::default()
+            }
         })
         .collect();
     DescriptorData {
@@ -270,14 +362,21 @@ pub fn create_descriptor_data<'a>(
         _descriptor_pool: descriptor_pool,
         _descriptor_set_layout: descriptor_set_layout,
         _max_descriptor_sets_count: max_descriptor_sets_count,
+        _owns_descriptor_set_layout: owns_descriptor_set_layout,
     }
 }
 
 pub fn destroy_descriptor_data(device: &Device, descriptor_data: &DescriptorData) {
     log::trace!("destroyDescriptorData");
     unsafe {
-        device.destroy_descriptor_set_layout(descriptor_data._descriptor_set_layout, None);
-        device.destroy_descriptor_pool(descriptor_data._descriptor_pool, None);
+        if descriptor_data._owns_descriptor_set_layout
+            && descriptor_data._descriptor_set_layout != vk::DescriptorSetLayout::null()
+        {
+            device.destroy_descriptor_set_layout(descriptor_data._descriptor_set_layout, None);
+        }
+        if descriptor_data._descriptor_pool != vk::DescriptorPool::null() {
+            device.destroy_descriptor_pool(descriptor_data._descriptor_pool, None);
+        }
     }
 }
 
@@ -451,5 +550,73 @@ pub fn update_write_descriptor_set(
             write_descriptor_set.p_buffer_info = std::ptr::null();
             write_descriptor_set.p_image_info = std::ptr::null();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_descriptor_set_layout_cache_key_deduplicates_and_distinguishes() {
+        let samplers = [vk::Sampler::from_raw(10), vk::Sampler::from_raw(20)];
+        let infos_a = vec![
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 2,
+                _descriptor_name: String::from("g_samplers"),
+                _descriptor_resource_type: DescriptorResourceType::ImmutableSamplerArray,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 0,
+                _descriptor_name: String::from("texture_a"),
+                _descriptor_resource_type: DescriptorResourceType::Image,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+        ];
+        // Same layout with different descriptor name and reversed binding order must share key
+        let infos_b = vec![
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 0,
+                _descriptor_name: String::from("texture_b"),
+                _descriptor_resource_type: DescriptorResourceType::Image,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 2,
+                _descriptor_name: String::from("g_samplers"),
+                _descriptor_resource_type: DescriptorResourceType::ImmutableSamplerArray,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+        ];
+        // Different stage flags must produce a different key
+        let infos_c = vec![
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 0,
+                _descriptor_name: String::from("texture_a"),
+                _descriptor_resource_type: DescriptorResourceType::Image,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 2,
+                _descriptor_name: String::from("g_samplers"),
+                _descriptor_resource_type: DescriptorResourceType::ImmutableSamplerArray,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+        ];
+
+        let key_a = build_descriptor_set_layout_cache_key(&infos_a, &samplers);
+        let key_b = build_descriptor_set_layout_cache_key(&infos_b, &samplers);
+        let key_c = build_descriptor_set_layout_cache_key(&infos_c, &samplers);
+
+        assert_eq!(key_a, key_b);
+        assert_ne!(key_a, key_c);
+        assert_eq!(key_a[1]._immutable_samplers, vec![10, 20]);
     }
 }

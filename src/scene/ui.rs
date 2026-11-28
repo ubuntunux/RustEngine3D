@@ -3149,6 +3149,10 @@ impl<'a> UIManager<'a> {
     pub fn create_ui_graphics_data(&mut self) {
         let engine_resources = get_engine_resources();
         self._default_render_ui_material = Some(engine_resources.get_material_instance_data("ui/render_ui").clone());
+        let current_font_name = self._font_data.borrow()._font_data_name.clone();
+        if !current_font_name.is_empty() && engine_resources.has_font_data(&current_font_name) {
+            self.set_font_data(&current_font_name);
+        }
     }
 
     pub fn destroy_ui_graphics_data(&mut self) {

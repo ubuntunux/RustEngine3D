@@ -34,7 +34,9 @@ use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
 use crate::scene::model::{ModelData, ModelDataInfo};
 use crate::scene::scene_manager::SceneDataCreateInfo;
 use crate::utilities::system::{self, RcRefCell, newRcRefCell, ptr_as_ref};
-use crate::vulkan_context::descriptor::{self, DescriptorData, DescriptorResourceInfo, DescriptorResourceType};
+use crate::vulkan_context::descriptor::{
+    self, DescriptorData, DescriptorResourceInfo, DescriptorResourceType, DescriptorSetLayoutCacheKey,
+};
 use crate::vulkan_context::framebuffer::{self, FramebufferData};
 use crate::vulkan_context::geometry_buffer::{self, GeometryData};
 use crate::vulkan_context::render_pass::{
@@ -486,6 +488,7 @@ pub struct EngineResources<'a> {
     pub _material_data_map: MaterialDataMap<'a>,
     pub _material_instance_data_map: MaterialInstanceDataMap<'a>,
     pub _descriptor_data_map: DescriptorDataMap<'a>,
+    pub _descriptor_set_layout_cache: HashMap<DescriptorSetLayoutCacheKey, vk::DescriptorSetLayout>,
     pub _gc_check_timer: f32,
     pub _gc_timeout_sec: f32,
     pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
@@ -744,6 +747,7 @@ impl<'a> EngineResources<'a> {
             _material_data_map: MaterialDataMap::default(),
             _material_instance_data_map: MaterialInstanceDataMap::default(),
             _descriptor_data_map: DescriptorDataMap::default(),
+            _descriptor_set_layout_cache: HashMap::new(),
             _gc_check_timer: 0.0,
             _gc_timeout_sec: DEFAULT_RESOURCE_GC_TIMEOUT_SEC,
             _callback_load_render_pass_create_infos: callback_load_render_pass_create_info,
@@ -1342,6 +1346,7 @@ impl<'a> EngineResources<'a> {
         self.unload_font_data_list();
         self.unload_texture_data_list(renderer_context);
         self.unload_descriptor_data_list(renderer_context);
+        self.unload_descriptor_set_layout_cache(renderer_context);
     }
 
     pub fn update_garbage_collection(&mut self, delta_time: f64) -> u32 {
@@ -3528,13 +3533,19 @@ impl<'a> EngineResources<'a> {
                 }
             }
 
-            // replace texture_font parameter as a matched to default font.
-            if material_instance_name == DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME
-                || material_instance_name == DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME
+            // Assign default font texture only when not already bound (preserve active font across reloads)
+            if (material_instance_name == DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME
+                || material_instance_name == DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME)
+                && !material_parameters.contains_key(TEXTURE_FONT_MATERIAL_PARAMETER_NAME)
             {
+                let default_font_name = if !self._font_data_map.is_empty() {
+                    self.get_default_font_data().borrow()._font_data_name.clone()
+                } else {
+                    String::from(DEFAULT_FONT_NAME)
+                };
                 material_parameters.insert(
                     String::from(TEXTURE_FONT_MATERIAL_PARAMETER_NAME),
-                    Value::String(String::from("fonts/") + &String::from(DEFAULT_FONT_NAME)),
+                    Value::String(format!("fonts/{}", default_font_name)),
                 );
             }
 
@@ -3702,6 +3713,29 @@ impl<'a> EngineResources<'a> {
     }
 
     // Descriptor_data_list
+    fn get_or_create_descriptor_set_layout(
+        &mut self,
+        renderer_context: &RendererContext<'a>,
+        descriptor_name: &str,
+        descriptor_data_create_infos: &[crate::vulkan_context::descriptor::DescriptorDataCreateInfo],
+    ) -> vk::DescriptorSetLayout {
+        let global_samplers = renderer_context.get_global_samplers();
+        let cache_key =
+            descriptor::build_descriptor_set_layout_cache_key(descriptor_data_create_infos, global_samplers);
+        if let Some(&cached_layout) = self._descriptor_set_layout_cache.get(&cache_key) {
+            return cached_layout;
+        }
+        let layout = descriptor::create_descriptor_set_layout_for_infos(
+            renderer_context.get_device(),
+            renderer_context.get_debug_utils(),
+            descriptor_name,
+            descriptor_data_create_infos,
+            global_samplers,
+        );
+        self._descriptor_set_layout_cache.insert(cache_key, layout);
+        layout
+    }
+
     pub fn get_descriptor_data(
         &mut self,
         renderer_context: &RendererContext<'a>,
@@ -3716,22 +3750,27 @@ impl<'a> EngineResources<'a> {
         // TODO: Let's set an appropriate max_descriptor_pool_count according to the render pass
         let max_descriptor_pool_count: u32 =
             unsafe { (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32 };
-        let maybe_descriptor_data = self._descriptor_data_map.get(&descriptor_name);
-        match maybe_descriptor_data {
-            Some(descriptor_data) => descriptor_data.clone(),
-            None => {
-                let descriptor_data = newRcRefCell(descriptor::create_descriptor_data(
-                    renderer_context.get_device(),
-                    renderer_context.get_debug_utils(),
-                    descriptor_name.as_str(),
-                    descriptor_data_create_infos,
-                    renderer_context.get_global_samplers(),
-                    max_descriptor_pool_count,
-                ));
-                self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
-                descriptor_data
-            }
+        if let Some(descriptor_data) = self._descriptor_data_map.get(&descriptor_name) {
+            return descriptor_data.clone();
         }
+        let descriptor_set_layout = self.get_or_create_descriptor_set_layout(
+            renderer_context,
+            descriptor_name.as_str(),
+            descriptor_data_create_infos,
+        );
+        let sampler_array_count = renderer_context.get_global_samplers().len().max(1) as u32;
+        let descriptor_data = newRcRefCell(descriptor::create_descriptor_data_with_layout(
+            renderer_context.get_device(),
+            renderer_context.get_debug_utils(),
+            descriptor_name.as_str(),
+            descriptor_data_create_infos,
+            sampler_array_count,
+            descriptor_set_layout,
+            false,
+            max_descriptor_pool_count,
+        ));
+        self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
+        descriptor_data
     }
 
     pub fn unload_descriptor_data_list(&mut self, renderer_context: &RendererContext) {
@@ -3739,6 +3778,15 @@ impl<'a> EngineResources<'a> {
             descriptor::destroy_descriptor_data(renderer_context.get_device(), &(*descriptor_data).borrow());
         }
         self._descriptor_data_map.clear();
+    }
+
+    pub fn unload_descriptor_set_layout_cache(&mut self, renderer_context: &RendererContext) {
+        for &layout in self._descriptor_set_layout_cache.values() {
+            if layout != vk::DescriptorSetLayout::null() {
+                descriptor::destroy_descriptor_set_layout(renderer_context.get_device(), layout);
+            }
+        }
+        self._descriptor_set_layout_cache.clear();
     }
 
     // SceneData

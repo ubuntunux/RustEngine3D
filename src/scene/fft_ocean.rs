@@ -307,6 +307,10 @@ impl<'a> FFTOcean<'a> {
         framebuffer::destroy_framebuffer_data(device, &self._fft_wave_x_fft_b_framebuffer);
         framebuffer::destroy_framebuffer_data(device, &self._fft_wave_y_fft_a_framebuffer);
         framebuffer::destroy_framebuffer_data(device, &self._fft_wave_y_fft_b_framebuffer);
+        self._fft_wave_x_fft_a_framebuffer = FramebufferData::default();
+        self._fft_wave_x_fft_b_framebuffer = FramebufferData::default();
+        self._fft_wave_y_fft_a_framebuffer = FramebufferData::default();
+        self._fft_wave_y_fft_b_framebuffer = FramebufferData::default();
 
         self._fft_variance_framebuffers.clear();
         self._fft_wave_x_fft_a_descriptor_sets.clear();

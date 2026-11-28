@@ -1459,6 +1459,29 @@ fn create_texture_data_inner<T: Copy>(
 
         // destroy staging buffer
         buffer::destroy_buffer_data(device, &staging_buffer_data);
+    } else if !is_render_target
+        && image_layout == vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+        && texture_create_info._image_layout_transition == ImageLayoutTransition::None
+    {
+        // Empty sampled textures (e.g. dynamic font atlases) still need TRANSFER_DST -> SHADER_READ_ONLY transition
+        run_commands_once(
+            device,
+            command_pool,
+            command_queue,
+            |device: &Device, command_buffer: vk::CommandBuffer| {
+                transition_image_layout(
+                    device,
+                    command_buffer,
+                    image,
+                    image_aspect,
+                    ImageLayoutTransition::TransferDstToShaderReadOnly,
+                    0,
+                    mip_levels,
+                    0,
+                    layer_count,
+                );
+            },
+        );
     }
 
     // create image view, sampler, descriptor
