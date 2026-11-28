@@ -49,21 +49,21 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
         DescriptorDataCreateInfo {
             _descriptor_binding_index: USER_BINDING_INDEX0,
             _descriptor_name: String::from("textureBase"),
-            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_resource_type: DescriptorResourceType::Image,
             _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
         },
         DescriptorDataCreateInfo {
             _descriptor_binding_index: USER_BINDING_INDEX1,
             _descriptor_name: String::from("textureMaterial"),
-            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_resource_type: DescriptorResourceType::Image,
             _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
         },
         DescriptorDataCreateInfo {
             _descriptor_binding_index: USER_BINDING_INDEX2,
             _descriptor_name: String::from("textureNormal"),
-            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_resource_type: DescriptorResourceType::Image,
             _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
         },

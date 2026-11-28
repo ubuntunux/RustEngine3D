@@ -14,11 +14,12 @@ layout( push_constant ) uniform PushConstant_RenderFont
     uint reserved0;
 } pushConstant;
 
-layout(binding = 0) uniform sampler2D texture_font;
+layout(binding = 0) uniform texture2D texture_font;
 layout(binding = 1) buffer FontInstanceDataBuffer
 {
     FontInstanceData font_instance_data[MAX_FONT_INSTANCE_COUNT];
 };
+layout(binding = 2) uniform sampler g_samplers[GLOBAL_SAMPLER_COUNT];
 
 
 struct VERTEX_OUTPUT

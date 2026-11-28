@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "folder_rules": {
+    "lut/": {
+      "format": "RGBA8",
+      "mipmap": false,
+      "srgb": false
+    }
+  },
+  "overrides": {
+    "common/default_emissive": { "format": "BC7", "mipmap": true, "srgb": false },
+    "common/default_m": { "format": "BC7", "mipmap": true, "srgb": false },
+    "common/default_n": { "format": "BC5", "mipmap": true, "srgb": false },
+    "common/flat_none": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "common/flat_normal_no_alpha": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "common/flat_white_no_alpha": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "common/fresnel_lut": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "common/ibl_brdf_lut": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "common/mouse_cursor": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "common/noise": { "format": "RGBA8", "mipmap": false, "srgb": false },
+    "mutant/mutant_normal": { "format": "BC5", "mipmap": true, "srgb": false },
+    "sky/milky_way": { "format": "BC7", "mipmap": true, "srgb": false }
+  }
+}

@@ -44,9 +44,10 @@ layout(binding = 15) buffer readonly GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
-layout(binding = 16) uniform sampler2D textureBase;
-layout(binding = 17) uniform sampler2D textureMaterial;
-layout(binding = 18) uniform sampler2D textureNormal;
+layout(binding = 16) uniform texture2D textureBase;
+layout(binding = 17) uniform texture2D textureMaterial;
+layout(binding = 18) uniform texture2D textureNormal;
+layout(binding = 19) uniform sampler g_samplers[GLOBAL_SAMPLER_COUNT];
 
 layout( push_constant ) uniform PushConstant_RenderParticle
 {

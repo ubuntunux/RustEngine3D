@@ -40,6 +40,7 @@ pub struct TextureCreateInfo<T> {
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _max_mip_levels: u32,
     pub _enable_mipmap: bool,
+    pub _prebaked_mip_levels: u32,
     pub _enable_anisotropy: bool,
     pub _texture_initial_data_list: Vec<T>,
     pub _image_layout_transition: ImageLayoutTransition,
@@ -88,18 +89,70 @@ impl Default for TextureData {
     }
 }
 
+pub fn is_block_compressed_format(format: vk::Format) -> bool {
+    matches!(
+        format,
+        vk::Format::BC1_RGB_UNORM_BLOCK
+            | vk::Format::BC1_RGB_SRGB_BLOCK
+            | vk::Format::BC1_RGBA_UNORM_BLOCK
+            | vk::Format::BC1_RGBA_SRGB_BLOCK
+            | vk::Format::BC2_UNORM_BLOCK
+            | vk::Format::BC2_SRGB_BLOCK
+            | vk::Format::BC3_UNORM_BLOCK
+            | vk::Format::BC3_SRGB_BLOCK
+            | vk::Format::BC4_UNORM_BLOCK
+            | vk::Format::BC4_SNORM_BLOCK
+            | vk::Format::BC5_UNORM_BLOCK
+            | vk::Format::BC5_SNORM_BLOCK
+            | vk::Format::BC6H_UFLOAT_BLOCK
+            | vk::Format::BC6H_SFLOAT_BLOCK
+            | vk::Format::BC7_UNORM_BLOCK
+            | vk::Format::BC7_SRGB_BLOCK
+    )
+}
+
+pub fn get_format_block_info(format: vk::Format) -> (u32, u32, usize) {
+    match format {
+        vk::Format::BC1_RGB_UNORM_BLOCK
+        | vk::Format::BC1_RGB_SRGB_BLOCK
+        | vk::Format::BC1_RGBA_UNORM_BLOCK
+        | vk::Format::BC1_RGBA_SRGB_BLOCK
+        | vk::Format::BC4_UNORM_BLOCK
+        | vk::Format::BC4_SNORM_BLOCK => (4, 4, 8),
+        vk::Format::BC2_UNORM_BLOCK
+        | vk::Format::BC2_SRGB_BLOCK
+        | vk::Format::BC3_UNORM_BLOCK
+        | vk::Format::BC3_SRGB_BLOCK
+        | vk::Format::BC5_UNORM_BLOCK
+        | vk::Format::BC5_SNORM_BLOCK
+        | vk::Format::BC6H_UFLOAT_BLOCK
+        | vk::Format::BC6H_SFLOAT_BLOCK
+        | vk::Format::BC7_UNORM_BLOCK
+        | vk::Format::BC7_SRGB_BLOCK => (4, 4, 16),
+        vk::Format::R8_UNORM | vk::Format::R8_SNORM | vk::Format::R8_UINT | vk::Format::R8_SINT => (1, 1, 1),
+        vk::Format::R8G8_UNORM | vk::Format::R8G8_SNORM | vk::Format::R16_SFLOAT => (1, 1, 2),
+        vk::Format::R8G8B8_UNORM | vk::Format::R8G8B8_SRGB => (1, 1, 3),
+        vk::Format::R16G16B16A16_UNORM | vk::Format::R16G16B16A16_SFLOAT | vk::Format::R32G32_SFLOAT => (1, 1, 8),
+        vk::Format::R32G32B32A32_SFLOAT => (1, 1, 16),
+        _ => (1, 1, 4),
+    }
+}
+
+pub fn calc_mip_level_byte_size(format: vk::Format, width: u32, height: u32, depth: u32) -> usize {
+    let (block_w, block_h, block_bytes) = get_format_block_info(format);
+    let blocks_x = width.max(1).div_ceil(block_w) as usize;
+    let blocks_y = height.max(1).div_ceil(block_h) as usize;
+    blocks_x * blocks_y * depth.max(1) as usize * block_bytes
+}
+
 impl TextureData {
     pub fn get_memory_usage_bytes(&self) -> usize {
-        let bpp = match self._image_format {
-            vk::Format::R8_UNORM | vk::Format::R8_SNORM | vk::Format::R8_UINT | vk::Format::R8_SINT => 1,
-            vk::Format::R8G8_UNORM | vk::Format::R8G8_SNORM | vk::Format::R16_SFLOAT => 2,
-            vk::Format::R8G8B8_UNORM | vk::Format::R8G8B8_SRGB => 3,
-            vk::Format::R16G16B16A16_SFLOAT | vk::Format::R32G32_SFLOAT => 8,
-            vk::Format::R32G32B32A32_SFLOAT => 16,
-            _ => 4,
-        };
-        let base_size =
-            self._image_width as usize * self._image_height as usize * bpp * (self._image_layers.max(1) as usize);
+        let base_size = calc_mip_level_byte_size(
+            self._image_format,
+            self._image_width,
+            self._image_height,
+            self._image_layers.max(1),
+        );
         if self._image_mip_levels > 1 {
             (base_size * 4) / 3
         } else {
@@ -154,6 +207,7 @@ impl<T> Default for TextureCreateInfo<T> {
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _max_mip_levels: constants::WHOLE_MIP_LEVELS,
             _enable_mipmap: false,
+            _prebaked_mip_levels: 0,
             _enable_anisotropy: false,
             _texture_initial_data_list: Vec::new(),
             _image_layout_transition: ImageLayoutTransition::None,
@@ -923,6 +977,92 @@ pub fn copy_buffer_to_image(
     );
 }
 
+pub fn copy_buffer_to_image_with_mips(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    buffer: vk::Buffer,
+    image: vk::Image,
+    image_aspect: vk::ImageAspectFlags,
+    image_format: vk::Format,
+    width: u32,
+    height: u32,
+    depth: u32,
+    layer_count: u32,
+    mip_levels: u32,
+    buffer_size: u64,
+) {
+    let mut regions: Vec<vk::BufferImageCopy> = Vec::with_capacity((layer_count * mip_levels) as usize);
+    let mut current_offset: u64 = 0;
+
+    // DDS stores subresources in layer-major, mip-minor order
+    for layer in 0..layer_count {
+        for mip in 0..mip_levels {
+            let mip_w = (width >> mip).max(1);
+            let mip_h = (height >> mip).max(1);
+            let mip_d = (depth >> mip).max(1);
+            let mip_bytes = calc_mip_level_byte_size(image_format, mip_w, mip_h, mip_d) as u64;
+            if current_offset + mip_bytes > buffer_size {
+                log::error!(
+                    "Prebaked mip copy exceeds staging buffer size: layer={}, mip={}, offset={}, mip_bytes={}, buffer_size={}",
+                    layer,
+                    mip,
+                    current_offset,
+                    mip_bytes,
+                    buffer_size
+                );
+                break;
+            }
+            regions.push(vk::BufferImageCopy {
+                buffer_offset: current_offset,
+                buffer_row_length: 0,
+                buffer_image_height: 0,
+                image_subresource: vk::ImageSubresourceLayers {
+                    aspect_mask: image_aspect,
+                    mip_level: mip,
+                    base_array_layer: layer,
+                    layer_count: 1,
+                },
+                image_offset: vk::Offset3D { x: 0, y: 0, z: 0 },
+                image_extent: vk::Extent3D {
+                    width: mip_w,
+                    height: mip_h,
+                    depth: mip_d,
+                },
+            });
+            current_offset += mip_bytes;
+        }
+    }
+
+    run_commands_once(
+        device,
+        command_pool,
+        command_queue,
+        |device: &Device, command_buffer: vk::CommandBuffer| {
+            unsafe {
+                device.cmd_copy_buffer_to_image(
+                    command_buffer,
+                    buffer,
+                    image,
+                    vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                    &regions,
+                );
+            }
+            transition_image_layout(
+                device,
+                command_buffer,
+                image,
+                image_aspect,
+                ImageLayoutTransition::TransferDstToShaderReadOnly,
+                0,
+                mip_levels,
+                0,
+                layer_count,
+            );
+        },
+    );
+}
+
 pub fn copy_image_to_buffer(
     device: &Device,
     command_pool: vk::CommandPool,
@@ -1101,7 +1241,10 @@ fn create_texture_data_inner<T: Copy>(
         ),
         _ => (vk::ImageCreateFlags::empty(), 1, 1),
     };
-    let mip_levels = if texture_create_info._enable_mipmap {
+    let has_prebaked_mips = texture_create_info._prebaked_mip_levels > 0;
+    let mip_levels = if has_prebaked_mips {
+        texture_create_info._prebaked_mip_levels
+    } else if texture_create_info._enable_mipmap {
         calc_mip_levels(
             texture_create_info._texture_width,
             texture_create_info._texture_height,
@@ -1112,8 +1255,11 @@ fn create_texture_data_inner<T: Copy>(
         1
     };
 
-    let common_usage =
-        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
+    let common_usage = if has_prebaked_mips && is_block_compressed_format(texture_create_info._texture_format) {
+        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_DST
+    } else {
+        vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST
+    };
     let (image_usage, image_aspect, image_layout_transition, image_format, image_layout) = if is_render_target {
         if constants::DEPTH_FORMATS.contains(&texture_create_info._texture_format) {
             (
@@ -1256,42 +1402,60 @@ fn create_texture_data_inner<T: Copy>(
             device.unmap_memory(staging_buffer_data._buffer_memory);
         }
 
-        copy_buffer_to_image(
-            device,
-            command_pool,
-            command_queue,
-            staging_buffer_data._buffer,
-            image,
-            image_aspect,
-            texture_create_info._texture_width,
-            texture_create_info._texture_height,
-            texture_depth,
-            layer_count,
-        );
+        if has_prebaked_mips {
+            copy_buffer_to_image_with_mips(
+                device,
+                command_pool,
+                command_queue,
+                staging_buffer_data._buffer,
+                image,
+                image_aspect,
+                image_format,
+                texture_create_info._texture_width,
+                texture_create_info._texture_height,
+                texture_depth,
+                layer_count,
+                mip_levels,
+                buffer_size,
+            );
+        } else {
+            copy_buffer_to_image(
+                device,
+                command_pool,
+                command_queue,
+                staging_buffer_data._buffer,
+                image,
+                image_aspect,
+                texture_create_info._texture_width,
+                texture_create_info._texture_height,
+                texture_depth,
+                layer_count,
+            );
 
-        // generateMipmaps does this as a side effect:
-        // transitionImageLayout image VK_FORMAT_R8G8B8A8_UNORM TransferDst_ShaderReadOnly mipLevels
-        run_commands_once(
-            device,
-            command_pool,
-            command_queue,
-            |device: &Device, command_buffer: vk::CommandBuffer| {
-                generate_mipmaps(
-                    instance,
-                    device,
-                    physical_device,
-                    command_buffer,
-                    image,
-                    image_aspect,
-                    texture_create_info._texture_format,
-                    texture_create_info._texture_width as i32,
-                    texture_create_info._texture_height as i32,
-                    texture_depth as i32,
-                    mip_levels,
-                    layer_count,
-                );
-            },
-        );
+            // generateMipmaps does this as a side effect:
+            // transitionImageLayout image VK_FORMAT_R8G8B8A8_UNORM TransferDst_ShaderReadOnly mipLevels
+            run_commands_once(
+                device,
+                command_pool,
+                command_queue,
+                |device: &Device, command_buffer: vk::CommandBuffer| {
+                    generate_mipmaps(
+                        instance,
+                        device,
+                        physical_device,
+                        command_buffer,
+                        image,
+                        image_aspect,
+                        texture_create_info._texture_format,
+                        texture_create_info._texture_width as i32,
+                        texture_create_info._texture_height as i32,
+                        texture_depth as i32,
+                        mip_levels,
+                        layer_count,
+                    );
+                },
+            );
+        }
 
         // destroy staging buffer
         buffer::destroy_buffer_data(device, &staging_buffer_data);

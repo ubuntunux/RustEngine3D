@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -23,6 +23,7 @@ use crate::resource::collada_loader::Collada;
 use crate::resource::font_loader;
 use crate::resource::gltf_loader::GLTF;
 use crate::resource::obj_loader::WaveFrontOBJ;
+use crate::resource::texture_cooker::{self, EXT_TEXTURE_DDS};
 use crate::resource::texture_generator;
 use crate::scene::animation::AnimationLayerData;
 use crate::scene::dynamic_font_atlas::DYNAMIC_FONT_ATLAS_SIZE;
@@ -937,6 +938,7 @@ impl<'a> EngineResources<'a> {
                                 _texture_view_type: texture_data._image_view_type,
                                 _texture_initial_data_list: texture_data._image_data,
                                 _enable_mipmap: texture_data._enable_mipmap,
+                                _prebaked_mip_levels: texture_data._prebaked_mip_levels,
                                 _enable_anisotropy: false,
                                 ..Default::default()
                             };
@@ -1076,6 +1078,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn load_resource_list(&mut self) {
+        self._relative_resource_file_path_map.clear();
         let resource_list_file_path: PathBuf = PathBuf::from(APPLICATION_RESOURCE_PATH).join("resources.txt");
         let loaded_resources = system::load(&resource_list_file_path);
         let contents: String = String::from_utf8(loaded_resources.into_inner()).unwrap();
@@ -1126,11 +1129,19 @@ impl<'a> EngineResources<'a> {
             let engine_font_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
             let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_SOURCE_DIRECTORY);
             let engine_shader_cache_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(TEXTURE_DIRECTORY);
             let include_extensions: &[&str] = &[];
             let ignore_extensions: &[&str] = &["log"];
             let engine_resource_files = walk_directory(&engine_resource_path, include_extensions, ignore_extensions);
             for file_path in engine_resource_files.iter() {
-                if false == file_path.starts_with(&engine_font_path)
+                let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                let is_cooked_dds = ext.eq_ignore_ascii_case(EXT_TEXTURE_DDS);
+                let is_cooked_dds_meta = file_path.starts_with(&engine_texture_path)
+                    && ext.eq_ignore_ascii_case(EXT_META_FILE)
+                    && file_path.with_extension(EXT_TEXTURE_DDS).is_file();
+                if false == is_cooked_dds
+                    && false == is_cooked_dds_meta
+                    && false == file_path.starts_with(&engine_font_path)
                     && false == file_path.starts_with(&engine_font_texture_path)
                     && false == file_path.starts_with(&engine_font_source_path)
                     && false == file_path.starts_with(&engine_shader_cache_path)
@@ -2968,6 +2979,35 @@ impl<'a> EngineResources<'a> {
         Some(renderer_context.create_texture(&texture_create_info))
     }
 
+    fn load_dds_texture(
+        renderer_context: &RendererContext,
+        texture_name: &str,
+        file_path: &Path,
+    ) -> Option<TextureData> {
+        let dds = match texture_cooker::load_dds_texture(file_path) {
+            Ok(dds) => dds,
+            Err(err) => {
+                log::error!("load_dds_texture error ({:?}): {}", file_path, err);
+                return None;
+            }
+        };
+
+        let texture_create_info = TextureCreateInfo {
+            _texture_name: texture_name.to_string(),
+            _texture_width: dds._width,
+            _texture_height: dds._height,
+            _texture_layers: dds._layers,
+            _texture_format: dds._format,
+            _texture_view_type: dds._view_type,
+            _texture_initial_data_list: dds._data,
+            _enable_mipmap: dds._mip_levels > 1,
+            _prebaked_mip_levels: dds._mip_levels,
+            _enable_anisotropy: false,
+            ..Default::default()
+        };
+        Some(renderer_context.create_texture(&texture_create_info))
+    }
+
     pub fn load_texture_data(texture_name: &str, meta_data: &MetaData) -> Option<TextureData> {
         let renderer_context = get_renderer_context();
 
@@ -2983,6 +3023,8 @@ impl<'a> EngineResources<'a> {
         let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if ext == EXT_TEXTURE_CUBE || ext == EXT_TEXTURE_2D_ARRAY || ext == EXT_TEXTURE_3D {
             Self::load_combined_texture(renderer_context, texture_name, file_path)
+        } else if ext.eq_ignore_ascii_case(EXT_TEXTURE_DDS) {
+            Self::load_dds_texture(renderer_context, texture_name, file_path)
         } else if EXT_TEXTURE.contains(&ext) {
             Self::load_binary_texture(renderer_context, texture_name, file_path)
         } else {
@@ -3055,12 +3097,53 @@ impl<'a> EngineResources<'a> {
             self._texture_data_map.insert(texture_data_name, entry);
         }
 
+        // Cook changed source images (.png/.jpg/...) -> .dds with mipmaps in DEVELOPMENT / DEPLOY mode
+        if unsafe { DEVELOPMENT } {
+            let excluded_sources: HashSet<PathBuf> = combined_textures_name_map.keys().cloned().collect();
+            let engine_src_dir = PathBuf::from(ENGINE_RESOURCE_PATH).join(TEXTURE_SOURCE_DIRECTORY);
+            let engine_out_dir = PathBuf::from(ENGINE_RESOURCE_PATH).join(TEXTURE_DIRECTORY);
+            let game_src_dir = PathBuf::from(APPLICATION_RESOURCE_PATH).join(TEXTURE_SOURCE_DIRECTORY);
+            let game_out_dir = PathBuf::from(APPLICATION_RESOURCE_PATH).join(TEXTURE_DIRECTORY);
+
+            let engine_summary = texture_cooker::cook_textures_in_directory(
+                &engine_src_dir,
+                &engine_out_dir,
+                &EXT_IMAGE_SOURCE,
+                &excluded_sources,
+            );
+            let game_summary = texture_cooker::cook_textures_in_directory(
+                &game_src_dir,
+                &game_out_dir,
+                &EXT_IMAGE_SOURCE,
+                &excluded_sources,
+            );
+            if engine_summary.has_changes() || game_summary.has_changes() {
+                self.update_resource_list_file();
+            }
+        }
+
         // read binary texture data (.texture)
         let texture_files = self.collect_resources(texture_directory.as_path(), &EXT_TEXTURE);
         for texture_file in texture_files.iter() {
             let texture_data_name = get_resource_name_from_file_path(&texture_directory, texture_file);
             let meta_data = MetaData::new(texture_file, texture_file);
             let entry = ResourceEntry::new_pinned(texture_data_name.clone(), meta_data);
+            self._texture_data_map.insert(texture_data_name, entry);
+        }
+
+        // read pre-cooked DDS texture data (.dds)
+        let dds_texture_files = self.collect_resources(texture_directory.as_path(), &[EXT_TEXTURE_DDS]);
+        for dds_file in dds_texture_files.iter() {
+            let texture_data_name = get_resource_name_from_file_path(&texture_directory, dds_file);
+            if self._texture_data_map.contains_key(&texture_data_name) {
+                continue;
+            }
+            let meta_data = MetaData::new(dds_file, dds_file);
+            let entry = if texture_data_name.starts_with("lut/") || texture_data_name.starts_with("sky/") {
+                ResourceEntry::new_pinned(texture_data_name.clone(), meta_data)
+            } else {
+                ResourceEntry::new(texture_data_name.clone(), meta_data)
+            };
             self._texture_data_map.insert(texture_data_name, entry);
         }
 
@@ -3494,7 +3577,14 @@ impl<'a> EngineResources<'a> {
                                         DescriptorResourceType::Sampler => {
                                             let sampler =
                                                 renderer_context.get_sampler_from_str(material_parameter_name.as_str());
-                                            DescriptorResourceInfo::DescriptorSamplerInfo(*sampler)
+                                            DescriptorResourceInfo::DescriptorSamplerInfo(vk::DescriptorImageInfo {
+                                                sampler: *sampler,
+                                                image_view: vk::ImageView::null(),
+                                                image_layout: vk::ImageLayout::UNDEFINED,
+                                            })
+                                        }
+                                        DescriptorResourceType::ImmutableSamplerArray => {
+                                            DescriptorResourceInfo::ImmutableSampler
                                         }
                                         DescriptorResourceType::Image
                                         | DescriptorResourceType::Texture
@@ -3505,18 +3595,18 @@ impl<'a> EngineResources<'a> {
                                                 }
                                                 _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                             };
-                                            if descriptor_data_create_info.use_sub_image() {
-                                                DescriptorResourceInfo::DescriptorImageInfo(
-                                                    texture_data.borrow().get_sub_image_info(
-                                                        descriptor_data_create_info._descriptor_image_layer,
-                                                        descriptor_data_create_info._descriptor_image_mip_level,
-                                                    ),
+                                            let mut image_info = if descriptor_data_create_info.use_sub_image() {
+                                                texture_data.borrow().get_sub_image_info(
+                                                    descriptor_data_create_info._descriptor_image_layer,
+                                                    descriptor_data_create_info._descriptor_image_mip_level,
                                                 )
                                             } else {
-                                                DescriptorResourceInfo::DescriptorImageInfo(
-                                                    texture_data.borrow().get_default_image_info(),
-                                                )
+                                                texture_data.borrow().get_default_image_info()
+                                            };
+                                            if *material_parameter_resource_type == DescriptorResourceType::Image {
+                                                image_info.sampler = vk::Sampler::null();
                                             }
+                                            DescriptorResourceInfo::DescriptorImageInfo(image_info)
                                         }
                                         DescriptorResourceType::RenderTarget
                                         | DescriptorResourceType::StorageRenderTarget => {
@@ -3635,6 +3725,7 @@ impl<'a> EngineResources<'a> {
                     renderer_context.get_debug_utils(),
                     descriptor_name.as_str(),
                     descriptor_data_create_infos,
+                    renderer_context.get_global_samplers(),
                     max_descriptor_pool_count,
                 ));
                 self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());

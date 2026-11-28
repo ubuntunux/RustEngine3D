@@ -210,14 +210,18 @@ impl<'a> MaterialInstanceData<'a> {
                                 _ => false,
                             };
                         if matches_param {
-                            let new_resource_info = if descriptor_data_create_info.use_sub_image() {
-                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_sub_image_info(
+                            let mut image_info = if descriptor_data_create_info.use_sub_image() {
+                                texture_data.get_sub_image_info(
                                     descriptor_data_create_info._descriptor_image_layer,
                                     descriptor_data_create_info._descriptor_image_mip_level,
-                                ))
+                                )
                             } else {
-                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_default_image_info())
+                                texture_data.get_default_image_info()
                             };
+                            if descriptor_data_create_info._descriptor_resource_type == DescriptorResourceType::Image {
+                                image_info.sampler = vk::Sampler::null();
+                            }
+                            let new_resource_info = DescriptorResourceInfo::DescriptorImageInfo(image_info);
                             for swapchain_resources in pipeline_binding_data._descriptor_resource_infos_list.iter_mut()
                             {
                                 if descriptor_index < swapchain_resources.len() {

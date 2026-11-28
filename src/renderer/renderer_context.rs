@@ -377,7 +377,10 @@ impl<'a> RendererContext<'a> {
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
         self._need_recreate_render_targets = false;
-        self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
+        let enable_anisotropy =
+            !cfg!(target_os = "android") && self._render_features._physical_device_features.sampler_anisotropy != 0;
+        self._image_samplers =
+            image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils(), enable_anisotropy);
         get_renderer_data_mut().initialize_renderer_data(self, effect_manager);
 
         // TEST CODE
@@ -1450,6 +1453,10 @@ impl<'a> RendererContext<'a> {
 
     pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
         self._image_samplers.get_sampler_from_str(sampler_name)
+    }
+
+    pub fn get_global_samplers(&self) -> &[vk::Sampler; image_sampler::GLOBAL_SAMPLER_COUNT] {
+        self._image_samplers.get_global_samplers()
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {

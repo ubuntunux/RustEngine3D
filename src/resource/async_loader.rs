@@ -18,6 +18,7 @@ use crate::resource::resource::{
     EXT_COLLADA, EXT_GLTF, EXT_GLTF_BINARY, EXT_OBJ, EXT_TEXTURE, EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D,
     EXT_TEXTURE_CUBE, EngineResources, LOAD_FROM_EXTERNAL_FOR_MESH, MetaData, USE_JSON_FOR_MESH,
 };
+use crate::resource::texture_cooker::{self, EXT_TEXTURE_DDS};
 use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::system;
 
@@ -43,6 +44,7 @@ pub struct AsyncTextureData {
     pub _image_view_type: vk::ImageViewType,
     pub _image_data: Vec<u8>,
     pub _enable_mipmap: bool,
+    pub _prebaked_mip_levels: u32,
     pub _min_filter: vk::Filter,
     pub _mag_filter: vk::Filter,
     pub _wrap_mode: vk::SamplerAddressMode,
@@ -118,9 +120,28 @@ impl AsyncTextureData {
             _image_view_type: image_view_type,
             _image_data: image_data,
             _enable_mipmap: enable_mipmap,
+            _prebaked_mip_levels: 0,
             _min_filter: min_filter,
             _mag_filter: mag_filter,
             _wrap_mode: wrap,
+        })
+    }
+
+    fn load_dds_texture(texture_name: &str, file_path: &Path) -> Result<Self, String> {
+        let dds = texture_cooker::load_dds_texture(file_path)?;
+        Ok(AsyncTextureData {
+            _texture_name: texture_name.to_string(),
+            _image_width: dds._width,
+            _image_height: dds._height,
+            _image_layers: dds._layers,
+            _image_format: dds._format,
+            _image_view_type: dds._view_type,
+            _image_data: dds._data,
+            _enable_mipmap: dds._mip_levels > 1,
+            _prebaked_mip_levels: dds._mip_levels,
+            _min_filter: vk::Filter::LINEAR,
+            _mag_filter: vk::Filter::LINEAR,
+            _wrap_mode: vk::SamplerAddressMode::REPEAT,
         })
     }
 
@@ -189,6 +210,7 @@ impl AsyncTextureData {
             _image_view_type: image_view_type,
             _image_data: image_data,
             _enable_mipmap: true,
+            _prebaked_mip_levels: 0,
             _min_filter: vk::Filter::LINEAR,
             _mag_filter: vk::Filter::LINEAR,
             _wrap_mode: vk::SamplerAddressMode::REPEAT,
@@ -211,6 +233,7 @@ impl AsyncTextureData {
             _image_view_type: vk::ImageViewType::TYPE_2D,
             _image_data: image_data,
             _enable_mipmap: true,
+            _prebaked_mip_levels: 0,
             _min_filter: vk::Filter::LINEAR,
             _mag_filter: vk::Filter::LINEAR,
             _wrap_mode: vk::SamplerAddressMode::REPEAT,
@@ -229,6 +252,8 @@ impl AsyncTextureData {
         let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
         if ext == EXT_TEXTURE_CUBE || ext == EXT_TEXTURE_2D_ARRAY || ext == EXT_TEXTURE_3D {
             Self::load_combined_texture(texture_name, file_path)
+        } else if ext.eq_ignore_ascii_case(EXT_TEXTURE_DDS) {
+            Self::load_dds_texture(texture_name, file_path)
         } else if EXT_TEXTURE.contains(&ext) {
             Self::load_binary_texture(texture_name, file_path)
         } else {

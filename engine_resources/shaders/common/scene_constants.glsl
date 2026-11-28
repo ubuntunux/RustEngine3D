@@ -20,6 +20,15 @@
 #define BlendMode_Additive 1
 #define BlendMode_Opaque 2
 
+// Global immutable sampler indices (must match image_sampler.rs)
+#define SAMPLER_LINEAR_REPEAT 0
+#define SAMPLER_LINEAR_CLAMP 1
+#define SAMPLER_POINT_REPEAT 2
+#define SAMPLER_POINT_CLAMP 3
+#define SAMPLER_ANISO_REPEAT 4
+#define SAMPLER_ANISO_CLAMP 5
+#define GLOBAL_SAMPLER_COUNT 6
+
 // must match with constants.rs
 #define WORK_GROUP_SIZE 64
 #define PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE 64

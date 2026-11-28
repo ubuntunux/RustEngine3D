@@ -40,25 +40,26 @@ layout(binding = 10) uniform sampler2D transmittance_texture;
 layout(binding = 11) uniform sampler2D irradiance_texture;
 layout(binding = 12) uniform sampler3D scattering_texture;
 layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 14) uniform sampler g_samplers[GLOBAL_SAMPLER_COUNT];
 
-#define USER_BINDING_INDEX0 14
-#define USER_BINDING_INDEX1 15
-#define USER_BINDING_INDEX2 16
-#define USER_BINDING_INDEX3 17
-#define USER_BINDING_INDEX4 18
-#define USER_BINDING_INDEX5 19
-#define USER_BINDING_INDEX6 20
-#define USER_BINDING_INDEX7 21
-#define USER_BINDING_INDEX8 22
-#define USER_BINDING_INDEX9 23
-#define USER_BINDING_INDEX10 24
-#define USER_BINDING_INDEX11 25
-#define USER_BINDING_INDEX12 26
-#define USER_BINDING_INDEX13 27
-#define USER_BINDING_INDEX14 28
-#define USER_BINDING_INDEX15 29
-#define USER_BINDING_INDEX16 30
-#define USER_BINDING_INDEX17 31
+#define USER_BINDING_INDEX0 15
+#define USER_BINDING_INDEX1 16
+#define USER_BINDING_INDEX2 17
+#define USER_BINDING_INDEX3 18
+#define USER_BINDING_INDEX4 19
+#define USER_BINDING_INDEX5 20
+#define USER_BINDING_INDEX6 21
+#define USER_BINDING_INDEX7 22
+#define USER_BINDING_INDEX8 23
+#define USER_BINDING_INDEX9 24
+#define USER_BINDING_INDEX10 25
+#define USER_BINDING_INDEX11 26
+#define USER_BINDING_INDEX12 27
+#define USER_BINDING_INDEX13 28
+#define USER_BINDING_INDEX14 29
+#define USER_BINDING_INDEX15 30
+#define USER_BINDING_INDEX16 31
+#define USER_BINDING_INDEX17 32
 
 // input and output
 struct VertexOutput

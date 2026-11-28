@@ -13,17 +13,19 @@ use crate::vulkan_context::vulkan_context::SwapchainArray;
 pub enum DescriptorResourceInfo<'a> {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
     DescriptorImageInfo(vk::DescriptorImageInfo),
-    DescriptorSamplerInfo(vk::Sampler),
+    DescriptorSamplerInfo(vk::DescriptorImageInfo),
+    ImmutableSampler,
     WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV<'a>),
     InvalidDescriptorInfo,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DescriptorResourceType {
     UniformBuffer,
     StorageBuffer,
-    Image,   // todo
-    Sampler, // todo
+    Image,
+    Sampler,
+    ImmutableSamplerArray,
     Texture,
     RenderTarget,
     StorageTexture,
@@ -104,6 +106,7 @@ pub fn convert_resource_type_to_descriptor_type(resource_type: &DescriptorResour
         DescriptorResourceType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
         DescriptorResourceType::Image => vk::DescriptorType::SAMPLED_IMAGE,
         DescriptorResourceType::Sampler => vk::DescriptorType::SAMPLER,
+        DescriptorResourceType::ImmutableSamplerArray => vk::DescriptorType::SAMPLER,
         DescriptorResourceType::Texture => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         DescriptorResourceType::RenderTarget => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         DescriptorResourceType::StorageTexture => vk::DescriptorType::STORAGE_IMAGE,
@@ -194,30 +197,53 @@ pub fn create_descriptor_data<'a>(
     debug_utils_device: &ext::debug_utils::Device,
     descriptor_name: &str,
     descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
+    global_samplers: &[vk::Sampler],
     max_descriptor_sets_count: u32,
 ) -> DescriptorData<'a> {
     log::trace!("create_descriptor_data");
-    let descriptor_layout_bindings = descriptor_data_create_infos
+    let sampler_array_count = global_samplers.len().max(1) as u32;
+    let layout_bindings_for_vk: Vec<vk::DescriptorSetLayoutBinding> = descriptor_data_create_infos
         .iter()
-        .map(|descriptor_data_create_info| vk::DescriptorSetLayoutBinding {
-            binding: descriptor_data_create_info._descriptor_binding_index,
-            descriptor_type: convert_resource_type_to_descriptor_type(
-                &descriptor_data_create_info._descriptor_resource_type,
-            ),
-            descriptor_count: 1,
-            stage_flags: descriptor_data_create_info._descriptor_shader_stage,
-            ..Default::default()
+        .map(|descriptor_data_create_info| {
+            let is_immutable_sampler_array =
+                descriptor_data_create_info._descriptor_resource_type == DescriptorResourceType::ImmutableSamplerArray;
+            vk::DescriptorSetLayoutBinding {
+                binding: descriptor_data_create_info._descriptor_binding_index,
+                descriptor_type: convert_resource_type_to_descriptor_type(
+                    &descriptor_data_create_info._descriptor_resource_type,
+                ),
+                descriptor_count: if is_immutable_sampler_array {
+                    sampler_array_count
+                } else {
+                    1
+                },
+                stage_flags: descriptor_data_create_info._descriptor_shader_stage,
+                p_immutable_samplers: if is_immutable_sampler_array && !global_samplers.is_empty() {
+                    global_samplers.as_ptr()
+                } else {
+                    std::ptr::null()
+                },
+                ..Default::default()
+            }
         })
         .collect();
     let descriptor_pool_sizes = descriptor_data_create_infos
         .iter()
-        .map(|descriptor_data_create_info| vk::DescriptorPoolSize {
-            ty: convert_resource_type_to_descriptor_type(&descriptor_data_create_info._descriptor_resource_type),
-            descriptor_count: max_descriptor_sets_count,
+        .map(|descriptor_data_create_info| {
+            let is_immutable_sampler_array =
+                descriptor_data_create_info._descriptor_resource_type == DescriptorResourceType::ImmutableSamplerArray;
+            vk::DescriptorPoolSize {
+                ty: convert_resource_type_to_descriptor_type(&descriptor_data_create_info._descriptor_resource_type),
+                descriptor_count: if is_immutable_sampler_array {
+                    max_descriptor_sets_count * sampler_array_count
+                } else {
+                    max_descriptor_sets_count
+                },
+            }
         })
         .collect();
     let descriptor_set_layout =
-        create_descriptor_set_layout(device, debug_utils_device, descriptor_name, &descriptor_layout_bindings);
+        create_descriptor_set_layout(device, debug_utils_device, descriptor_name, &layout_bindings_for_vk);
     let descriptor_pool = create_descriptor_pool(
         device,
         debug_utils_device,
@@ -225,9 +251,21 @@ pub fn create_descriptor_data<'a>(
         &descriptor_pool_sizes,
         max_descriptor_sets_count,
     );
+    // Clear raw immutable sampler pointers before storing to avoid retaining borrowed stack/slice pointers
+    let stored_layout_bindings: Vec<vk::DescriptorSetLayoutBinding<'a>> = layout_bindings_for_vk
+        .iter()
+        .map(|b| vk::DescriptorSetLayoutBinding {
+            binding: b.binding,
+            descriptor_type: b.descriptor_type,
+            descriptor_count: b.descriptor_count,
+            stage_flags: b.stage_flags,
+            p_immutable_samplers: std::ptr::null(),
+            ..Default::default()
+        })
+        .collect();
     DescriptorData {
         _descriptor_data_create_infos: descriptor_data_create_infos.clone(),
-        _descriptor_set_layout_bindings: descriptor_layout_bindings,
+        _descriptor_set_layout_bindings: stored_layout_bindings,
         _descriptor_pool_sizes: descriptor_pool_sizes,
         _descriptor_pool: descriptor_pool,
         _descriptor_set_layout: descriptor_set_layout,
@@ -304,7 +342,8 @@ pub fn create_write_descriptor_sets_with_update<'a>(
         .map(|index| {
             let descriptor_set = descriptor_sets[*index];
             let descriptor_resource_infos = &descriptor_resource_infos_list[*index];
-            let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::new();
+            let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::with_capacity(descriptor_bind_indices.len());
+            let mut valid_writes = Vec::<vk::WriteDescriptorSet>::with_capacity(descriptor_bind_indices.len());
             let count = descriptor_bind_indices.len();
             for index in 0..count {
                 let mut write_descriptor_set = vk::WriteDescriptorSet::default();
@@ -318,8 +357,13 @@ pub fn create_write_descriptor_sets_with_update<'a>(
                         write_descriptor_set.p_image_info = image_info;
                         write_descriptor_set.descriptor_count = 1;
                     }
-                    DescriptorResourceInfo::DescriptorSamplerInfo(_sampler) => {
-                        // todo: image sampler
+                    DescriptorResourceInfo::DescriptorSamplerInfo(sampler_info) => {
+                        write_descriptor_set.p_image_info = sampler_info;
+                        write_descriptor_set.descriptor_count = 1;
+                    }
+                    DescriptorResourceInfo::ImmutableSampler => {
+                        // Immutable samplers are baked into VkDescriptorSetLayout and must not be written
+                        write_descriptor_set.descriptor_count = 0;
                     }
                     DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
                         write_descriptor_set_accel_struct,
@@ -332,20 +376,22 @@ pub fn create_write_descriptor_sets_with_update<'a>(
                     }
                 }
 
-                if 0 < write_descriptor_set.descriptor_count {
-                    write_descriptor_set.dst_set = descriptor_set;
-                    write_descriptor_set.dst_binding = descriptor_bind_indices[index];
-                    write_descriptor_set.dst_array_element = 0;
-                    write_descriptor_set.descriptor_type = descriptor_set_layout_bindings[index].descriptor_type;
+                write_descriptor_set.dst_set = descriptor_set;
+                write_descriptor_set.dst_binding = descriptor_bind_indices[index];
+                write_descriptor_set.dst_array_element = 0;
+                write_descriptor_set.descriptor_type = descriptor_set_layout_bindings[index].descriptor_type;
 
-                    write_descriptor_sets.push(write_descriptor_set);
+                // Preserve 1-to-1 descriptor_index alignment with descriptor_data_create_infos
+                write_descriptor_sets.push(write_descriptor_set);
+                if 0 < write_descriptor_set.descriptor_count {
+                    valid_writes.push(write_descriptor_set);
                 }
             }
 
             // Upload
-            if false == write_descriptor_sets.is_empty() {
+            if false == valid_writes.is_empty() {
                 unsafe {
-                    device.update_descriptor_sets(&write_descriptor_sets, &[]);
+                    device.update_descriptor_sets(&valid_writes, &[]);
                 }
             }
 
@@ -369,8 +415,12 @@ pub fn create_write_descriptor_set<'a>(
             write_descriptor_set.p_image_info = image_info;
             write_descriptor_set.descriptor_count = 1;
         }
-        DescriptorResourceInfo::DescriptorSamplerInfo(_sampler_info) => {
-            // todo image sampler
+        DescriptorResourceInfo::DescriptorSamplerInfo(sampler_info) => {
+            write_descriptor_set.p_image_info = sampler_info;
+            write_descriptor_set.descriptor_count = 1;
+        }
+        DescriptorResourceInfo::ImmutableSampler => {
+            write_descriptor_set.descriptor_count = 0;
         }
         DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(write_descriptor_set_accel_struct) => {
             write_descriptor_set_push_next(&mut write_descriptor_set, *write_descriptor_set_accel_struct);
@@ -392,7 +442,8 @@ pub fn update_write_descriptor_set(
             write_descriptor_set.p_buffer_info = buffer_info;
             write_descriptor_set.p_image_info = std::ptr::null();
         }
-        DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
+        DescriptorResourceInfo::DescriptorImageInfo(image_info)
+        | DescriptorResourceInfo::DescriptorSamplerInfo(image_info) => {
             write_descriptor_set.p_buffer_info = std::ptr::null();
             write_descriptor_set.p_image_info = image_info;
         }

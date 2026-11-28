@@ -11,7 +11,7 @@ layout (location = 0) out vec4 fs_output;
 
 void main()
 {
-    vec4 font_sample = textureLod(texture_font, vs_output.texcoord, 0.0);
+    vec4 font_sample = textureLod(sampler2D(texture_font, g_samplers[SAMPLER_LINEAR_CLAMP]), vs_output.texcoord, 0.0);
     float opacity = distance_field_font_opacity(font_sample);
     fs_output = vec4(1.0, 1.0, 1.0, opacity);
 }

@@ -248,6 +248,14 @@ vec4 safe_normalize(vec4 vector)
     return vector / (dist == 0.0 ? 1.0 : dist);
 }
 
+// Reconstruct tangent-space normal from RG channels (compatible with BC5_UNORM and RGB/RGBA normal maps)
+vec3 unpack_normal_map(vec2 encoded_xy)
+{
+    vec2 xy = encoded_xy * 2.0 - 1.0;
+    float z = sqrt(max(0.0, 1.0 - dot(xy, xy)));
+    return vec3(xy, z);
+}
+
 #if SHADER_STAGE_FLAG == FRAGMENT
 float median(float r, float g, float b)
 {

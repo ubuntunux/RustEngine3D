@@ -13,6 +13,7 @@ use ash::vk;
 
 use crate::effect::effect_data::ParticleGeometryType;
 use crate::effect::effect_manager::PushConstant_RenderParticle;
+use crate::renderer::image_sampler::GLOBAL_SAMPLERS_DESCRIPTOR_NAME;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{BlendMode, RendererData};
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
@@ -235,21 +236,28 @@ pub fn get_render_pass_data_create_info(
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 16,
                 _descriptor_name: String::from("textureBase"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_resource_type: DescriptorResourceType::Image,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 17,
                 _descriptor_name: String::from("textureMaterial"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_resource_type: DescriptorResourceType::Image,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 18,
                 _descriptor_name: String::from("textureNormal"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_resource_type: DescriptorResourceType::Image,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 19,
+                _descriptor_name: String::from(GLOBAL_SAMPLERS_DESCRIPTOR_NAME),
+                _descriptor_resource_type: DescriptorResourceType::ImmutableSamplerArray,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },

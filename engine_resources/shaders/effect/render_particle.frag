@@ -12,7 +12,7 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec4 base_color = texture(textureBase, vs_output.texCoord);
+    vec4 base_color = texture(sampler2D(textureBase, g_samplers[SAMPLER_LINEAR_REPEAT]), vs_output.texCoord);
     base_color.xyz = pow(base_color.xyz, vec3(2.2));
     base_color *= vs_output.color;
 
@@ -24,8 +24,8 @@ void main() {
 #endif
 
     // x: roughness, y: metallic, z: emissive intensity
-    vec4 material = texture(textureMaterial, vs_output.texCoord);
-    vec3 normal = normalize(vs_output.tangent_to_world * (texture(textureNormal, vs_output.texCoord).xyz * 2.0 - 1.0));
+    vec4 material = texture(sampler2D(textureMaterial, g_samplers[SAMPLER_LINEAR_REPEAT]), vs_output.texCoord);
+    vec3 normal = normalize(vs_output.tangent_to_world * unpack_normal_map(texture(sampler2D(textureNormal, g_samplers[SAMPLER_LINEAR_REPEAT]), vs_output.texCoord).xy));
     vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
 
 #if (BlendMode_Opaque == RenderMode)

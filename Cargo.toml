@@ -36,6 +36,8 @@ uuid = { version = "1.29", features = ["v4", "v7", "fast-rng", "serde"] }
 bymsdfgen-core = "0.1.1"
 bymsdfgen-io = "0.1.1"
 ttf-parser = "0.25.1"
+rayon = "1.10"
+rusty_dds = { version = "0.11.6", default-features = false, features = ["encode", "simd"] }
 
 [lib]
 crate-type = ["lib", "cdylib"]
