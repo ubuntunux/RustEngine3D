@@ -224,6 +224,8 @@ pub struct RendererData<'a> {
     pub _wind_strength: f32,
     pub _wind_speed: f32,
     pub _wind_time: f32,
+    pub _wetness: f32,
+    pub _rain_intensity: f32,
     pub _moon_light_color: Vector3<f32>,
     pub _is_render_scene: bool,
 }
@@ -612,6 +614,8 @@ impl<'a> RendererData<'a> {
             self._wind_direction,
             self._wind_strength,
             self._wind_time,
+            self._wetness,
+            self._rain_intensity,
             self._moon_light_color,
         );
         self._view_constants.update_view_constants(&main_camera, capture_height_map);
@@ -716,6 +720,8 @@ impl<'a> RendererData<'a> {
             _wind_strength: 0.30,
             _wind_speed: 1.0,
             _wind_time: 0.0,
+            _wetness: 0.0,
+            _rain_intensity: 0.0,
             _moon_light_color: Vector3::new(0.6, 0.5, 0.85) * 0.2,
             _is_render_scene: true,
         }
@@ -754,6 +760,19 @@ impl<'a> RendererData<'a> {
 
     pub fn get_wind_time(&self) -> f32 {
         self._wind_time
+    }
+
+    pub fn set_weather_surface_params(&mut self, wetness: f32, rain_intensity: f32) {
+        self._wetness = wetness.clamp(0.0, 1.0);
+        self._rain_intensity = rain_intensity.clamp(0.0, 1.0);
+    }
+
+    pub fn get_wetness(&self) -> f32 {
+        self._wetness
+    }
+
+    pub fn get_rain_intensity(&self) -> f32 {
+        self._rain_intensity
     }
 
     pub fn get_effect_manager(&self) -> &EffectManager<'a> {

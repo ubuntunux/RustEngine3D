@@ -311,9 +311,15 @@ void apply_image_based_lighting(
     const float diffuse_irradiance_mipmap = max(1.0, max_env_mipmap - 1.0);
 
     vec2 envBRDF = env_BRDF_pproximate(NoV, roughness);
+    // Multi-Scattering GGX energy compensation (Turquin 2019 / Fdez-Aguera)
+    float Ess = envBRDF.x + envBRDF.y;
+    float Ems = 1.0 - Ess;
+    vec3 Favg = F0 + (1.0 - F0) / 21.0;
+    vec3 single_scatter_brdf = F0 * envBRDF.x + vec3(envBRDF.y);
+    vec3 Fms = single_scatter_brdf * Favg / max(vec3(1.0) - Favg * Ems, vec3(1e-4));
+    vec3 specular_brdf = single_scatter_brdf + Fms * Ems;
     const vec3 kS = fresnelSchlickRoughness(NoV, F0, roughness);
     const vec3 kD = vec3(1.0) - kS;
-    const vec3 specular_brdf = F0 * envBRDF.x + vec3(envBRDF.y);
 
     vec3 ibl_diffuse_light = textureLod(texture_probe, bent_normal, diffuse_irradiance_mipmap).xyz;
     vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_spec_mipmap).xyz;
@@ -408,8 +414,8 @@ vec4 surface_shading(
     const in vec2 screen_texcoord,
     const in vec3 world_position,
     const in vec3 vertexNormal,
-    const in vec3 N,
-    const in vec3 bent_normal,
+    vec3 N,
+    vec3 bent_normal,
     const in vec3 V,
     const in float depth,
     const in bool IS_COMBINED_SHADOW
@@ -417,6 +423,24 @@ vec4 surface_shading(
 {
     const vec3 L = normalize(-light_data.LIGHT_DIRECTION);
     vec3 light_color = light_data.LIGHT_COLOR.xyz;
+    float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
+
+    #if SHADER_STAGE_FLAG == FRAGMENT
+    const ivec2 frag_pixel_pos = ivec2(gl_FragCoord.xy);
+    #else
+    const ivec2 frag_pixel_pos = ivec2(screen_texcoord * scene_constants.SCREEN_SIZE);
+    #endif
+
+    float sky_visibility = get_shadow_factor(
+        scene_constants.TIME,
+        frag_pixel_pos,
+        world_position,
+        view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
+        view_constants.INV_CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
+        4,
+        -0.0005,
+        texture_height_map
+    );
 
     // under water
     float sea_diff = world_position.y - scene_constants.SEA_HEIGHT;
@@ -426,8 +450,43 @@ vec4 surface_shading(
     roughness *= under_water_material;
     base_color *= under_water_material;
 
+    // Weather Wetness, Procedural Puddles & Animated Raindrop Ripples
+    float surface_wetness = 0.0;
+    float puddle_mask = 0.0;
+    vec2 ripple_grad = vec2(0.0);
+    compute_surface_wetness_and_puddle(
+        world_position,
+        scene_constants.SEA_HEIGHT,
+        vertexNormal,
+        sky_visibility,
+        shading_model,
+        scene_constants.WETNESS,
+        scene_constants.RAIN_INTENSITY,
+        scene_constants.TIME,
+        scene_linear_depth,
+        surface_wetness,
+        puddle_mask,
+        ripple_grad
+    );
+    if (surface_wetness > 0.001)
+    {
+        // Porous dielectric darkening & wet sheen roughness reduction
+        float porosity = (1.0 - metallic) * smoothstep(0.15, 0.85, roughness);
+        base_color *= mix(1.0, 0.56, surface_wetness * porosity * 0.85);
+        roughness = mix(roughness, min(roughness, 0.22), surface_wetness * 0.85);
+
+        if (puddle_mask > 0.001)
+        {
+            base_color *= mix(1.0, 0.72, puddle_mask * (1.0 - metallic));
+            roughness = mix(roughness, 0.04, puddle_mask);
+            vec3 puddle_normal = normalize(vec3(ripple_grad.x, 1.0, ripple_grad.y));
+            N = normalize(mix(N, puddle_normal, puddle_mask));
+            bent_normal = normalize(mix(bent_normal, puddle_normal, puddle_mask));
+        }
+    }
+
     // safe roughness
-    roughness = clamp(roughness, 0.05, 1.0);
+    roughness = clamp(roughness, 0.04, 1.0);
 
     // compute material reflectance
     const vec3 R = reflect(-V, N);
@@ -450,7 +509,6 @@ vec4 surface_shading(
     vec3 scene_in_scatter = vec3(0.0);
     vec3 scene_sun_irradiance = vec3(1.0);
     vec3 scene_sky_irradiance = vec3(0.0);
-    float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
     GetSceneRadiance(
         ATMOSPHERE,
         atmosphere_constants,
@@ -471,14 +529,12 @@ vec4 surface_shading(
 
     vec3 result = vec3(0.0, 0.0, 0.0);
     vec3 F0 = mix(vec3(max(0.04, reflectance)), base_color.xyz, metallic);
+    // Multi-Scattering GGX direct specular energy compensation (Turquin 2019)
+    vec2 direct_env_brdf = env_BRDF_pproximate(NoV, roughness);
+    float direct_ess = max(direct_env_brdf.x + direct_env_brdf.y, 0.05);
+    vec3 ms_energy_comp = vec3(1.0) + F0 * (1.0 / direct_ess - 1.0);
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
-
-    #if SHADER_STAGE_FLAG == FRAGMENT
-    const ivec2 frag_pixel_pos = ivec2(gl_FragCoord.xy);
-    #else
-    const ivec2 frag_pixel_pos = ivec2(screen_texcoord * scene_constants.SCREEN_SIZE);
-    #endif
 
     if(!IS_COMBINED_SHADOW && ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0u)) {
         if ((scene_constants.RENDER_OPTION & RenderOption_RenderPCSS) != 0u)
@@ -512,17 +568,6 @@ vec4 surface_shading(
     // Physical direct sun visibility: zero in complete shadow or below horizon
     float sun_horizon_fade = smoothstep(0.0, 0.05, L.y);
     shadow_factor = saturate(shadow_factor) * sun_horizon_fade;
-
-    float sky_visibility = get_shadow_factor(
-        scene_constants.TIME,
-        frag_pixel_pos,
-        world_position,
-        view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
-        view_constants.INV_CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
-        4,
-        -0.0005,
-        texture_height_map
-    );
 
     vec3 unshadowed_sun_color = light_color * scene_sun_irradiance * sun_horizon_fade;
     light_color = unshadowed_sun_color * shadow_factor;
@@ -582,7 +627,7 @@ vec4 surface_shading(
     if (specular_clampled_NoL > 0.0)
     {
         const vec3 F = fresnelSchlick(VoH, F0);
-        specular_light += cooktorrance_specular(F, specular_clampled_NoL, NoV, NoH, roughness) * specular_clampled_NoL * light_color;
+        specular_light += cooktorrance_specular(F, specular_clampled_NoL, NoV, NoH, roughness) * ms_energy_comp * specular_clampled_NoL * light_color;
     }
 
     // Stylized Shading Models (Foliage backlit SSS & Character skin wrap + soft rim)
@@ -654,7 +699,7 @@ vec4 surface_shading(
                 const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
 
                 diffuse_light += diffuse_burley(roughness, NoV, point_light_NoL, point_light_VoH) * point_light_NoL * point_light_color;
-                specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
+                specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * ms_energy_comp * point_light_NoL * point_light_color;
             }
         }
     }
@@ -677,7 +722,7 @@ vec4 surface_shading(
             float moon_VoH = clamp(dot(V, moon_H), 0.001, 1.0);
             vec3 moon_F = fresnelSchlick(moon_VoH, F0);
             specular_light += cooktorrance_specular(moon_F, raw_moon_NoL, NoV, moon_NoH, roughness)
-                * raw_moon_NoL * scene_constants.MOON_LIGHT_COLOR * moon_weight * 0.45;
+                * ms_energy_comp * raw_moon_NoL * scene_constants.MOON_LIGHT_COLOR * moon_weight * 0.45;
         }
     }
 

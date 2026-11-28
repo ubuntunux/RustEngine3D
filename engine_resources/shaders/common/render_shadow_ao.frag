@@ -4,6 +4,7 @@
 
 #include "scene_constants.glsl"
 #include "utility.glsl"
+#include "blending.glsl"
 #include "PCFKernels.glsl"
 #include "shading.glsl"
 #include "render_quad_common.glsl"
@@ -30,6 +31,12 @@ layout(binding = 7) uniform ShadowAOConstants
 {
     vec4 SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;
+
+layout(binding = 8) uniform AtmosphereConstants
+{
+    ATMOSPHERE_CONSTANTS atmosphere_constants;
+};
+layout(binding = 9) uniform sampler3D texture_cloud;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -246,6 +253,37 @@ void main() {
             }
             float dist_fade = smoothstep(25.0, 14.0, linear_depth);
             shadow_factor *= (1.0 - contact_occlusion * dist_fade * 0.85);
+        }
+    }
+
+    // Cloud Shadow Projection: project world position along sun ray onto overhead 3D cloud deck
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderSky) != 0u
+        && atmosphere_constants.cloud_coverage > 0.28
+        && shadow_factor > 0.01)
+    {
+        const vec3 L = normalize(-light_data.LIGHT_DIRECTION);
+        float sun_elev_fade = smoothstep(0.05, 0.22, L.y);
+        if (sun_elev_fade > 0.001)
+        {
+            float cloud_mid_alt = atmosphere_constants.cloud_altitude + atmosphere_constants.cloud_height * 0.35;
+            float t_cloud = clamp((cloud_mid_alt - world_position.y) / max(L.y, 0.18), 0.0, 45000.0);
+            vec3 cloud_hit = world_position + L * t_cloud;
+
+            vec3 cloud_scale = vec3(textureSize(texture_cloud, 0));
+            cloud_scale = max(cloud_scale.x, max(cloud_scale.y, cloud_scale.z)) / max(cloud_scale, vec3(1.0));
+            cloud_scale *= atmosphere_constants.cloud_tiling;
+
+            vec3 speed = vec3(atmosphere_constants.cloud_speed, atmosphere_constants.cloud_speed, 0.0) * scene_constants.TIME;
+            vec3 uv_offset = speed * atmosphere_constants.cloud_tiling / max(atmosphere_constants.noise_tiling, 1e-6);
+
+            vec3 uvw0 = vec3(cloud_hit.x, cloud_hit.z, atmosphere_constants.cloud_height * 0.25) * cloud_scale + uv_offset;
+            vec3 uvw1 = vec3(cloud_hit.x, cloud_hit.z, atmosphere_constants.cloud_height * 0.60) * cloud_scale + uv_offset;
+            float c0 = textureLod(texture_cloud, uvw0, 1.0).x;
+            float c1 = textureLod(texture_cloud, uvw1, 1.0).x;
+            float cloud_raw = c0 * 0.6 + c1 * 0.4;
+            float cloud_density = saturate(Contrast(cloud_raw - 1.0 + atmosphere_constants.cloud_coverage, atmosphere_constants.cloud_contrast));
+            float cloud_shadow = mix(1.0, 0.38, smoothstep(0.06, 0.85, cloud_density) * sun_elev_fade);
+            shadow_factor *= cloud_shadow;
         }
     }
 

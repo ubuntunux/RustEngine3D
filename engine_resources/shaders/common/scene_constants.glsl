@@ -108,6 +108,10 @@ struct SCENE_CONSTANTS
     vec2 WIND_DIRECTION;
     float WIND_STRENGTH;
     float WIND_TIME;
+    float WETNESS;
+    float RAIN_INTENSITY;
+    float SCENE_RESERVED0;
+    float SCENE_RESERVED1;
 };
 
 // uniform_buffer_data_list.rs - struct ViewConstants

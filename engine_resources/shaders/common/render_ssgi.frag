@@ -64,9 +64,11 @@ void main()
     const float spatial_seed_y = interleaved_gradient_noise(pixel_pos + ivec2(59, 23));
 
     const int NUM_RAYS = 4;
-    const int NUM_STEPS = 6;
-    const float MAX_RAY_DIST = 6.5;
-    const float THICKNESS_SCALE = 0.08;
+    const int NUM_STEPS = 8;
+    const float MAX_RAY_DIST = 7.5;
+    const float THICKNESS_SCALE = 0.075;
+    const float center_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
+    const vec3 ray_origin = relative_pos.xyz + N * (0.04 + center_linear * 0.004);
 
     vec3 gi_sum = vec3(0.0);
     float hit_weight_sum = 0.0;
@@ -77,14 +79,16 @@ void main()
             fract(spatial_seed_x + frame_seed + float(r) / float(NUM_RAYS)),
             fract(spatial_seed_y + frame_seed * 1.6180339 + (float(r) + 0.5) * 0.381966)
         );
+        // Clamp grazing hemisphere rays slightly away from tangent plane to reduce self-intersection
+        u.y *= 0.92;
         vec3 ray_dir = normalize(tbn * sample_cosine_hemisphere(u));
         float step_jitter = fract(u.x * 7.31 + u.y * 13.17);
 
         for (int s = 0; s < NUM_STEPS; ++s)
         {
-            float t = (float(s) + 0.35 + 0.65 * step_jitter) / float(NUM_STEPS);
+            float t = (float(s) + 0.30 + 0.70 * step_jitter) / float(NUM_STEPS);
             float march_dist = t * t * MAX_RAY_DIST;
-            vec3 sample_rel_pos = relative_pos.xyz + ray_dir * march_dist + N * 0.05;
+            vec3 sample_rel_pos = ray_origin + ray_dir * march_dist;
 
             vec4 proj = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(sample_rel_pos, 1.0);
             if (proj.w <= 0.001)
@@ -119,7 +123,7 @@ void main()
                 vec2 prev_uv = sample_uv - texture(texture_velocity, sample_uv).xy;
                 if (prev_uv.x >= 0.0 && prev_uv.x <= 1.0 && prev_uv.y >= 0.0 && prev_uv.y <= 1.0)
                 {
-                    float sample_mip = mix(2.0, 3.5, t);
+                    float sample_mip = mix(1.5, 3.0, t);
                     vec3 sample_radiance = max(vec3(0.0), textureLod(texture_scene, prev_uv, sample_mip).rgb);
                     // Soft firefly suppression for temporal stability
                     float lum = get_luminance(sample_radiance);

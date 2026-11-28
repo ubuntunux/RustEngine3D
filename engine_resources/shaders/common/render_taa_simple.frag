@@ -19,7 +19,7 @@ const float VarianceClipGamma = 1.5;
 vec4 ClipAABB(vec4 aabbMin, vec4 aabbMax, vec4 prevSample, vec4 avg)
 {
     vec4 p_clip = 0.5 * (aabbMax + aabbMin);
-    vec4 e_clip = 0.5 * (aabbMax - aabbMin);
+    vec4 e_clip = max(0.5 * (aabbMax - aabbMin), vec4(1e-5));
 
     vec4 v_clip = prevSample - p_clip;
     vec4 v_unit = v_clip / e_clip;

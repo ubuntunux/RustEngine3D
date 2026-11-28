@@ -130,6 +130,20 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 8,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::AtmosphereConstants),
+                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 9,
+                _descriptor_name: String::from("texture_cloud"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
         ],
         ..Default::default()
     }];

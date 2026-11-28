@@ -38,6 +38,8 @@ impl SceneConstants {
         wind_direction: Vector2<f32>,
         wind_strength: f32,
         wind_time: f32,
+        wetness: f32,
+        rain_intensity: f32,
         moon_light_color: Vector3<f32>,
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
@@ -65,6 +67,10 @@ impl SceneConstants {
         self._wind_direction = wind_direction;
         self._wind_strength = wind_strength;
         self._wind_time = wind_time;
+        self._wetness = wetness.clamp(0.0, 1.0);
+        self._rain_intensity = rain_intensity.clamp(0.0, 1.0);
+        self._scene_reserved0 = 0.0;
+        self._scene_reserved1 = 0.0;
     }
 }
 

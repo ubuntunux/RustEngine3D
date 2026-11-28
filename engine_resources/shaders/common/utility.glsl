@@ -345,4 +345,106 @@ mat4 make_rotation_matrix(float pitch, float yaw, float roll)
         0.0, 0.0, 0.0, 1.0
     );
 }
+
+// Smooth 2D value noise for world-space weather puddles
+float hash21_weather(vec2 p)
+{
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+vec2 hash22_weather(vec2 p)
+{
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
+}
+
+float value_noise_2d(vec2 p)
+{
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash21_weather(i);
+    float b = hash21_weather(i + vec2(1.0, 0.0));
+    float c = hash21_weather(i + vec2(0.0, 1.0));
+    float d = hash21_weather(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+// Procedural concentric raindrop ripples in world XZ (2 staggered grid layers)
+vec2 compute_rain_ripple_gradient(vec2 world_xz, float time)
+{
+    vec2 grad = vec2(0.0);
+    for (int layer = 0; layer < 2; ++layer)
+    {
+        float scale = (layer == 0) ? 1.85 : 2.95;
+        vec2 uv = world_xz * scale + vec2(float(layer) * 17.3, float(layer) * 9.7);
+        vec2 cell = floor(uv);
+        vec2 local = fract(uv);
+        vec2 rnd = hash22_weather(cell + float(layer) * 31.7);
+        float cycle = fract(time * 0.85 + rnd.x * 1.7 + rnd.y * 0.9);
+        vec2 drop_center = 0.2 + 0.6 * rnd;
+        vec2 delta = local - drop_center;
+        float dist = length(delta);
+        float ring_radius = cycle * 0.48;
+        float ring_delta = dist - ring_radius;
+        float envelope = exp(-ring_delta * ring_delta * 110.0) * (1.0 - cycle) * smoothstep(0.0, 0.08, cycle);
+        float wave = sin(ring_delta * 42.0) * envelope;
+        grad += (delta / max(dist, 0.005)) * wave;
+    }
+    return grad;
+}
+
+// Shared weather wetness & procedural puddle evaluation for both shading and SSR
+void compute_surface_wetness_and_puddle(
+    vec3 world_position,
+    float sea_height,
+    vec3 vertex_normal,
+    float sky_visibility,
+    uint shading_model,
+    float wetness,
+    float rain_intensity,
+    float time,
+    float linear_depth,
+    out float out_surface_wetness,
+    out float out_puddle_mask,
+    out vec2 out_ripple_grad
+)
+{
+    out_surface_wetness = 0.0;
+    out_puddle_mask = 0.0;
+    out_ripple_grad = vec2(0.0);
+
+    if (wetness <= 0.001)
+    {
+        return;
+    }
+
+    float above_sea = smoothstep(sea_height + 0.15, sea_height + 0.85, world_position.y);
+    float sky_exposed = smoothstep(0.10, 0.65, sky_visibility);
+    float up_slope = smoothstep(-0.15, 0.65, vertex_normal.y);
+    out_surface_wetness = wetness * above_sea * sky_exposed * mix(0.35, 1.0, up_slope);
+
+    // Puddles form only on flat upward-facing non-character, non-foliage surfaces
+    if (shading_model == ShadingModel_Default && out_surface_wetness > 0.12)
+    {
+        float flat_ground = smoothstep(0.86, 0.97, vertex_normal.y);
+        if (flat_ground > 0.001)
+        {
+            float n0 = value_noise_2d(world_position.xz * 0.16);
+            float n1 = value_noise_2d(world_position.xz * 0.47 + vec2(11.3, 5.7));
+            float puddle_noise = n0 * 0.68 + n1 * 0.32;
+            float threshold = mix(0.84, 0.46, out_surface_wetness);
+            out_puddle_mask = smoothstep(threshold, threshold + 0.14, puddle_noise) * flat_ground * smoothstep(0.15, 0.60, out_surface_wetness);
+
+            if (rain_intensity > 0.01 && out_puddle_mask > 0.05 && linear_depth < 38.0)
+            {
+                float dist_fade = smoothstep(38.0, 10.0, linear_depth);
+                out_ripple_grad = compute_rain_ripple_gradient(world_position.xz, time) * (rain_intensity * out_puddle_mask * dist_fade * 0.16);
+            }
+        }
+    }
+}
 #endif // _UTILITY_

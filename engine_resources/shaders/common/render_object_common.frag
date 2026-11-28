@@ -25,6 +25,14 @@ void main() {
     vec3 normal = normalize(in_vertex_output._tangent_to_world * tangent_normal);
     vec3 vertex_normal = normalize(in_vertex_output._tangent_to_world[2]);
 
+    // Geometric Specular Anti-Aliasing (Kaplanyan / Tokuyoshi): suppress distant normal & geometry specular fireflies
+    vec3 dndu = dFdx(normal);
+    vec3 dndv = dFdy(normal);
+    float normal_variance = 0.25 * (dot(dndu, dndu) + dot(dndv, dndv));
+    float kernel_roughness2 = min(2.0 * normal_variance, 0.18);
+    float base_roughness = clamp(material.x, 0.05, 1.0);
+    material.x = sqrt(clamp(base_roughness * base_roughness + kernel_roughness2, 0.0025, 1.0));
+
 #if (RenderMode_GBuffer == RenderMode)
     // xyz: albedo, w: encoded emissive_intensity
     outAlbedo.xyz = base_color.xyz;

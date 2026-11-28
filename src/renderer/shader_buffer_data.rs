@@ -66,6 +66,10 @@ pub struct SceneConstants {
     pub _wind_direction: Vector2<f32>,
     pub _wind_strength: f32,
     pub _wind_time: f32,
+    pub _wetness: f32,
+    pub _rain_intensity: f32,
+    pub _scene_reserved0: f32,
+    pub _scene_reserved1: f32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS

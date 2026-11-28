@@ -116,8 +116,66 @@ void main() {
         }
     }
     uint shading_model = decode_shading_model(normal.w);
-    vec4 scene_reflect_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0) ? texture(textureSceneReflect, vs_output.texCoord) : vec4(0.0);
-    vec4 scene_gi_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSGI) != 0) ? texture(textureSceneGI, vs_output.texCoord) : vec4(0.0);
+
+    // Depth- and normal-aware 5-tap joint bilateral spatial denoise/upsample for half-res SSR and SSGI
+    float center_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
+    float inv_bilateral_depth_sigma = 1.0 / max(0.06 * center_linear_depth, 0.08);
+    const vec2 bilateral_offsets[4] = vec2[4](
+        vec2(-1.0,  0.0),
+        vec2( 1.0,  0.0),
+        vec2( 0.0, -1.0),
+        vec2( 0.0,  1.0)
+    );
+
+    vec4 scene_reflect_color = vec4(0.0);
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0u)
+    {
+        vec4 ssr_center = textureLod(textureSceneReflect, vs_output.texCoord, 0.0);
+        vec2 inv_ssr_size = 1.0 / max(vec2(textureSize(textureSceneReflect, 0)), vec2(1.0));
+        vec4 ssr_sum = ssr_center * 2.0;
+        float ssr_weight = 2.0;
+        for (int i = 0; i < 4; ++i)
+        {
+            vec2 tap_uv = clamp(vs_output.texCoord + bilateral_offsets[i] * inv_ssr_size, vec2(0.0), vec2(1.0));
+            float tap_depth = textureLod(textureSceneDepth, tap_uv, 0.0).x;
+            if (tap_depth > 0.0)
+            {
+                float tap_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, tap_depth);
+                float dd = abs(tap_linear - center_linear_depth) * inv_bilateral_depth_sigma;
+                vec3 tap_N = normalize(textureLod(textureSceneNormal, tap_uv, 0.0).xyz * 2.0 - 1.0);
+                float nw = pow(saturate(dot(N, tap_N)), 12.0);
+                float w = exp(-dd * dd) * nw;
+                ssr_sum += textureLod(textureSceneReflect, tap_uv, 0.0) * w;
+                ssr_weight += w;
+            }
+        }
+        scene_reflect_color = max(ssr_sum / max(ssr_weight, 1e-5), vec4(0.0));
+    }
+
+    vec4 scene_gi_color = vec4(0.0);
+    if ((scene_constants.RENDER_OPTION & RenderOption_RenderSSGI) != 0u)
+    {
+        vec4 gi_center = textureLod(textureSceneGI, vs_output.texCoord, 0.0);
+        vec2 inv_gi_size = 1.0 / max(vec2(textureSize(textureSceneGI, 0)), vec2(1.0));
+        vec4 gi_sum = gi_center * 1.5;
+        float gi_weight = 1.5;
+        for (int i = 0; i < 4; ++i)
+        {
+            vec2 tap_uv = clamp(vs_output.texCoord + bilateral_offsets[i] * inv_gi_size * 1.5, vec2(0.0), vec2(1.0));
+            float tap_depth = textureLod(textureSceneDepth, tap_uv, 0.0).x;
+            if (tap_depth > 0.0)
+            {
+                float tap_linear = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, tap_depth);
+                float dd = abs(tap_linear - center_linear_depth) * inv_bilateral_depth_sigma;
+                vec3 tap_N = normalize(textureLod(textureSceneNormal, tap_uv, 0.0).xyz * 2.0 - 1.0);
+                float nw = pow(saturate(dot(N, tap_N)), 6.0);
+                float w = exp(-dd * dd) * nw;
+                gi_sum += textureLod(textureSceneGI, tap_uv, 0.0) * w;
+                gi_weight += w;
+            }
+        }
+        scene_gi_color = max(gi_sum / max(gi_weight, 1e-5), vec4(0.0));
+    }
     const bool IS_COMBINED_SHADOW = true;
 
     outColor = surface_shading(
