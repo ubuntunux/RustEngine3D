@@ -295,6 +295,7 @@ pub fn create_render_pass_data<'a>(
 ) -> RenderPassData<'a> {
     let device = renderer_context.get_device();
     let debug_utils_device = renderer_context.get_debug_utils();
+    let pipeline_cache = renderer_context.get_pipeline_cache();
     let render_pass = create_render_pass(device, debug_utils_device, &render_pass_data_create_info);
     let count = render_pass_data_create_info._pipeline_data_create_infos.len();
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
@@ -306,6 +307,7 @@ pub fn create_render_pass_data<'a>(
                 device,
                 debug_utils_device,
                 render_pass,
+                pipeline_cache,
                 &render_pass_data_create_info._pipeline_data_create_infos[i],
                 false == render_pass_data_create_info._depth_attachment_descriptions.is_empty(),
                 &descriptor_data_list[i].borrow(),
@@ -313,6 +315,7 @@ pub fn create_render_pass_data<'a>(
             vk::PipelineBindPoint::COMPUTE => create_compute_pipeline_data(
                 device,
                 debug_utils_device,
+                pipeline_cache,
                 &render_pass_data_create_info._pipeline_data_create_infos[i],
                 &descriptor_data_list[i].borrow(),
             ),
@@ -324,6 +327,7 @@ pub fn create_render_pass_data<'a>(
                 debug_utils_device,
                 renderer_context.get_ray_tracing(),
                 renderer_context.get_ray_tracing_properties(),
+                pipeline_cache,
                 &render_pass_data_create_info._pipeline_data_create_infos[i],
                 &descriptor_data_list[i].borrow(),
             ),
@@ -527,6 +531,7 @@ pub fn create_graphics_pipeline_data<'a>(
     device: &Device,
     debug_utils_device: &ext::debug_utils::Device,
     render_pass: vk::RenderPass,
+    pipeline_cache: vk::PipelineCache,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     has_depth_stencil_attachment: bool,
     descriptor_data: &DescriptorData<'a>,
@@ -667,7 +672,7 @@ pub fn create_graphics_pipeline_data<'a>(
 
     unsafe {
         let graphics_pipelines = device
-            .create_graphics_pipelines(vk::PipelineCache::null(), &graphics_pipeline_create_info, None)
+            .create_graphics_pipelines(pipeline_cache, &graphics_pipeline_create_info, None)
             .expect("vkCreateGraphicsPipelines failed!");
         assert_eq!(1, graphics_pipelines.len());
 
@@ -715,6 +720,7 @@ pub fn create_graphics_pipeline_data<'a>(
 pub fn create_compute_pipeline_data<'a>(
     device: &Device,
     debug_utils_device: &ext::debug_utils::Device,
+    pipeline_cache: vk::PipelineCache,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     descriptor_data: &DescriptorData<'a>,
 ) -> PipelineData<'a> {
@@ -744,7 +750,7 @@ pub fn create_compute_pipeline_data<'a>(
 
     unsafe {
         let pipelines = device
-            .create_compute_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None)
+            .create_compute_pipelines(pipeline_cache, &pipeline_create_info, None)
             .expect("vkCreateComputePipelines failed!");
         assert_eq!(1, pipelines.len());
 
@@ -791,6 +797,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
     debug_utils_device: &ext::debug_utils::Device,
     ray_tracing: &nv::ray_tracing::Device,
     ray_tracing_properties: &vk::PhysicalDeviceRayTracingPropertiesNV,
+    pipeline_cache: vk::PipelineCache,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     descriptor_data: &DescriptorData<'a>,
 ) -> PipelineData<'a> {
@@ -867,7 +874,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
 
     unsafe {
         let pipeline = ray_tracing
-            .create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None)
+            .create_ray_tracing_pipelines(pipeline_cache, &pipeline_create_info, None)
             .expect("create_ray_tracing_pipelines failed!")[0];
         debug_utils::set_object_debug_info(
             debug_utils_device,

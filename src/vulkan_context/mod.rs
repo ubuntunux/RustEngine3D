@@ -5,6 +5,7 @@ pub mod descriptor;
 pub mod device;
 pub mod framebuffer;
 pub mod geometry_buffer;
+pub mod pipeline_cache;
 pub mod queue;
 pub mod ray_tracing;
 pub mod render_pass;

@@ -36,6 +36,7 @@ use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::descriptor::{self, DescriptorResourceInfo};
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData};
+use crate::vulkan_context::pipeline_cache::{self, PipelineCacheData};
 use crate::vulkan_context::ray_tracing::RayTracingData;
 use crate::vulkan_context::render_pass::{PipelineData, RenderPassData, RenderPassDataCreateInfo};
 use crate::vulkan_context::swapchain::{self, SwapchainData};
@@ -129,6 +130,7 @@ pub struct RendererContext<'a> {
     pub _command_buffers: SwapchainArray<CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
+    pub _pipeline_cache_data: PipelineCacheData,
     pub _ray_tracing: Rc<nv::ray_tracing::Device>,
     pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV<'a>,
     pub _ray_tracing_test_data: RayTracingData<'a>,
@@ -328,6 +330,14 @@ impl<'a> RendererContext<'a> {
             let command_buffers =
                 command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
+            // pipeline cache
+            let pipeline_cache_data = pipeline_cache::create_pipeline_cache_data(
+                &device,
+                debug_utils_device.as_ref(),
+                app_name,
+                &device_properties,
+            );
+
             // renderer data
             let renderer_data = Box::new(RendererData::create_renderer_data());
 
@@ -364,6 +374,7 @@ impl<'a> RendererContext<'a> {
                 _command_buffers: command_buffers,
                 _render_features: render_features,
                 _image_samplers: ImageSamplerData::default(),
+                _pipeline_cache_data: pipeline_cache_data,
                 _ray_tracing: ray_tracing,
                 _ray_tracing_properties: ray_tracing_properties,
                 _ray_tracing_test_data: RayTracingData::create_ray_tracing_data(),
@@ -427,6 +438,12 @@ impl<'a> RendererContext<'a> {
     }
     pub fn get_device(&self) -> &Device {
         &self._device
+    }
+    pub fn get_pipeline_cache(&self) -> vk::PipelineCache {
+        self._pipeline_cache_data.get_pipeline_cache()
+    }
+    pub fn save_pipeline_cache(&mut self) {
+        pipeline_cache::save_pipeline_cache_data(&self._device, &mut self._pipeline_cache_data);
     }
 
     pub fn get_debug_utils(&self) -> &ext::debug_utils::Device {
@@ -597,6 +614,7 @@ impl<'a> RendererContext<'a> {
         command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
         command_buffer::destroy_command_pool(&self._device, self._command_pool);
         command_buffer::destroy_command_pool(&self._device, self._transfer_command_pool);
+        pipeline_cache::destroy_pipeline_cache_data(&self._device, &mut self._pipeline_cache_data);
         swapchain::destroy_swapchain_data(&self._device, &self._swapchain_device, &self._swapchain_data);
         device::destroy_device(&self._device);
         device::destroy_vk_surface(&self._surface_instance, self._surface);
@@ -1021,6 +1039,7 @@ impl<'a> RendererContext<'a> {
         self.recreate_swapchain(window_width, window_height);
         self.create_render_targets();
         get_engine_resources_mut().load_graphics_data_list(render_context_ref);
+        self.save_pipeline_cache();
         get_scene_manager_mut().update_render_object_data_resources();
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);

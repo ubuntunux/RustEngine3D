@@ -726,6 +726,7 @@ impl<'a> EngineCore<'a> {
             "[StartupTimer] EngineResources::load_engine_resources (total): {:.2}ms",
             step_timer.elapsed().as_secs_f64() * 1000.0
         );
+        engine_core._renderer_context.save_pipeline_cache();
 
         let step_timer = std::time::Instant::now();
         engine_core._debug_line_manager.initialize_debug_line_manager();
